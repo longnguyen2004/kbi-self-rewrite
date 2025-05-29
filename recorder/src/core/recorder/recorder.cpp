@@ -55,7 +55,7 @@ Recorder::Recorder(RecorderBackend backend)
             this->OnDevice()(id, m_devices.emplace(
                 std::piecewise_construct,
                 std::forward_as_tuple(id),
-                std::forward_as_tuple(vid, pid, _get_device_name(id))
+                std::forward_as_tuple(vid, pid, p_impl->GetDeviceName(id))
             ).first->second);
         }
         m_inputs[id].push_back(input);

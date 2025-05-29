@@ -36,6 +36,7 @@ if (WIN32)
 
     target_sources(recorder-lib
         PRIVATE
+            src/core/recorder/win/device_name.cpp
             src/core/recorder/win/recorder_win.cpp
             src/core/recorder/win/recorder_win_gameinput.cpp
     )

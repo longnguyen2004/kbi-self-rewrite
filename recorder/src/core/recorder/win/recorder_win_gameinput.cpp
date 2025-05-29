@@ -1,4 +1,5 @@
 #include "impl.h"
+#include "device_name.h"
 #include "vk_to_hid.h"
 #include <wil/win32_result_macros.h>
 #include <wil/com.h>
@@ -144,4 +145,9 @@ void recorder_win_gameinput::Start(bool keyboard, bool mouse, bool gamepad)
 void recorder_win_gameinput::Stop()
 {
     m_gameinput->UnregisterCallback(m_callback_token);
+}
+
+std::string recorder_win_gameinput::GetDeviceName(std::string_view pnp)
+{
+    return device_name_from_pnp(pnp);
 }
