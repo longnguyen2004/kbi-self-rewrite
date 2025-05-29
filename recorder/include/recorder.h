@@ -39,6 +39,7 @@ public:
     using InputSignal = boost::signals2::signal<void(const std::string&, Input)>;
 
     Recorder(RecorderBackend backend = RecorderBackend::AUTO);
+    ~Recorder();
 
     DeviceSignal& OnDevice()
     {

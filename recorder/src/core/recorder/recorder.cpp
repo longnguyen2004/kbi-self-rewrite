@@ -44,6 +44,8 @@ Recorder::Recorder(RecorderBackend backend)
     });
 }
 
+Recorder::~Recorder() = default;
+
 bool Recorder::Recording() const
 {
     return m_running;
