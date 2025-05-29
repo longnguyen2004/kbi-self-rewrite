@@ -9,6 +9,7 @@ public:
         boost::signals2::signal<void(const std::string&, std::uint16_t, std::uint16_t, Input)>;
 
     Impl() = default;
+    virtual ~Impl() = default;
     Impl(const Impl&) = delete;
     Impl& operator=(const Impl&) = delete;
 

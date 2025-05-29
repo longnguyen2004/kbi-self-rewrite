@@ -1,22 +1,23 @@
-#include <recorder.h>
+#include "../recorder_impl.h"
+#include <thread>
 #include <boost/unordered/concurrent_flat_map.hpp>
 #include <libevdev/libevdev.h>
+
+struct evdev_device
+{
+    libevdev* dev = nullptr;
+    bool remove = false;
+};
 
 class recorder_linux_libevdev: public Recorder::Impl
 {
 public:
-    bool Recording() const;
-    void Start(bool kseyboard, bool mouse, bool gamepad);
-    void Stop();
-    const Recorder::DeviceMap& Devices() const;
-    const Recorder::InputMap& Inputs() const;
+    recorder_linux_libevdev() = default;
+    virtual void Start(bool kseyboard, bool mouse, bool gamepad);
+    virtual void Stop();
 
 private:
-    bool m_running = false;
-    Recorder::DeviceMap m_devices;
-    Recorder::InputMap m_inputs;
-
-    using EvdevDeviceMap = concurrent_flat_map<std::string, evdev_device>;
+    using EvdevDeviceMap = boost::unordered::concurrent_flat_map<std::string, evdev_device>;
     EvdevDeviceMap m_evdev_devices;
     void _init_scan_devices();
     void _init_poll(bool keyboard, bool mouse, bool gamepad);

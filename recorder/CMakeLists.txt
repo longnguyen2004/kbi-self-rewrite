@@ -48,8 +48,12 @@ elseif(LINUX)
     target_link_libraries(recorder-lib PRIVATE ${LIBEVDEV_LINK_LIBRARIES})
     target_include_directories(recorder-lib PRIVATE ${LIBEVDEV_INCLUDE_DIRS})
 
+    find_package(Threads REQUIRED)
+    target_link_libraries(recorder-lib PRIVATE Threads::Threads)
+
     target_sources(recorder-lib PRIVATE
         src/core/recorder/linux/evdev_key_codes.h
+        src/core/recorder/linux/recorder_linux.cpp
         src/core/recorder/linux/recorder_linux_libevdev.cpp
     )
 else()

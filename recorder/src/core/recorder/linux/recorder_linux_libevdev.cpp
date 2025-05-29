@@ -19,12 +19,6 @@ using namespace boost::container;
 using namespace boost::unordered;
 using namespace std::literals;
 
-struct evdev_device
-{
-    libevdev* dev = nullptr;
-    bool remove = false;
-};
-
 bool is_keyboard(libevdev* device)
 {
     return libevdev_has_event_code(device, EV_KEY, BTN_A);
@@ -139,14 +133,16 @@ void recorder_linux_libevdev::_init_scan_devices()
 
 void recorder_linux_libevdev::_init_poll(bool keyboard, bool mouse, bool gamepad)
 {
-    m_poll_thread = std::jthread([=, this](const std::stop_token& Stop) {
+    m_poll_thread = std::jthread([=, this](const std::stop_token& stop) {
         timespec ref;
         clock_gettime(CLOCK_MONOTONIC, &ref);
         std::uint64_t ref_usec = ref.tv_sec * 1000000 + ref.tv_nsec / 1000;
         std::vector<libevdev*> devices;
+        std::vector<pollfd> pollfds;
         while (!stop.stop_requested())
         {
             devices.clear();
+            pollfds.clear();
             // I'm not sure if this is safe (modify elements inside erase_if). Let's see
             m_evdev_devices.erase_if([&](EvdevDeviceMap::value_type& val) {
                 auto& [path, dev] = val;
@@ -161,7 +157,7 @@ void recorder_linux_libevdev::_init_poll(bool keyboard, bool mouse, bool gamepad
                     dev.dev = evdev_open(path.data());
                     if (!dev.dev)
                         return true;
-                    // remove Devices that don't send keys
+                    // remove devices that don't send keys
                     if (!libevdev_has_event_type(dev.dev, EV_KEY))
                     {
                         evdev_close(dev.dev);
@@ -195,13 +191,31 @@ void recorder_linux_libevdev::_init_poll(bool keyboard, bool mouse, bool gamepad
                     libevdev_set_clock_id(dev.dev, CLOCK_MONOTONIC);
                 }
                 devices.push_back(dev.dev);
+                pollfds.emplace_back(libevdev_get_fd(dev.dev), POLLIN, 0);
                 return false;
             });
-            // poll all the Devices
-            for (auto device: devices)
+
+            // poll all the devices
+            int poll_res = poll(pollfds.data(), pollfds.size(), 1);
+            if (poll_res == 0)
+                continue;
+            if (poll_res < 0)
+                // an error happened, we might want to log this
+                continue;
+
+            // check which device has inputs
+            for (int i = 0; i < pollfds.size(); ++i)
             {
+                if (!(pollfds[i].revents | POLLIN))
+                    continue;
+                auto device = devices[i];
                 input_event ev;
                 int rc, flags = LIBEVDEV_READ_FLAG_NORMAL;
+                std::uint16_t vid = libevdev_get_id_vendor(device);
+                std::uint16_t pid = libevdev_get_id_product(device);
+                std::uint16_t ver = libevdev_get_id_version(device);
+                std::string name = libevdev_get_name(device);
+                std::string id = libevdev_get_phys(device);
                 while (true)
                 {
                     rc = libevdev_next_event(device, flags, &ev);
@@ -209,18 +223,11 @@ void recorder_linux_libevdev::_init_poll(bool keyboard, bool mouse, bool gamepad
                     {
                         if (ev.type != EV_KEY || ev.value == 2)
                             continue;
-                        std::uint16_t vid = libevdev_get_id_vendor(device);
-                        std::uint16_t pid = libevdev_get_id_product(device);
-                        std::uint16_t ver = libevdev_get_id_version(device);
-                        std::string name = libevdev_get_name(device);
-
-                        std::string id = std::format("{:04x}:{:04x}:{:04x}-{}", vid, pid, ver, name);
-                        m_devices.try_emplace(id, vid, pid, ""s);
-                        m_inputs[id].emplace_back(
-                            ev.input_event_sec * 1000000ULL + ev.input_event_usec - ref_usec,
-                            ev.value,
-                            ev.code
-                        );
+                        OnInput()(id, vid, pid, Input{
+                            .Timestamp = (ev.input_event_sec * 1000000ULL + ev.input_event_usec - ref_usec),
+                            .Pressed = static_cast<bool>(ev.value),
+                            .Code = static_cast<Keycode>(ev.code)
+                        });
                         continue;
                     }
                     else if (rc == LIBEVDEV_READ_STATUS_SYNC)
@@ -241,19 +248,12 @@ void recorder_linux_libevdev::_init_poll(bool keyboard, bool mouse, bool gamepad
 
 void recorder_linux_libevdev::Start(bool keyboard, bool mouse, bool gamepad)
 {
-    if (m_running)
-        throw std::runtime_error("The recorder is already running");
-    m_running = true;
-    m_devices.clear();
-    m_inputs.clear();
     _init_scan_devices();
     _init_poll(keyboard, mouse, gamepad);
 }
 
 void recorder_linux_libevdev::Stop()
 {
-    if (!m_running)
-        return;
     m_device_scan_thread.request_stop();
     m_poll_thread.request_stop();
     m_device_scan_thread.join();
@@ -263,20 +263,4 @@ void recorder_linux_libevdev::Stop()
             evdev_close(entry.second.dev);
     });
     m_evdev_devices.clear();
-    m_running = false;
-}
-
-bool recorder_linux_libevdev::Recording() const
-{
-    return m_running;
-}
-
-const recorder::DeviceMap& recorder_linux_libevdev::Devices() const
-{
-    return m_devices;
-}
-
-const recorder::InputMap& recorder_linux_libevdev::Inputs() const
-{
-    return m_inputs;
 }

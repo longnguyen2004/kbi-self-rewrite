@@ -6,6 +6,10 @@
 #include "win/impl.h"
 #endif
 
+#ifdef __linux__
+#include "linux/impl.h"
+#endif
+
 Recorder::Recorder(RecorderBackend backend)
 {
 #ifdef _WIN32
@@ -17,6 +21,22 @@ Recorder::Recorder(RecorderBackend backend)
         try {
             p_impl = std::make_unique<recorder_win_gameinput>();
             m_backend = RecorderBackend::WINDOWS_GAMEINPUT;
+        }
+        catch (const std::exception& e) {
+
+        }
+    }
+#endif
+
+#ifdef __linux__
+    if (
+        backend == RecorderBackend::AUTO ||
+        backend == RecorderBackend::LINUX_EVDEV
+    )
+    {
+        try {
+            p_impl = std::make_unique<recorder_linux_libevdev>();
+            m_backend = RecorderBackend::LINUX_EVDEV;
         }
         catch (const std::exception& e) {
 
