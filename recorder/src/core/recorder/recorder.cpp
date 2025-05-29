@@ -46,11 +46,14 @@ Recorder::Recorder(RecorderBackend backend)
 
 bool Recorder::Recording() const
 {
-    return p_impl->Recording();
+    return m_running;
 }
 
 void Recorder::Start(bool keyboard, bool mouse, bool gamepad)
 {
+    if (m_running)
+        return;
+    m_running = true;
     m_devices.clear();
     m_inputs.clear();
     p_impl->Start(keyboard, mouse, gamepad);
@@ -59,8 +62,11 @@ void Recorder::Start(bool keyboard, bool mouse, bool gamepad)
 
 void Recorder::Stop()
 {
+    if (!m_running)
+        return;
     p_impl->Stop();
     m_end_time = std::chrono::steady_clock::now();
+    m_running = false;
 }
 
 std::chrono::steady_clock::duration Recorder::Elapsed() const

@@ -12,7 +12,6 @@ class recorder_win_gameinput: public Recorder::Impl
 {
 public:
     recorder_win_gameinput();
-    virtual bool Recording() const;
     virtual void Start(bool keyboard, bool mouse, bool gamepad);
     virtual void Stop();
 
@@ -24,7 +23,5 @@ private:
     IGameInput *m_gameinput;
     std::uint64_t m_timestamp_ref;
     GameInputCallbackToken m_callback_token;
-
-    bool m_running = false;
     std::unordered_map<std::string, KeyStateArray> m_key_states;
 };

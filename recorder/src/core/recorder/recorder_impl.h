@@ -17,7 +17,6 @@ public:
         return m_sig_input;
     }
 
-    virtual bool Recording() const = 0;
     virtual void Start(bool keyboard = true, bool mouse = false, bool gamepad = false) = 0;
     virtual void Stop() = 0;
 

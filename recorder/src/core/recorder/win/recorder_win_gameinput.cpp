@@ -127,9 +127,6 @@ void _gameinput_reading_callback(
 
 void recorder_win_gameinput::Start(bool keyboard, bool mouse, bool gamepad)
 {
-    if (m_running)
-        throw std::runtime_error("The recorder is already running");
-    m_running = true;
     GameInputKind kind = GameInputKind::GameInputKindUnknown;
     if (keyboard)
         kind |= GameInputKind::GameInputKindKeyboard;
@@ -146,13 +143,5 @@ void recorder_win_gameinput::Start(bool keyboard, bool mouse, bool gamepad)
 
 void recorder_win_gameinput::Stop()
 {
-    if (!m_running)
-        return;
     m_gameinput->UnregisterCallback(m_callback_token);
-    m_running = false;
-}
-
-bool recorder_win_gameinput::Recording() const
-{
-    return m_running;
 }

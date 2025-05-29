@@ -61,6 +61,8 @@ public:
     size_t InputCount() const;
 
 private:
+    bool m_running = false;
+
     std::string _get_device_name(const std::string& id);
     std::unique_ptr<Impl> p_impl;
     RecorderBackend m_backend;
