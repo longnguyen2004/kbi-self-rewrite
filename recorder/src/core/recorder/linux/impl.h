@@ -12,7 +12,7 @@ struct evdev_device
 class recorder_linux_libevdev: public Recorder::Impl
 {
 public:
-    recorder_linux_libevdev() = default;
+    recorder_linux_libevdev();
     virtual void Start(bool kseyboard, bool mouse, bool gamepad);
     virtual void Stop();
 

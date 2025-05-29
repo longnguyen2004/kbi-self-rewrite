@@ -246,6 +246,12 @@ void recorder_linux_libevdev::_init_poll(bool keyboard, bool mouse, bool gamepad
     });
 }
 
+recorder_linux_libevdev::recorder_linux_libevdev()
+{
+    if (geteuid() != 0)
+        std::cout << "The program is not running as root. You might not be able to capture inputs";
+}
+
 void recorder_linux_libevdev::Start(bool keyboard, bool mouse, bool gamepad)
 {
     _init_scan_devices();
