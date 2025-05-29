@@ -5,6 +5,11 @@
 #include <fstream>
 #include <thread>
 #include <cmath>
+#include <cstdlib>
+
+#if defined(__linux__)
+#include <sys/fsuid.h>
+#endif
 
 using namespace std::literals;
 
@@ -47,8 +52,21 @@ int main(int argc, char const *argv[])
         }
     }
 
+#ifdef __linux__
+    if (const char* sudo_uid = std::getenv("SUDO_UID"))
+    {
+        setfsuid(std::atoi(sudo_uid));
+    }
+    else
+    {
+        setfsuid(getuid());
+    }
+#endif
     std::fstream fout("out.kbi", std::ios::out | std::ios::binary | std::ios::trunc);
     Exporter_MatKbi exporter(rec);
     exporter.Export(fout);
+#ifdef __linux__
+    setfsuid(geteuid());
+#endif
     return 0;
 }
