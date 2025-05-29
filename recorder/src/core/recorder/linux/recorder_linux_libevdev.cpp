@@ -158,6 +158,12 @@ void recorder_linux_libevdev::_init_poll(bool keyboard, bool mouse, bool gamepad
                     dev.dev = evdev_open(path.data());
                     if (!dev.dev)
                         return true;
+                    // ignore virtual devices
+                    if (!libevdev_get_phys(dev.dev))
+                    {
+                        evdev_close(dev.dev);
+                        return true;
+                    }
                     // remove devices that don't send keys
                     if (!libevdev_has_event_type(dev.dev, EV_KEY))
                     {
