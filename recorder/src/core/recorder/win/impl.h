@@ -14,6 +14,7 @@ public:
     recorder_win_gameinput();
     virtual void Start(bool keyboard, bool mouse, bool gamepad);
     virtual void Stop();
+    virtual std::string GetDeviceName(std::string_view id) const;
 
     void _update_key_states(
         const std::string& pnp, std::uint16_t vid, std::uint16_t pid,

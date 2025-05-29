@@ -15,6 +15,7 @@ public:
     recorder_linux_libevdev();
     virtual void Start(bool kseyboard, bool mouse, bool gamepad);
     virtual void Stop();
+    virtual std::string GetDeviceName(std::string_view id) const;
 
 private:
     using EvdevDeviceMap = boost::unordered::concurrent_flat_map<std::string, evdev_device>;

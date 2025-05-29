@@ -20,7 +20,7 @@ public:
 
     virtual void Start(bool keyboard = true, bool mouse = false, bool gamepad = false) = 0;
     virtual void Stop() = 0;
-    virtual std::string GetDeviceName(std::string_view id) = 0;
+    virtual std::string GetDeviceName(std::string_view id) const = 0;
 
 private:
     InputSignalWithVIDPID m_sig_input;

@@ -1,4 +1,5 @@
 #include "impl.h"
+#include "device_name.h"
 #include <boost/container/static_vector.hpp>
 #include <boost/iterator/transform_iterator.hpp>
 #include <format>
@@ -269,4 +270,9 @@ void recorder_linux_libevdev::Stop()
             evdev_close(entry.second.dev);
     });
     m_evdev_devices.clear();
+}
+
+std::string recorder_linux_libevdev::GetDeviceName(std::string_view phys) const
+{
+    return device_name_from_evdev_phys(phys);
 }

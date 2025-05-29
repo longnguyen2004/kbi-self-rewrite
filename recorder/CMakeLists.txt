@@ -37,7 +37,6 @@ if (WIN32)
     target_sources(recorder-lib
         PRIVATE
             src/core/recorder/win/device_name.cpp
-            src/core/recorder/win/recorder_win.cpp
             src/core/recorder/win/recorder_win_gameinput.cpp
     )
 elseif(LINUX)
@@ -54,7 +53,7 @@ elseif(LINUX)
 
     target_sources(recorder-lib PRIVATE
         src/core/recorder/linux/evdev_key_codes.h
-        src/core/recorder/linux/recorder_linux.cpp
+        src/core/recorder/linux/device_name.cpp
         src/core/recorder/linux/recorder_linux_libevdev.cpp
     )
 else()
