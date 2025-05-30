@@ -146,6 +146,6 @@ Keycode evdev_to_hid(std::uint16_t code)
     if (code < 256)
         return evdev_keyboard_to_hid[code];
     if (code >= BTN_LEFT && code <= BTN_TASK)
-        return evdev_mouse_to_hid[code];
+        return evdev_mouse_to_hid[code - BTN_LEFT];
     return Keycode::None;
 }
