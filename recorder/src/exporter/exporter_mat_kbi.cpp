@@ -142,6 +142,8 @@ void write_kbiinput(std::ostream& out, const KbiInput& input)
 
 void Exporter_MatKbi::Export(std::ostream& out)
 {
+    using DeviceMap = Recorder::DeviceMap;
+    using InputMap = Recorder::InputMap;
     // Write header
     out.write(KBI_HEADER.data(), KBI_HEADER.size());
 
@@ -173,23 +175,23 @@ void Exporter_MatKbi::Export(std::ostream& out)
     // Write elapsed time
     write_double(out, static_cast<duration<double>>(m_recorder.Elapsed()).count());
 
+    auto& devices = m_recorder.Devices();
+    auto& inputs = m_recorder.Inputs();
+
     // Build a map to map IDs to an arbitrary index
     // KBI uses indices to associate events with their corresponding devices
     std::unordered_map<std::string, std::int64_t> index_map;
-    auto& devices = m_recorder.Devices();
     std::int64_t i = 0;
-    for (auto& [id, _]: devices)
-    {
-        index_map[id] = i++;
-    }
+    devices.cvisit_all([&](const DeviceMap::value_type& device) {
+        index_map[device.first] = i++;
+    });
 
-    auto& inputs = m_recorder.Inputs();
     // Create events and input info lists
     std::list<KbiEvent> kbi_events;
     std::unordered_map<KbiInput, KbiInputInfo> kbi_input_info;
 
-    for (auto& [id, events]: inputs)
-    {
+    inputs.visit_all([&](const InputMap::value_type& device) {
+        auto& [id, events] = device;
         for (auto& event: events)
         {
             KbiInput input{std::string{keycode_to_string(event.Code)}, index_map[id]};
@@ -203,7 +205,7 @@ void Exporter_MatKbi::Export(std::ostream& out)
                 0xFFA9A9A9, true // Default color and visibility
             );
         }
-    }
+    });
     write_list(
         out, kbi_events.begin(), kbi_events.end(),
         [](std::ostream& out, const KbiEvent& event) {
@@ -214,11 +216,17 @@ void Exporter_MatKbi::Export(std::ostream& out)
     );
 
     // Write sources
+    std::list<DeviceMap::value_type> devices_list;
+    devices.cvisit_all([&](const DeviceMap::value_type& device) {
+        devices_list.push_back(device);
+    });
     write_list(
-        out, devices.begin(), devices.end(),
+        out, devices_list.begin(), devices_list.end(),
         [&](std::ostream& out, const std::pair<std::string, Device>& device) {
             write_int64(out, index_map[device.first]);
-            write_int32(out, inputs.at(device.first).size());
+            inputs.cvisit(device.first, [&](const InputMap::value_type& input) {
+                write_int32(out, input.second.size());
+            });
             write_string(out, device.second.Name);
             write_string(out, device.first);
         }

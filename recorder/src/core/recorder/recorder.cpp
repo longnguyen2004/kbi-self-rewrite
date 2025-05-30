@@ -50,17 +50,23 @@ Recorder::Recorder(RecorderBackend backend)
     p_impl->OnInput().connect([this](
         const std::string& id, std::uint16_t vid, std::uint16_t pid, Input input
     ) {
-        if (!m_devices.contains(id))
-        {
-            this->OnDevice()(id, m_devices.emplace(
-                std::piecewise_construct,
-                std::forward_as_tuple(id),
-                std::forward_as_tuple(vid, pid, p_impl->GetDeviceName(id))
-            ).first->second);
-        }
-        m_inputs[id].push_back(input);
-        this->OnInput()(id, input);
-        m_input_count++;
+        m_devices.try_emplace_and_cvisit(
+            id,            
+            vid, pid, p_impl->GetDeviceName(id),
+            [&, this](const DeviceMap::value_type& new_device) {
+                this->OnDevice()(id, new_device.second);
+            },
+            [](const DeviceMap::value_type& existing_device) {
+
+            }
+        );
+        auto process_input = [&, this](InputMap::value_type& input_arr) {
+            this->OnInput()(id, input);
+            input_arr.second.push_back(input);
+        };
+        m_inputs.try_emplace_and_visit(
+            id, 0, process_input, process_input
+        );
     });
 }
 
@@ -119,5 +125,9 @@ size_t Recorder::DeviceCount() const
 
 size_t Recorder::InputCount() const
 {
-    return m_input_count;
+    size_t count = 0;
+    m_inputs.visit_all([&](const InputMap::value_type& input) {
+        count += input.second.size();
+    });
+    return count;
 }

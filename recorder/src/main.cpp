@@ -37,12 +37,15 @@ int main(int argc, char const *argv[])
     stat_thread.join();
     auto& inputs = rec.Inputs();
     std::cout << "Recorded " << inputs.size() << " devices\n";
-    for (auto& [device_id, events]: inputs)
-    {
+    inputs.cvisit_all([&](const Recorder::InputMap::value_type& input_pair) {
+        auto& [device_id, events] = input_pair;
         if (events.size() == 0)
-            continue;
+            return;
         std::cout << "- Device " << device_id << '\n';
-        std::cout << "  - Name: " << rec.Devices().at(device_id).Name << '\n';
+        auto& device_map = rec.Devices();
+        device_map.cvisit(device_id, [&](const Recorder::DeviceMap::value_type& device_pair) {
+            std::cout << "  - Name: " << device_pair.second.Name << '\n';
+        });
         std::cout << "  - Recorded " << events.size() << " events\n";
         std::cout << "  - First 100 diffs:\n";
         for (std::size_t i = 1; i < std::min((std::size_t)101, events.size()); i++)
@@ -50,7 +53,7 @@ int main(int argc, char const *argv[])
             std::cout << "    - Diff " << i << ": "
                 << events[i].Timestamp - events[i - 1].Timestamp << "us\n";
         }
-    }
+    });
 
 #ifdef __linux__
     if (const char* sudo_uid = std::getenv("SUDO_UID"))

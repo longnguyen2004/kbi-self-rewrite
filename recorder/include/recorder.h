@@ -8,8 +8,8 @@
 #include <string>
 #include <string_view>
 #include <vector>
-#include <unordered_map>
 #include <utility>
+#include <boost/unordered/concurrent_flat_map.hpp>
 #include <boost/signals2.hpp>
 
 struct Device {
@@ -33,8 +33,8 @@ enum class RecorderBackend {
 class Recorder {
 public:
     class Impl;
-    using DeviceMap = std::unordered_map<std::string, Device>;
-    using InputMap = std::unordered_map<std::string, std::vector<Input>>;
+    using DeviceMap = boost::unordered::concurrent_flat_map<std::string, Device>;
+    using InputMap = boost::unordered::concurrent_flat_map<std::string, std::vector<Input>>;
     using DeviceSignal = boost::signals2::signal<void(const std::string&, Device)>;
     using InputSignal = boost::signals2::signal<void(const std::string&, Input)>;
 
@@ -68,7 +68,6 @@ private:
     RecorderBackend m_backend;
     DeviceMap m_devices;
     InputMap m_inputs;
-    std::atomic<size_t> m_input_count = 0;
     DeviceSignal m_sig_device;
     InputSignal m_sig_input;
 
