@@ -2,7 +2,7 @@
 #include <array>
 #include <linux/input-event-codes.h>
 
-constinit auto evdev_keyboard_to_hid = []() {
+constexpr auto evdev_keyboard_to_hid = []() {
     std::array<Keycode, 256> arr{Keycode::None};
 
     // Letters
@@ -128,7 +128,7 @@ constinit auto evdev_keyboard_to_hid = []() {
     return arr;
 }();
 
-constinit auto evdev_mouse_to_hid = []() {
+constexpr auto evdev_mouse_to_hid = []() {
     std::array<Keycode, BTN_TASK - BTN_LEFT + 1> arr{Keycode::None};
 
     // Mouse buttons
