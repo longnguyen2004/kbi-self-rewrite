@@ -1,6 +1,6 @@
 #include "impl.h"
 #include "device_name.h"
-#include "vk_to_hid.h"
+#include "vk_to_keycode.h"
 #include <wil/win32_result_macros.h>
 #include <wil/com.h>
 #include <windows.h>
@@ -75,7 +75,7 @@ void recorder_win_gameinput::_update_key_states(
         OnInput()(pnp, vid, pid, Input{
             .Timestamp = timestamp - m_timestamp_ref,
             .Pressed = true,
-            .Code = static_cast<Keycode>(vk_to_keycode[i.virtualKey])
+            .Code = static_cast<Keycode>(vk_to_keycode(i.virtualKey))
         });
     }
     for (auto& i : released)
@@ -83,7 +83,7 @@ void recorder_win_gameinput::_update_key_states(
         OnInput()(pnp, vid, pid, Input{
             .Timestamp = timestamp - m_timestamp_ref,
             .Pressed = false,
-            .Code = static_cast<Keycode>(vk_to_keycode[i.virtualKey])
+            .Code = static_cast<Keycode>(vk_to_keycode(i.virtualKey))
         });
     }
     state_prev = state;
@@ -147,7 +147,7 @@ void recorder_win_gameinput::Stop()
     m_gameinput->UnregisterCallback(m_callback_token);
 }
 
-std::string recorder_win_gameinput::GetDeviceName(std::string_view pnp)
+std::string recorder_win_gameinput::GetDeviceName(std::string_view pnp) const
 {
     return device_name_from_pnp(pnp);
 }

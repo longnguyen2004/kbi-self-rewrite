@@ -1,8 +1,8 @@
-#include "evdev_to_hid.h"
+#include "evdev_to_keycode.h"
 #include <array>
 #include <linux/input-event-codes.h>
 
-constexpr auto evdev_keyboard_to_hid = []() {
+constexpr auto evdev_keyboard_to_keycode = []() {
     std::array<Keycode, 256> arr{Keycode::None};
 
     // Letters
@@ -128,7 +128,7 @@ constexpr auto evdev_keyboard_to_hid = []() {
     return arr;
 }();
 
-constexpr auto evdev_mouse_to_hid = []() {
+constexpr auto evdev_mouse_to_keycode = []() {
     std::array<Keycode, BTN_TASK - BTN_LEFT + 1> arr{Keycode::None};
 
     // Mouse buttons
@@ -141,11 +141,11 @@ constexpr auto evdev_mouse_to_hid = []() {
     return arr;
 }();
 
-Keycode evdev_to_hid(std::uint16_t code)
+Keycode evdev_to_keycode(std::uint16_t code)
 {
     if (code < 256)
-        return evdev_keyboard_to_hid[code];
+        return evdev_keyboard_to_keycode[code];
     if (code >= BTN_LEFT && code <= BTN_TASK)
-        return evdev_mouse_to_hid[code - BTN_LEFT];
+        return evdev_mouse_to_keycode[code - BTN_LEFT];
     return Keycode::None;
 }

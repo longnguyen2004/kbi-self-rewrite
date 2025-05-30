@@ -3,4 +3,4 @@
 #include <keycode.h>
 #include <cstdint>
 
-Keycode evdev_to_hid(std::uint16_t code);
+Keycode evdev_to_keycode(std::uint16_t code);

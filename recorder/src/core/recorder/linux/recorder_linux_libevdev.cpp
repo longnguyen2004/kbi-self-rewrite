@@ -14,7 +14,7 @@
 #include <sys/inotify.h>
 #include <iostream>
 
-#include "evdev_to_hid.h"
+#include "evdev_to_keycode.h"
 
 using namespace boost::container;
 using namespace boost::unordered;
@@ -243,7 +243,7 @@ void recorder_linux_libevdev::_init_poll(bool keyboard, bool mouse, bool gamepad
                         OnInput()(syspath, vid, pid, Input{
                             .Timestamp = (ev.input_event_sec * 1000000ULL + ev.input_event_usec - ref_usec),
                             .Pressed = static_cast<bool>(ev.value),
-                            .Code = evdev_to_hid(ev.code)
+                            .Code = evdev_to_keycode(ev.code)
                         });
                         continue;
                     }

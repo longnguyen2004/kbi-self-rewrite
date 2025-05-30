@@ -34,10 +34,10 @@ if (WIN32)
     target_link_libraries(recorder-lib PRIVATE WIL::WIL)
     target_link_libraries(recorder-lib PRIVATE Hid SetupAPI cfgmgr32)
 
-    target_sources(recorder-lib
-        PRIVATE
-            src/core/recorder/win/device_name.cpp
-            src/core/recorder/win/recorder_win_gameinput.cpp
+    target_sources(recorder-lib PRIVATE
+        src/core/recorder/win/vk_to_keycode.cpp
+        src/core/recorder/win/device_name.cpp
+        src/core/recorder/win/recorder_win_gameinput.cpp
     )
 elseif(LINUX)
     find_package(PkgConfig)
@@ -50,7 +50,7 @@ elseif(LINUX)
     target_link_libraries(recorder-lib PRIVATE Threads::Threads)
 
     target_sources(recorder-lib PRIVATE
-        src/core/recorder/linux/evdev_to_hid.cpp
+        src/core/recorder/linux/evdev_to_keycode.cpp
         src/core/recorder/linux/device_name.cpp
         src/core/recorder/linux/recorder_linux_libevdev.cpp
     )

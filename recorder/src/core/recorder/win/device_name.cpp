@@ -5,6 +5,7 @@
 #include <hidsdi.h>
 #include <setupapi.h>
 #include <charconv>
+#include <vector>
 
 std::wstring string_to_wstring(std::string_view str)
 {
