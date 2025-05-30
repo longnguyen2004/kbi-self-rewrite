@@ -3,9 +3,10 @@
 #include <boost/unordered/concurrent_flat_map.hpp>
 #include <libevdev/libevdev.h>
 
-struct evdev_device
+struct internal_device
 {
-    libevdev* dev = nullptr;
+    libevdev* event_device = nullptr;
+    std::string syspath;
     bool remove = false;
 };
 
@@ -18,7 +19,7 @@ public:
     virtual std::string GetDeviceName(std::string_view id) const;
 
 private:
-    using EvdevDeviceMap = boost::unordered::concurrent_flat_map<std::string, evdev_device>;
+    using EvdevDeviceMap = boost::unordered::concurrent_flat_map<std::string, internal_device>;
     EvdevDeviceMap m_evdev_devices;
     void _init_scan_devices();
     void _init_poll(bool keyboard, bool mouse, bool gamepad);
