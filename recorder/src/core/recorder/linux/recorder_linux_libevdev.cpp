@@ -14,7 +14,7 @@
 #include <sys/inotify.h>
 #include <iostream>
 
-#include "evdev_key_codes.h"
+#include "evdev_to_hid.h"
 
 using namespace boost::container;
 using namespace boost::unordered;
@@ -193,13 +193,13 @@ void recorder_linux_libevdev::_init_poll(bool keyboard, bool mouse, bool gamepad
                     libevdev_disable_event_type(event_device, EV_FF_STATUS);
                     if (!keyboard)
                     {
-                        for (auto code: code_keyboard)
-                            libevdev_disable_event_code(event_device, EV_KEY, code);
+                        for (int i = 0; i < 256; ++i)
+                            libevdev_disable_event_code(event_device, EV_KEY, i);
                     }
                     if (!mouse)
                     {
-                        for (auto code: code_mouse)
-                            libevdev_disable_event_code(event_device, EV_KEY, code);
+                        for (int i = BTN_LEFT; i <= BTN_TASK; ++i)
+                            libevdev_disable_event_code(event_device, EV_KEY, i);
                     }
                     if (!gamepad)
                     {
@@ -243,7 +243,7 @@ void recorder_linux_libevdev::_init_poll(bool keyboard, bool mouse, bool gamepad
                         OnInput()(syspath, vid, pid, Input{
                             .Timestamp = (ev.input_event_sec * 1000000ULL + ev.input_event_usec - ref_usec),
                             .Pressed = static_cast<bool>(ev.value),
-                            .Code = static_cast<Keycode>(ev.code)
+                            .Code = evdev_to_hid(ev.code)
                         });
                         continue;
                     }
