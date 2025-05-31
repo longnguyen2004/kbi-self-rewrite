@@ -17,13 +17,18 @@ add_library(recorder-lib STATIC
 find_package(boost_container CONFIG REQUIRED)
 find_package(boost_endian CONFIG REQUIRED)
 find_package(boost_unordered CONFIG REQUIRED)
+find_package(boost_iostreams CONFIG REQUIRED)
 find_package(boost_iterator CONFIG REQUIRED)
 find_package(boost_signals2 CONFIG REQUIRED)
 find_package(date CONFIG REQUIRED)
 find_package(utf8cpp CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 target_link_libraries(recorder-lib
     PUBLIC Boost::signals2
-    PRIVATE Boost::container Boost::unordered Boost::iterator Boost::endian date::date
+    PRIVATE
+        Boost::container Boost::unordered Boost::iterator Boost::endian Boost::iostreams
+        date::date
+        nlohmann_json::nlohmann_json
 )
 
 if (WIN32)
@@ -62,6 +67,9 @@ target_include_directories(recorder-lib PUBLIC include)
 add_executable(recorder-app
     src/exporter/exporter.h
     src/exporter/exporter_mat_kbi.cpp
+    src/helper/helper_os.cpp
+    src/serializer/serializer.cpp
+    src/serializer/serializer_json.cpp
     src/portable_getch.c
     src/main.cpp
 )
