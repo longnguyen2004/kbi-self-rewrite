@@ -37,6 +37,8 @@ public:
     using InputMap = boost::unordered::concurrent_flat_map<std::string, std::vector<Input>>;
     using DeviceSignal = boost::signals2::signal<void(const std::string&, Device)>;
     using InputSignal = boost::signals2::signal<void(const std::string&, Input)>;
+    using StartSignal = boost::signals2::signal<void()>;
+    using StopSignal = boost::signals2::signal<void()>;
 
     Recorder(RecorderBackend backend = RecorderBackend::AUTO);
     ~Recorder();
@@ -48,6 +50,14 @@ public:
     InputSignal& OnInput()
     {
         return m_sig_input;
+    }
+    StartSignal& OnStart()
+    {
+        return m_sig_start;
+    }
+    StopSignal& OnStop()
+    {
+        return m_sig_stop;
     }
 
     bool Recording() const;
@@ -70,6 +80,8 @@ private:
     InputMap m_inputs;
     DeviceSignal m_sig_device;
     InputSignal m_sig_input;
+    StartSignal m_sig_start;
+    StopSignal m_sig_stop;
 
     std::chrono::steady_clock::time_point m_start_time, m_end_time;
 };
