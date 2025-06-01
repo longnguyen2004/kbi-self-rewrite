@@ -3,7 +3,6 @@
 #include <array>
 #include <boost/endian.hpp>
 #include <chrono>
-#include <date/date.h>
 #include <functional>
 #include <iterator>
 #include <list>
@@ -170,7 +169,7 @@ void Exporter_MatKbi::Export(std::ostream& out)
     write_string(out, "Testing testing");
 
     // Write recorded time
-    write_time(out, system_clock::now());
+    write_time(out, m_recorder.StartTime());
 
     // Write elapsed time
     write_double(out, static_cast<duration<double>>(m_recorder.Elapsed()).count());
