@@ -19,6 +19,7 @@ find_package(boost_endian CONFIG REQUIRED)
 find_package(boost_unordered CONFIG REQUIRED)
 find_package(boost_iostreams CONFIG REQUIRED)
 find_package(boost_iterator CONFIG REQUIRED)
+find_package(boost_json CONFIG REQUIRED)
 find_package(boost_signals2 CONFIG REQUIRED)
 find_package(date CONFIG REQUIRED)
 find_package(utf8cpp CONFIG REQUIRED)
@@ -26,9 +27,7 @@ find_package(nlohmann_json CONFIG REQUIRED)
 target_link_libraries(recorder-lib
     PUBLIC Boost::signals2
     PRIVATE
-        Boost::container Boost::unordered Boost::iterator Boost::endian Boost::iostreams
-        date::date
-        nlohmann_json::nlohmann_json
+        Boost::container Boost::unordered Boost::iterator
 )
 
 if (WIN32)
@@ -74,3 +73,4 @@ add_executable(recorder-app
     src/main.cpp
 )
 target_link_libraries(recorder-app PRIVATE recorder-lib)
+target_link_libraries(recorder-app PRIVATE Boost::endian Boost::iostreams Boost::json)

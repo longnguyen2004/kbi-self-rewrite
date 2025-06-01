@@ -5,6 +5,7 @@
   "dependencies": [
     "boost-container",
     "boost-endian",
+    "boost-iostreams",
     "boost-iterator",
     "boost-signals2",
     "boost-unordered",
@@ -27,6 +28,6 @@
       "name": "wil",
       "platform": "windows"
     },
-    "boost-iostreams"
+    "boost-json"
   ]
 }
