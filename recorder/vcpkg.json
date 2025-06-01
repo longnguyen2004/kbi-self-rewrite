@@ -9,7 +9,6 @@
     "boost-iterator",
     "boost-signals2",
     "boost-unordered",
-    "date",
     {
       "name": "gameinput",
       "platform": "windows"
@@ -22,8 +21,6 @@
       "name": "libsystemd",
       "platform": "linux"
     },
-    "nlohmann-json",
-    "utfcpp",
     {
       "name": "wil",
       "platform": "windows"

@@ -21,9 +21,6 @@ find_package(boost_iostreams CONFIG REQUIRED)
 find_package(boost_iterator CONFIG REQUIRED)
 find_package(boost_json CONFIG REQUIRED)
 find_package(boost_signals2 CONFIG REQUIRED)
-find_package(date CONFIG REQUIRED)
-find_package(utf8cpp CONFIG REQUIRED)
-find_package(nlohmann_json CONFIG REQUIRED)
 target_link_libraries(recorder-lib
     PUBLIC Boost::signals2
     PRIVATE
