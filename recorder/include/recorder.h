@@ -63,6 +63,8 @@ public:
     bool Recording() const;
     void Start(bool keyboard = true, bool mouse = false, bool gamepad = false);
     void Stop();
+
+    std::chrono::system_clock::time_point StartTime() const;
     std::chrono::steady_clock::duration Elapsed() const;
 
     RecorderBackend Backend() const;
@@ -83,5 +85,6 @@ private:
     StartSignal m_sig_start;
     StopSignal m_sig_stop;
 
+    std::chrono::system_clock::time_point m_start_wallclock;
     std::chrono::steady_clock::time_point m_start_time, m_end_time;
 };

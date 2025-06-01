@@ -86,6 +86,7 @@ void Recorder::Start(bool keyboard, bool mouse, bool gamepad)
     m_inputs.clear();
     p_impl->Start(keyboard, mouse, gamepad);
     m_start_time = std::chrono::steady_clock::now();
+    m_start_wallclock = std::chrono::system_clock::now();
     OnStart()();
 }
 
@@ -97,6 +98,11 @@ void Recorder::Stop()
     m_end_time = std::chrono::steady_clock::now();
     m_running = false;
     OnStop()();
+}
+
+std::chrono::system_clock::time_point Recorder::StartTime() const
+{
+    return m_start_wallclock;
 }
 
 std::chrono::steady_clock::duration Recorder::Elapsed() const
