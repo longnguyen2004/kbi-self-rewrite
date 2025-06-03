@@ -46,6 +46,7 @@ void tag_invoke(const value_from_tag &, value &j, const Recorder &recorder)
         {"info", {
             {"os_name", get_os_name()},
             {"os_ver", get_os_version()},
+            {"arch", get_arch()},
 #ifdef _WIN32
             {"safe_mode", is_safe_mode()},
 #endif
