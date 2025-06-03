@@ -1,4 +1,5 @@
 #include "helper_os.h"
+#include <format>
 #include <string>
 
 #ifdef _WIN32
@@ -38,7 +39,22 @@ const char* get_os_version()
     static std::string ver;
     if (ver.size())
         return ver.c_str();
-#if defined(__linux__)
+#if defined(_WIN32)
+    NTSTATUS(WINAPI *RtlGetVersion)(LPOSVERSIONINFOEXW);
+    OSVERSIONINFOEXW osInfo;
+
+    *(FARPROC*)&RtlGetVersion = GetProcAddress(GetModuleHandleA("ntdll"), "RtlGetVersion");
+    if (RtlGetVersion != nullptr)
+    {
+        osInfo.dwOSVersionInfoSize = sizeof(osInfo);
+        RtlGetVersion(&osInfo);
+        ver = std::format("{}.{}.{}", osInfo.dwMajorVersion, osInfo.dwMinorVersion, osInfo.dwBuildNumber);
+    }
+    else
+    {
+        ver = "Unknown";
+    }
+#elif defined(__linux__)
     utsname buffer;
     uname(&buffer);
     ver = buffer.release;
