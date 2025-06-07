@@ -61,12 +61,12 @@ endif()
 target_include_directories(recorder-lib PUBLIC include)
 
 add_executable(recorder-app
+    src/controller/controller_console.cpp
     src/exporter/exporter.h
     src/exporter/exporter_mat_kbi.cpp
     src/helper/helper_os.cpp
     src/serializer/serializer.cpp
     src/serializer/serializer_json.cpp
-    src/portable_getch.c
     src/main.cpp
 )
 target_link_libraries(recorder-app PRIVATE recorder-lib)
