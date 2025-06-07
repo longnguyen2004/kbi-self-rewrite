@@ -33,12 +33,13 @@ if (WIN32)
     
     target_link_libraries(recorder-lib PRIVATE Microsoft::GameInput)
     target_link_libraries(recorder-lib PRIVATE WIL::WIL)
-    target_link_libraries(recorder-lib PRIVATE Hid SetupAPI cfgmgr32)
+    target_link_libraries(recorder-lib PRIVATE Hid SetupAPI Ntdll)
 
     target_sources(recorder-lib PRIVATE
         src/core/recorder/win/vk_to_keycode.cpp
         src/core/recorder/win/device_name.cpp
         src/core/recorder/win/recorder_win_gameinput.cpp
+        src/core/recorder/win/recorder_win_rawinput.cpp
     )
 elseif(LINUX)
     find_package(PkgConfig)
@@ -71,3 +72,6 @@ add_executable(recorder-app
 )
 target_link_libraries(recorder-app PRIVATE recorder-lib)
 target_link_libraries(recorder-app PRIVATE Boost::endian Boost::iostreams Boost::json)
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_link_options(recorder-app PRIVATE -static-libgcc -static-libstdc++)
+endif()
