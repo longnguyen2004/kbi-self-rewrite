@@ -4,6 +4,7 @@
 #include <boost/container/static_vector.hpp>
 #include <thread>
 #include <atomic>
+#include <spdlog/fwd.h>
 
 using namespace GameInput::v1;
 using KeyStateArray = boost::container::static_vector<GameInputKeyState, 50>;
@@ -11,7 +12,7 @@ using KeyStateArray = boost::container::static_vector<GameInputKeyState, 50>;
 class recorder_win_gameinput: public Recorder::Impl
 {
 public:
-    recorder_win_gameinput();
+    recorder_win_gameinput(std::shared_ptr<spdlog::logger> logger);
     virtual void Start(bool keyboard, bool mouse, bool gamepad);
     virtual void Stop();
     virtual std::string GetDeviceName(std::string_view id) const;

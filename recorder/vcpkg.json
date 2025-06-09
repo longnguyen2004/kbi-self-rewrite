@@ -1,12 +1,13 @@
 {
   "name": "keyboard-inspector-recorder",
   "version": "1.0.0",
-  "builtin-baseline": "ae64e8e0196c3cb1bcfff09dbfb30383fb12b80d",
+  "builtin-baseline": "d31246c59095e8640a33b73d99c877da7459bbf1",
   "dependencies": [
     "boost-container",
     "boost-endian",
     "boost-iostreams",
     "boost-iterator",
+    "boost-json",
     "boost-signals2",
     "boost-unordered",
     {
@@ -21,10 +22,11 @@
       "name": "libsystemd",
       "platform": "linux"
     },
+    "spdlog",
     {
       "name": "wil",
       "platform": "windows"
     },
-    "boost-json"
+    "bext-di"
   ]
 }

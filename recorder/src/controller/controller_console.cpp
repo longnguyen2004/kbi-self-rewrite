@@ -55,7 +55,7 @@ int portable_getch()
     return -1;
 }
 
-ConsoleController::ConsoleController(Recorder& recorder): Controller(recorder)
+ConsoleController::ConsoleController(Recorder& recorder, spdlog::logger& logger): Controller(recorder, logger)
 {
 }
 

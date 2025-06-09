@@ -13,7 +13,7 @@ struct internal_device
 class recorder_linux_libevdev: public Recorder::Impl
 {
 public:
-    recorder_linux_libevdev();
+    recorder_linux_libevdev(std::shared_ptr<spdlog::logger> logger);
     virtual void Start(bool kseyboard, bool mouse, bool gamepad);
     virtual void Stop();
     virtual std::string GetDeviceName(std::string_view id) const;

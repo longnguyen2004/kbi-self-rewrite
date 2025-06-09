@@ -1,6 +1,7 @@
 #include "recorder_impl.h"
 #include <stdexcept>
 #include <iostream>
+#include <spdlog/spdlog.h>
 
 #ifdef _WIN32
 #include "win/impl.h"
@@ -10,7 +11,8 @@
 #include "linux/impl.h"
 #endif
 
-Recorder::Recorder(RecorderBackend backend)
+Recorder::Recorder(RecorderBackend backend, std::shared_ptr<spdlog::logger> logger):
+    m_logger(logger ? logger : spdlog::default_logger())
 {
 #ifdef _WIN32
     if (
@@ -19,11 +21,13 @@ Recorder::Recorder(RecorderBackend backend)
     )
     {
         try {
-            p_impl = std::make_unique<recorder_win_gameinput>();
+            m_logger->info("Trying to initialize GameInput backend");
+            p_impl = std::make_unique<recorder_win_gameinput>(logger);
             m_backend = RecorderBackend::WINDOWS_GAMEINPUT;
+            m_logger->info("Initialized GameInput backend");
         }
         catch (const std::exception& e) {
-
+            m_logger->info("Failed to initialize GameInput backend");
         }
     }
 #endif
@@ -35,17 +39,22 @@ Recorder::Recorder(RecorderBackend backend)
     )
     {
         try {
-            p_impl = std::make_unique<recorder_linux_libevdev>();
+            m_logger->info("Trying to initialize evdev backend");
+            p_impl = std::make_unique<recorder_linux_libevdev>(logger);
             m_backend = RecorderBackend::LINUX_EVDEV;
+            m_logger->info("Initialized evdev backend");
         }
         catch (const std::exception& e) {
-
+            m_logger->info("Failed to initialize evdev backend");
         }
     }
 #endif
 
     if (!p_impl)
+    {
+        m_logger->warn("Failed to initialize any backend");
         throw std::runtime_error("Failed to initialize any backend");
+    }
 
     p_impl->OnInput().connect([this](
         const std::string& id, std::uint16_t vid, std::uint16_t pid, Input input

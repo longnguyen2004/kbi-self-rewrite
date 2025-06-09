@@ -25,10 +25,11 @@ find_package(boost_iostreams CONFIG REQUIRED)
 find_package(boost_iterator CONFIG REQUIRED)
 find_package(boost_json CONFIG REQUIRED)
 find_package(boost_signals2 CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
+
 target_link_libraries(recorder-lib
-    PUBLIC Boost::signals2
-    PRIVATE
-        Boost::container Boost::unordered Boost::iterator
+    PUBLIC Boost::signals2 Boost::unordered spdlog::spdlog
+    PRIVATE Boost::container Boost::iterator
 )
 
 if (WIN32)
@@ -64,6 +65,7 @@ else()
 endif()
 target_include_directories(recorder-lib PUBLIC include)
 
+find_path(BEXT_DI_INCLUDE_DIRS "boost/di.hpp")
 add_executable(recorder-app
     src/controller/controller_console.cpp
     src/exporter/exporter.h
@@ -74,4 +76,5 @@ add_executable(recorder-app
     src/main.cpp
 )
 target_link_libraries(recorder-app PRIVATE recorder-lib)
-target_link_libraries(recorder-app PRIVATE Boost::endian Boost::iostreams Boost::json)
+target_link_libraries(recorder-app PRIVATE Boost::endian Boost::iostreams Boost::json spdlog::spdlog)
+target_include_directories(recorder-app PRIVATE ${BEXT_DI_INCLUDE_DIRS})

@@ -11,6 +11,7 @@
 #include <utility>
 #include <boost/unordered/concurrent_flat_map.hpp>
 #include <boost/signals2.hpp>
+#include <spdlog/fwd.h>
 
 struct Device {
     std::uint16_t VID;
@@ -40,7 +41,7 @@ public:
     using StartSignal = boost::signals2::signal<void()>;
     using StopSignal = boost::signals2::signal<void()>;
 
-    Recorder(RecorderBackend backend = RecorderBackend::AUTO);
+    Recorder(RecorderBackend backend = RecorderBackend::AUTO, std::shared_ptr<spdlog::logger> logger = nullptr);
     ~Recorder();
 
     DeviceSignal& OnDevice()
@@ -77,6 +78,7 @@ private:
     bool m_running = false;
 
     std::unique_ptr<Impl> p_impl;
+    std::shared_ptr<spdlog::logger> m_logger;
     RecorderBackend m_backend;
     DeviceMap m_devices;
     InputMap m_inputs;

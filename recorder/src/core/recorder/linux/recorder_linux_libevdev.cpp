@@ -2,12 +2,14 @@
 #include "device_name.h"
 #include <boost/container/static_vector.hpp>
 #include <boost/iterator/transform_iterator.hpp>
+#include <spdlog/spdlog.h>
+
 #include <format>
-#include <print>
 #include <thread>
 #include <string>
 #include <string_view>
 #include <utility>
+
 #include <fcntl.h>
 #include <glob.h>
 #include <poll.h>
@@ -170,6 +172,7 @@ void recorder_linux_libevdev::_init_poll(bool keyboard, bool mouse, bool gamepad
                 auto& [path, dev] = val;
                 if (dev.remove)
                 {
+                    m_logger->debug("Device {} removed", path);
                     evdev_close(dev.event_device);
                     return true;
                 }
@@ -178,7 +181,13 @@ void recorder_linux_libevdev::_init_poll(bool keyboard, bool mouse, bool gamepad
                 {
                     __attribute__((cleanup(evdev_close_p))) libevdev* event_device = evdev_open(path.data());
                     if (!event_device)
+                    {
+                        m_logger->warn(
+                            "Failed to open device {}. Are you running as root/in the 'input' user group?",
+                            path
+                        );
                         return true;
+                    }
 
                     // ignore virtual devices
                     if (!libevdev_get_phys(event_device))
@@ -216,6 +225,7 @@ void recorder_linux_libevdev::_init_poll(bool keyboard, bool mouse, bool gamepad
                     libevdev_set_clock_id(event_device, CLOCK_MONOTONIC);
                     dev.event_device = event_device;
                     event_device = nullptr;
+                    m_logger->debug("Opened device {}", path);
                 }
                 devices.push_back(&dev);
                 pollfds.emplace_back(libevdev_get_fd(dev.event_device), POLLIN, 0);
@@ -271,10 +281,11 @@ void recorder_linux_libevdev::_init_poll(bool keyboard, bool mouse, bool gamepad
     });
 }
 
-recorder_linux_libevdev::recorder_linux_libevdev()
+recorder_linux_libevdev::recorder_linux_libevdev(std::shared_ptr<spdlog::logger> logger):
+    Recorder::Impl(logger)
 {
     if (geteuid() != 0)
-        std::println("The program is not running as root. You might not be able to capture inputs");
+        m_logger->warn("The program is not running as root. You might not be able to capture inputs");
 }
 
 void recorder_linux_libevdev::Start(bool keyboard, bool mouse, bool gamepad)

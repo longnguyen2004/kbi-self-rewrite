@@ -1,6 +1,7 @@
 #include "impl.h"
 #include "device_name.h"
 #include "vk_to_keycode.h"
+#include <spdlog/spdlog.h>
 #include <wil/win32_result_macros.h>
 #include <wil/com.h>
 #include <windows.h>
@@ -89,7 +90,8 @@ void recorder_win_gameinput::_update_key_states(
     state_prev = state;
 }
 
-recorder_win_gameinput::recorder_win_gameinput()
+recorder_win_gameinput::recorder_win_gameinput(std::shared_ptr<spdlog::logger> logger):
+    Recorder::Impl(logger)
 {
     m_gameinput = gameinput_init();
 }
