@@ -11,6 +11,8 @@
 #include "linux/impl.h"
 #endif
 
+using namespace std::literals;
+
 Recorder::Recorder(RecorderBackend backend, std::shared_ptr<spdlog::logger> logger):
     m_logger(logger ? logger : spdlog::default_logger())
 {
@@ -59,10 +61,10 @@ Recorder::Recorder(RecorderBackend backend, std::shared_ptr<spdlog::logger> logg
     p_impl->OnInput().connect([this](
         const std::string& id, std::uint16_t vid, std::uint16_t pid, Input input
     ) {
-        m_devices.try_emplace_and_cvisit(
-            id,            
-            vid, pid, p_impl->GetDeviceName(id),
-            [&, this](const DeviceMap::value_type& new_device) {
+        m_devices.try_emplace_and_visit(
+            id, vid, pid, ""s,
+            [&, this](DeviceMap::value_type& new_device) {
+                new_device.second.Name = p_impl->GetDeviceName(id);
                 this->OnDevice()(id, new_device.second);
             },
             [](const DeviceMap::value_type& existing_device) {
