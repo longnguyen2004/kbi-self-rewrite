@@ -1,12 +1,16 @@
 cmake_minimum_required(VERSION 3.15)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
 project(recorder LANGUAGES C CXX)
 
 if (MSVC)
     add_compile_options(/Zc:__cplusplus)
+endif()
+
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    add_compile_definitions(-D_GLIBCXX_USE_TBB_PAR_BACKEND=0)
 endif()
 
 add_library(recorder-lib STATIC

@@ -3,7 +3,7 @@
 #include "../serializer/serializer.h"
 #include <recorder.h>
 #include <chrono>
-#include <iostream>
+#include <print>
 #include <fstream>
 #include <thread>
 #include <cmath>
@@ -63,16 +63,15 @@ void ConsoleController::Run()
 {
     auto& rec = m_recorder;
     rec.Start();
-    std::cout << "Keep spamming, press Esc to end...\n";
+    std::println("Keep spamming, press Esc to end...");
     std::thread stat_thread([&]()
     {
         while (rec.Recording())
         {
-            std::cout << '\r';
-            std::cout << "Devices: " << rec.DeviceCount() << ", Inputs: " << rec.InputCount();
+            std::print("\rDevices: {}, Inputs: {}", rec.DeviceCount(), rec.InputCount());
             std::this_thread::sleep_for(100ms);
         }
-        std::cout << '\n';
+        std::println();
     });
     while (portable_getch() != 27 /* ESC */)
     {
@@ -80,23 +79,20 @@ void ConsoleController::Run()
     rec.Stop();
     stat_thread.join();
     auto& inputs = rec.Inputs();
-    std::cout << "Recorded " << inputs.size() << " devices\n";
+    std::println("Recorded {} devices", inputs.size());
     inputs.cvisit_all([&](const Recorder::InputMap::value_type& input_pair) {
         auto& [device_id, events] = input_pair;
         if (events.size() == 0)
             return;
-        std::cout << "- Device " << device_id << '\n';
+        std::println("- Device {}", device_id);
         auto& device_map = rec.Devices();
         device_map.cvisit(device_id, [&](const Recorder::DeviceMap::value_type& device_pair) {
-            std::cout << "  - Name: " << device_pair.second.Name << '\n';
+            std::println("  - Name: {}", device_pair.second.Name);
         });
-        std::cout << "  - Recorded " << events.size() << " events\n";
-        std::cout << "  - First 100 diffs:\n";
+        std::println("  - Recorded {} events", events.size());
+        std::println("  - First 100 diffs:");
         for (std::size_t i = 1; i < std::min((std::size_t)101, events.size()); i++)
-        {
-            std::cout << "    - Diff " << i << ": "
-                << events[i].Timestamp - events[i - 1].Timestamp << "us\n";
-        }
+            std::println("    - Diff {}: {}us", i, events[i].Timestamp - events[i - 1].Timestamp);
     });
 
 #ifdef __linux__

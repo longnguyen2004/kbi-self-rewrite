@@ -3,6 +3,7 @@
 #include <boost/container/static_vector.hpp>
 #include <boost/iterator/transform_iterator.hpp>
 #include <format>
+#include <print>
 #include <thread>
 #include <string>
 #include <string_view>
@@ -12,13 +13,20 @@
 #include <poll.h>
 #include <unistd.h>
 #include <sys/inotify.h>
-#include <iostream>
-
 #include "evdev_to_keycode.h"
 
 using namespace boost::container;
 using namespace boost::unordered;
 using namespace std::literals;
+
+#ifndef input_event_sec
+#define input_event_sec time.tv_sec
+#endif
+
+#ifndef input_event_usec
+#define input_event_usec time.tv_usec
+#endif
+
 
 bool is_keyboard(libevdev* device)
 {
@@ -266,7 +274,7 @@ void recorder_linux_libevdev::_init_poll(bool keyboard, bool mouse, bool gamepad
 recorder_linux_libevdev::recorder_linux_libevdev()
 {
     if (geteuid() != 0)
-        std::cout << "The program is not running as root. You might not be able to capture inputs";
+        std::println("The program is not running as root. You might not be able to capture inputs");
 }
 
 void recorder_linux_libevdev::Start(bool keyboard, bool mouse, bool gamepad)
