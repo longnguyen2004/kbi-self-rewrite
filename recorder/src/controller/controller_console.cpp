@@ -1,5 +1,6 @@
 #include "controller.h"
 #include "../exporter/exporter.h"
+#include "../serializer/serializer.h"
 #include <recorder.h>
 #include <chrono>
 #include <iostream>
@@ -111,6 +112,10 @@ void ConsoleController::Run()
     std::fstream fout("out.kbi", std::ios::out | std::ios::binary | std::ios::trunc);
     Exporter_MatKbi exporter(rec);
     exporter.Export(fout);
+
+    std::fstream fout_json("out.json", std::ios::out | std::ios::binary | std::ios::trunc);
+    JsonTextSerializer ser;
+    ser.Serialize(rec, fout_json);
 #ifdef __linux__
     setfsuid(geteuid());
 #endif
