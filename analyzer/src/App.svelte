@@ -34,7 +34,7 @@
         <div class="row">
             <div class="flex flex-row gap-4">
                 <Label for="kbi-file" class="whitespace-nowrap">KBI file</Label>
-                <Input type="file" id="kbi-file" accept=".json,.kbi" onchange={async (e) => {
+                <Input type="file" id="kbi-file" accept=".json,.kbi" oninput={async (e) => {
                     const { files } = e.currentTarget;
                     if (!files?.[0])
                     {
