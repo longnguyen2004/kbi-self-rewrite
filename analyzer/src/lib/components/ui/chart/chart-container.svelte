@@ -39,9 +39,6 @@
 		// override the default stroke color of lines
 		"[&_.lc-line]:stroke-border/50",
 
-		// by default, layerchart shows a line intersecting the point when hovering, this hides that
-		"[&_.lc-highlight-line]:stroke-0",
-
 		// by default, when you hover a point on a stacked series chart, it will drop the opacity
 		// of the other series, this overrides that
 		"[&_.lc-area-path]:opacity-100 [&_.lc-highlight-line]:opacity-100 [&_.lc-highlight-point]:opacity-100 [&_.lc-spline-path]:opacity-100 [&_.lc-text-svg]:overflow-visible [&_.lc-text]:text-xs",
@@ -71,6 +68,9 @@
 		"[&_.lc-tooltip-rects-g]:fill-transparent",
 		"[&_.lc-layout-svg-g]:fill-transparent",
 		"[&_.lc-root-container]:w-full",
+
+		// Disable selection on axis
+		"[&_.lc-axis]:select-none",
 		className
 	)}
 	{...restProps}

@@ -6,12 +6,13 @@
 
 <script lang="ts">
     import { LineChart } from "layerchart";
+    import { chartProps } from "./ChartProps";
     import * as Chart from "$lib/components/ui/chart";
 
     let { data }: Props = $props();
 
     const chartConfig = {
-        mag: { label: "Magnitude", color: "#FFFFFF" },
+        mag: { label: "Magnitude", color: "rgb(240, 120, 0)" },
     } satisfies Chart.ChartConfig;
 </script>
 
@@ -28,9 +29,7 @@
                 ...chartConfig.mag,
             },
         ]}
-        props={{
-            tooltip: { context: { mode: "quadtree" }}
-        }}
+        props={chartProps}
     >
         {#snippet tooltip()}
             <Chart.Tooltip />

@@ -6,31 +6,35 @@
 
 <script lang="ts">
     import { LineChart } from "layerchart";
+    import { chartProps } from "./ChartProps";
     import * as Chart from "$lib/components/ui/chart";
 
     let { data }: Props = $props();
-    
+
     const chartConfig = {
-        count: { label: "Count", color: "#FFFFFF" },
+        count: { label: "Count", color: "rgb(65, 140, 240)" },
     } satisfies Chart.ChartConfig;
+
+    let chartData = $derived(
+        data.flat().map((val, i) => ({
+            time: i / (data.length - 1),
+            count: val
+        })),
+    );
 </script>
 
 <Chart.Container config={chartConfig}>
     <LineChart
-        data={data.flat().map((val, i) => ({
-            time: i / (data.length - 1),
-            count: val,
-        }))}
+        data={chartData}
         x="time"
         series={[
             {
                 key: "count",
-                ...chartConfig.count
-            }
+                ...chartConfig.count,
+            },
         ]}
-        props={{
-            tooltip: { context: { mode: "quadtree" }}
-        }}
+        props={chartProps}
+        brush
     >
         {#snippet tooltip()}
             <Chart.Tooltip />
