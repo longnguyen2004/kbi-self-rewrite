@@ -8,8 +8,8 @@
     import { Label } from "$lib/components/ui/label";
     import * as Select from "$lib/components/ui/select";
 
-    import DiffChart from "$lib/components/DiffChart.svelte";
-    import FreqChart from "$lib/components/FreqChart.svelte";
+    import DiffChart from "$lib/components/charts/DiffChart.svelte";
+    import FreqChart from "$lib/components/charts/FreqChart.svelte";
 
     import { Analyzer } from "$lib/analyzer/analyzer.svelte.js";
     import { parseKbiResult } from "$lib/parser/parser";
@@ -58,13 +58,16 @@
         <div class="row">
             <div>
                 <Label for="binning-rate">Binning rate</Label>
-                <Select.Root id="binning-rate" type="single" bind:value={analyzer.binRate}>
+                <Select.Root id="binning-rate" type="single" bind:value={
+                    () => analyzer.binRate.toString(),
+                    (v) => analyzer.binRate = parseInt(v)
+                }>
                     <Select.Trigger>
                         {analyzer.binRate}Hz
                     </Select.Trigger>
                     <Select.Content>
                         {#each [1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000] as binRate}
-                            <Select.Item value={binRate} label="{binRate}Hz" />
+                            <Select.Item value={binRate.toString()} label="{binRate}Hz" />
                         {/each}
                     </Select.Content>
                 </Select.Root>

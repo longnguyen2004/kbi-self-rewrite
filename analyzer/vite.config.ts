@@ -8,10 +8,14 @@ export default defineConfig({
     plugins: [tailwindcss(), svelte(), wasm()],
     worker: {
         plugins: () => [wasm()],
+        format: "es"
+    },
+    build: {
+        target: "es2022"
     },
     resolve: {
         alias: {
             $lib: path.resolve("./src/lib")
         }
-    }
+    },
 });

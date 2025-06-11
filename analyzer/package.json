@@ -18,7 +18,6 @@
     "@types/node": "^22.15.30",
     "bits-ui": "^2.5.0",
     "clsx": "^2.1.1",
-    "layerchart": "2.0.0-next.17",
     "svelte": "^5.28.1",
     "svelte-check": "^4.1.6",
     "tailwind-merge": "^3.3.0",
@@ -36,6 +35,8 @@
   },
   "dependencies": {
     "@lng2004/rustfft-shim": "^0.1.0",
+    "chart.js": "^4.4.9",
+    "chartjs-plugin-zoom": "^2.2.0",
     "js-sdsl": "^4.4.2",
     "mode-watcher": "^1.0.7",
     "valibot": "^1.1.0"
