@@ -27,15 +27,15 @@ class FftCalculator {
 }
 
 export class Analyzer {
-    private _binRate: number = $state(4000);
+    private _binRate: number = $state(128000);
     private _timestampRaw: number[] = [];
     private _timestampBinned = new OrderedMap<number, number>();
 
     private _consecutiveDiffCount: number[] = $state.raw([]);
     private _allDiffCount: number[] = $state.raw([]);
 
-    private _consecutiveDiffFreq?: number[] = $state.raw();
-    private _allDiffFreq?: number[] = $state.raw();
+    private _consecutiveDiffFreq: number[] = $state.raw([]);
+    private _allDiffFreq: number[] = $state.raw([]);
 
     private _calculating = false;
     private _calculationQueued = false;
@@ -43,14 +43,7 @@ export class Analyzer {
     private _allDiffFftCalculator = new FftCalculator();
 
     constructor() {
-        this._recreateArray();
-    }
-    private _recreateArray() {
-        this._timestampBinned.clear();
-        this._consecutiveDiffCount = Array(this._binRate + 1).fill(0);
-        this._allDiffCount = Array(this._binRate + 1).fill(0);
-        this._consecutiveDiffFreq = [];
-        this._allDiffFreq = [];
+        this.reset();
     }
     add(timestamps: number[]) {
         if (!timestamps.length)
@@ -79,9 +72,8 @@ export class Analyzer {
                 this._timestampBinned.setElement(binned, 1);
             }
         }
-        const end = performance.now();
-        this._consecutiveDiffCount = this._consecutiveDiffCount;
-        this._allDiffCount = this._allDiffCount;
+        this._consecutiveDiffCount = Array.from(this._consecutiveDiffCount);
+        this._allDiffCount = Array.from(this._allDiffCount);
         this._queueRecalcFourier();
     }
     private _queueRecalcFourier() {
@@ -111,7 +103,11 @@ export class Analyzer {
     }
     reset() {
         this._timestampRaw = [];
-        this._recreateArray();
+        this._timestampBinned.clear();
+        this._consecutiveDiffCount = new Array(this._binRate + 1).fill(0);
+        this._allDiffCount = new Array(this._binRate + 1).fill(0);
+        this._consecutiveDiffFreq = new Array(this._binRate / 2 + 1).fill(0);
+        this._allDiffFreq = new Array(this._binRate / 2 + 1).fill(0);
     }
     get binRate() {
         return this._binRate;
