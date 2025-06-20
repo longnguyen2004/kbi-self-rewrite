@@ -22,7 +22,7 @@
             {
                 label: "Count",
                 data: data.map((val, i) => ({
-                    x: i / (data.length - 1),
+                    x: i / (data.length - 1) * 1000,
                     y: val,
                 })),
                 xAxisID: "delta",
@@ -40,9 +40,30 @@
                     text: "Delta (ms)"
                 },
                 axis: "x",
-                type: "linear",
+                // @ts-expect-error
+                type: "quantizedTickLinear",
                 min: 0,
-                max: 1,
+                max: 1000,
+                ticks: {
+                    callback(tickValue, index, ticks) {
+                        if (typeof tickValue === "string")
+                            return tickValue;
+                        const fractionalPart = tickValue - Math.floor(tickValue);
+                        if (Math.floor(fractionalPart * 8) - fractionalPart * 8 !== 0)
+                            return '';
+                        return `${tickValue}ms`;
+                    },
+                    maxRotation: 45,
+                    minRotation: 45,
+                },
+                beforeBuildTicks(axis) {
+                    const { min, max } = axis;
+                    // @ts-expect-error
+                    axis.options.ticks.stepSize =
+                        max - min <= 3 ? 0.125 :
+                        max - min <= 5 ? 0.25  :
+                        max - min <= 10 ? 0.5  : 1;
+                },
             },
             count: {
                 axis: "y",
@@ -55,8 +76,15 @@
                 },
             },
         };
+        chart.options.plugins!.tooltip = {
+            callbacks: {
+                title(tooltipItems) {
+                    return tooltipItems.map(el => `${el.parsed.x * 1000}ms`);
+                },
+            }
+        }
         chart.update();
-        chart.zoomScale("delta", {min: 0, max: 0.05});
+        chart.zoomScale("delta", {min: 0, max: 5});
     });
 </script>
 
