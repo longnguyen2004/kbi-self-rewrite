@@ -37,13 +37,13 @@
                 <Input type="file" id="kbi-file" accept=".json,.kbi"
                     onchange={async (e) => {
                         const { files } = e.currentTarget;
+                        e.currentTarget.files = null;
                         if (!files?.[0])
                         {
                             data = undefined;
                             return;
                         }
                         data = await parseKbiResult(files[0]);
-                        e.currentTarget.files = null;
                     }}
                 />
             </div>
