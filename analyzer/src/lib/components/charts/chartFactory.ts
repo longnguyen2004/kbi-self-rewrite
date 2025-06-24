@@ -1,4 +1,5 @@
 import { Chart, LineController, LineElement, PointElement, LinearScale, Tooltip, scales, type Tick } from "chart.js";
+import { ThemeChanger } from "./themeChanger.svelte";
 import Zoom from "chartjs-plugin-zoom";
 
 class QuantizedTickLinearScale extends scales.LinearScale
@@ -22,6 +23,7 @@ class QuantizedTickLinearScale extends scales.LinearScale
 
 Chart.register(LineController, LineElement, PointElement, LinearScale, Tooltip, Zoom);
 Chart.register(QuantizedTickLinearScale);
+Chart.register(ThemeChanger);
 
 export function createChart(canvas: HTMLCanvasElement) {
     return new Chart(canvas, {
@@ -61,6 +63,9 @@ export function createChart(canvas: HTMLCanvasElement) {
                         },
                     },
                 },
+                themeChanger: {
+                    enabled: true
+                }
             },
             interaction: {
                 intersect: false,
