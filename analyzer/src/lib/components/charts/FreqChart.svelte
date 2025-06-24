@@ -1,20 +1,106 @@
 <script lang="ts" module>
+    import { ZoomSynchronizer } from "./synchronizeZoom.js";
     export type Props = {
         data: number[];
     };
+
+    const zoomSync = new ZoomSynchronizer();
 </script>
 
 <script lang="ts">
     import { createChart } from "./chartFactory.js";
     import { minmax } from "./yeOldeMinMax.js";
-    import type { Chart } from "chart.js";
+    import { onMount } from "svelte";
+    import type { Chart, LinearScale } from "chart.js";
 
     let ref: HTMLCanvasElement;
     let chart: Chart | undefined = $state.raw();
     let { data }: Props = $props();
 
-    $effect(() => {
-        chart = createChart(ref);
+    onMount(() => {
+        const newChart = createChart(ref);
+        newChart.options.scales = {
+            freq: {
+                axis: "x",
+                type: "quantizedTickLinear",
+                min: 0,
+                max: 1000,
+                title: {
+                    display: true,
+                    text: "Frequency (Hz)"
+                },
+                ticks: {
+                    callback(tickValue, index, ticks) {
+                        if (typeof tickValue === "string")
+                            return tickValue;
+                        const fractionalPart = tickValue - Math.floor(tickValue);
+                        if (fractionalPart !== 0)
+                            return '';
+                        return `${tickValue}Hz`;
+                    },
+                    maxRotation: 45,
+                    minRotation: 45,
+                },
+                beforeBuildTicks(axis: LinearScale) {
+                    const { min, max } = axis;
+                    function ceil2(x: number) {
+                        x--;
+                        x = x | (x >> 1);
+                        x = x | (x >> 2);
+                        x = x | (x >> 4);
+                        x = x | (x >> 8);
+                        x = x | (x >> 16);
+                        x++;
+                        return x;
+                    }
+                    axis.options.ticks.stepSize = Math.min(
+                        8000, 125 * ceil2(Math.floor((max - min) / 1000))
+                    );
+                },
+            },
+            mag: {
+                axis: "y",
+                type: "linear",
+                min: 0,
+                max: 1,
+                ticks: {
+                    display: false
+                }
+            },
+        };
+        newChart.options.plugins!.tooltip = {
+            callbacks: {
+                title(tooltipItems) {
+                    return tooltipItems.map(el => `${el.parsed.x}Hz`);
+                },
+            }
+        }
+        newChart.options.plugins!.zoom!.zoom!.onZoom = zoomSync.onZoom;
+        newChart.options.plugins!.zoom!.pan!.onPan = zoomSync.onPan;
+        const gridColors = {
+            light: "rgba(0, 0, 0, 0.1)",
+            dark: "rgba(255, 255, 255, 0.25)"
+        }
+        const colorOptions = {
+            grid: {
+                color: gridColors
+            },
+            border: {
+                color: gridColors
+            }
+        }
+        newChart.options.plugins!.themeChanger = {
+            scales: {
+                freq: colorOptions,
+                mag: colorOptions
+            }
+        }
+        zoomSync.add(newChart, { axis: ["x"] });
+        chart = newChart;
+        return () => {
+            newChart.destroy();
+            zoomSync.remove(newChart);
+        }
     });
     $effect(() => {
         if (!chart || !data) return;
@@ -32,34 +118,8 @@
                 borderWidth: 1,
             },
         ];
-        chart.options.scales = {
-            freq: {
-                axis: "x",
-                type: "linear",
-                min: 0,
-                max: data.length - 1,
-                title: {
-                    display: true,
-                    text: "Frequency (Hz)"
-                }
-            },
-            mag: {
-                axis: "y",
-                type: "linear",
-                min: 0,
-                max: minmax(data)[1],
-                ticks: {
-                    display: false
-                }
-            },
-        };
-        chart.options.plugins!.tooltip = {
-            callbacks: {
-                title(tooltipItems) {
-                    return tooltipItems.map(el => `${el.parsed.x}Hz`);
-                },
-            }
-        }
+        chart.options.scales!.freq!.max = data.length - 1,
+        chart.options.scales!.mag!.max = minmax(data)[1],
         chart.update();
     });
 </script>
