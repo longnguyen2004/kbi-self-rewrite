@@ -53,8 +53,14 @@
                         x++;
                         return x;
                     }
-                    axis.options.ticks.stepSize = Math.min(
-                        8000, 125 * ceil2(Math.floor((max - min) / 1000))
+                    function clamp(x: number, min: number, max: number)
+                    {
+                        return Math.min(max, Math.max(min, x));
+                    }
+                    axis.options.ticks.stepSize = clamp(
+                        125 * ceil2(Math.floor((max - min) / 1000)),
+                        125,
+                        8000
                     );
                 },
             },
