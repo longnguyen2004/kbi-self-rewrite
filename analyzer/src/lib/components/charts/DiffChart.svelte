@@ -49,7 +49,7 @@
                         max - min <= 5 ? 0.25  :
                         max - min <= 10 ? 0.5  : 1;
                 },
-            } as PartialDeep<LinearScaleOptions>,
+            },
             count: {
                 axis: "y",
                 type: "linear",
