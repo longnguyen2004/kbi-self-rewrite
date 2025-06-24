@@ -34,12 +34,14 @@ declare module 'chart.js' {
     }
 }
 
+const currentMode = $derived(mode.current);
+
 export const ThemeChanger = {
     id: "themeChanger" as const,
     start(chart, args, options) {
         stopWatcher.set(chart, $effect.root(() => {
             $effect.pre(() => {
-                mode.current;
+                currentMode;
                 chart.update();
             })
         }));
@@ -49,7 +51,7 @@ export const ThemeChanger = {
         stopWatcher.delete(chart);
     },
     beforeUpdate(chart, args, options: ThemeChangerOptions) {
-        const theme = mode.current === "dark" ? "dark" : "light";
+        const theme = currentMode === "dark" ? "dark" : "light";
         if (options.backgroundColor)
             chart.options.backgroundColor = options.backgroundColor[theme];
         if (options.borderColor)
