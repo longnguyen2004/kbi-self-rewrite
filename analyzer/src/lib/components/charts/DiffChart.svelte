@@ -71,7 +71,7 @@
         newChart.options.plugins!.zoom!.pan!.onPan = zoomSync.onPan;
         const gridColors = {
             light: "rgba(0, 0, 0, 0.1)",
-            dark: "rgba(255, 255, 255, 0.5)"
+            dark: "rgba(255, 255, 255, 0.25)"
         }
         const colorOptions = {
             grid: {
