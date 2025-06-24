@@ -1,9 +1,9 @@
-import { Chart, LineController, LineElement, PointElement, LinearScale, Tooltip } from "chart.js";
+import { Chart, LineController, LineElement, PointElement, LinearScale, Tooltip, Decimation } from "chart.js";
 import { QuantizedTickLinearScale } from "./quantizedTickLinearScale";
 import { ThemeChanger } from "./themeChanger.svelte";
 import Zoom from "chartjs-plugin-zoom";
 
-Chart.register(LineController, LineElement, PointElement, LinearScale, Tooltip, Zoom);
+Chart.register(LineController, LineElement, PointElement, LinearScale, Tooltip, Decimation, Zoom);
 Chart.register(QuantizedTickLinearScale);
 Chart.register(ThemeChanger);
 
