@@ -10,7 +10,7 @@
 <script lang="ts">
     import { createChart } from "./chartFactory.js";
     import { minmax } from "./yeOldeMinMax.js";
-    import { onMount } from "svelte";
+    import { onMount, untrack } from "svelte";
     import type { Chart, LinearScale } from "chart.js";
 
     let ref: HTMLCanvasElement;
@@ -110,23 +110,26 @@
     });
     $effect(() => {
         if (!chart || !data) return;
-        chart.data.datasets = [
-            {
-                label: "Magnitude",
-                data: data.map((val, i) => ({
-                    x: i, y: val,
-                })),
-                xAxisID: "freq",
-                yAxisID: "mag",
-                parsing: false,
-                normalized: true,
-                borderColor: "rgb(240, 120, 0)",
-                borderWidth: 1,
-            },
-        ];
-        chart.options.scales!.freq!.max = data.length - 1,
-        chart.options.scales!.mag!.max = minmax(data)[1],
-        chart.update();
+        const nonNullChart = chart;
+        untrack(() => {
+            nonNullChart.data.datasets = [
+                {
+                    label: "Magnitude",
+                    data: data.map((val, i) => ({
+                        x: i, y: val,
+                    })),
+                    xAxisID: "freq",
+                    yAxisID: "mag",
+                    parsing: false,
+                    normalized: true,
+                    borderColor: "rgb(240, 120, 0)",
+                    borderWidth: 1,
+                },
+            ];
+            nonNullChart.options.scales!.freq!.max = data.length - 1,
+            nonNullChart.options.scales!.mag!.max = minmax(data)[1],
+            nonNullChart.update();
+        })
     });
 </script>
 

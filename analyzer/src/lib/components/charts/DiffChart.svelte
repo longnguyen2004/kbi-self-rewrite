@@ -10,7 +10,7 @@
 <script lang="ts">
     import { createChart } from "./chartFactory.js";
     import { minmax } from "./yeOldeMinMax.js";
-    import { onMount } from "svelte";
+    import { onMount, untrack } from "svelte";
     import type { Chart, LinearScaleOptions, LinearScale } from "chart.js";
     import type { PartialDeep } from "type-fest";
 
@@ -96,24 +96,27 @@
     });
     $effect(() => {
         if (!chart || !data) return;
-        chart.data.datasets = [
-            {
-                label: "Count",
-                data: data.map((val, i) => ({
-                    x: i / (data.length - 1) * 1000,
-                    y: val,
-                })),
-                xAxisID: "delta",
-                yAxisID: "count",
-                parsing: false,
-                normalized: true,
-                borderColor: "rgb(65, 140, 240)",
-                borderWidth: 1,
-            },
-        ];
-        chart.options.scales!.count!.max = minmax(data)[1];
-        chart.update();
-        chart.zoomScale("delta", {min: 0, max: 5});
+        const nonNullChart = chart;
+        untrack(() => {
+            nonNullChart.data.datasets = [
+                {
+                    label: "Count",
+                    data: data.map((val, i) => ({
+                        x: i / (data.length - 1) * 1000,
+                        y: val,
+                    })),
+                    xAxisID: "delta",
+                    yAxisID: "count",
+                    parsing: false,
+                    normalized: true,
+                    borderColor: "rgb(65, 140, 240)",
+                    borderWidth: 1,
+                },
+            ];
+            nonNullChart.options.scales!.count!.max = minmax(data)[1];
+            nonNullChart.update();
+            nonNullChart.zoomScale("delta", {min: 0, max: 5});
+        });
     });
 </script>
 
