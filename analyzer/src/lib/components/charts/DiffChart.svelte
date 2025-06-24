@@ -1,7 +1,10 @@
 <script lang="ts" module>
+    import { ZoomSynchronizer } from "./synchronizeZoom.js";
     export type Props = {
         data: number[];
     };
+
+    const zoomSync = new ZoomSynchronizer();
 </script>
 
 <script lang="ts">
@@ -16,8 +19,8 @@
     let { data }: Props = $props();
 
     onMount(() => {
-        chart = createChart(ref);
-        chart.options.scales = {
+        const newChart = createChart(ref);
+        newChart.options.scales = {
             delta: {
                 title: {
                     display: true,
@@ -57,13 +60,15 @@
                 },
             },
         };
-        chart.options.plugins!.tooltip = {
+        newChart.options.plugins!.tooltip = {
             callbacks: {
                 title(tooltipItems) {
                     return tooltipItems.map(el => `${el.parsed.x * 1000}ms`);
                 },
             }
         };
+        newChart.options.plugins!.zoom!.zoom!.onZoom = zoomSync.onZoom;
+        newChart.options.plugins!.zoom!.pan!.onPan = zoomSync.onPan;
         const gridColors = {
             light: "rgba(0, 0, 0, 0.1)",
             dark: "rgba(255, 255, 255, 0.5)"
@@ -76,14 +81,17 @@
                 color: gridColors
             }
         }
-        chart.options.plugins!.themeChanger = {
+        newChart.options.plugins!.themeChanger = {
             scales: {
                 delta: colorOptions,
                 count: colorOptions
             }
         }
+        zoomSync.add(newChart, { axis: ["x"] });
+        chart = newChart;
         return () => {
-            chart?.destroy();
+            newChart.destroy();
+            zoomSync.remove(newChart);
         }
     });
     $effect(() => {
