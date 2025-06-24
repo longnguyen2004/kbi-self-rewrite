@@ -2,7 +2,7 @@ import type { Chart, ChartType, Plugin, Color, GridLineOptions, TickOptions, Bor
 import type { PartialDeep } from "type-fest";
 import { mode } from "mode-watcher";
 
-const stopWatcher = new Map<Chart, () => void>();
+const stopWatcher = new WeakMap<Chart, () => void>();
 
 type LightDarkColor<T> = Partial<Record<'light' | 'dark', T>>;
 type ThemeChangerOptions = PartialDeep<{
