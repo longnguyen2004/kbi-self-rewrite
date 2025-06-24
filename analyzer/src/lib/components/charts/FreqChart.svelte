@@ -129,6 +129,7 @@
             nonNullChart.options.scales!.freq!.max = data.length - 1,
             nonNullChart.options.scales!.mag!.max = minmax(data)[1],
             nonNullChart.update();
+            nonNullChart.zoomScale("freq", {min: 0, max: data.length - 1});
         })
     });
 </script>
