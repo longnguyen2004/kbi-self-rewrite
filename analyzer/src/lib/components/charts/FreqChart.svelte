@@ -53,6 +53,13 @@
                 }
             },
         };
+        chart.options.plugins!.tooltip = {
+            callbacks: {
+                title(tooltipItems) {
+                    return tooltipItems.map(el => `${el.parsed.x}Hz`);
+                },
+            }
+        }
         chart.update();
     });
 </script>
