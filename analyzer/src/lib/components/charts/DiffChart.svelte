@@ -7,7 +7,8 @@
 <script lang="ts">
     import { createChart } from "./chartFactory.js";
     import { minmax } from "./yeOldeMinMax.js";
-    import type { Chart } from "chart.js";
+    import type { Chart, LinearScaleOptions, LinearScale } from "chart.js";
+    import type { PartialDeep } from "type-fest";
 
     let ref: HTMLCanvasElement;
     let chart: Chart | undefined = $state.raw();
@@ -40,7 +41,6 @@
                     text: "Delta (ms)"
                 },
                 axis: "x",
-                // @ts-expect-error
                 type: "quantizedTickLinear",
                 min: 0,
                 max: 1000,
@@ -56,15 +56,14 @@
                     maxRotation: 45,
                     minRotation: 45,
                 },
-                beforeBuildTicks(axis) {
+                beforeBuildTicks(axis: LinearScale) {
                     const { min, max } = axis;
-                    // @ts-expect-error
                     axis.options.ticks.stepSize =
                         max - min <= 3 ? 0.125 :
                         max - min <= 5 ? 0.25  :
                         max - min <= 10 ? 0.5  : 1;
                 },
-            },
+            } as PartialDeep<LinearScaleOptions>,
             count: {
                 axis: "y",
                 type: "linear",
