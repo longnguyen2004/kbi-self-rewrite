@@ -7,7 +7,7 @@
 #include <chrono>
 #include <string>
 #include <string_view>
-#include <vector>
+#include <deque>
 #include <utility>
 #include <boost/unordered/concurrent_flat_map.hpp>
 #include <boost/signals2.hpp>
@@ -28,6 +28,7 @@ struct Input {
 enum class RecorderBackend {
     AUTO,
     WINDOWS_GAMEINPUT,
+    WINDOWS_RAWINPUT,
     LINUX_EVDEV
 };
 
@@ -35,7 +36,7 @@ class Recorder {
 public:
     class Impl;
     using DeviceMap = boost::unordered::concurrent_flat_map<std::string, Device>;
-    using InputMap = boost::unordered::concurrent_flat_map<std::string, std::vector<Input>>;
+    using InputMap = boost::unordered::concurrent_flat_map<std::string, std::deque<Input>>;
     using DeviceSignal = boost::signals2::signal<void(const std::string&, Device)>;
     using InputSignal = boost::signals2::signal<void(const std::string&, Input)>;
     using StartSignal = boost::signals2::signal<void()>;
