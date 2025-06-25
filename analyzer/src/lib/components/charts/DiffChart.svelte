@@ -63,7 +63,7 @@
         newChart.options.plugins!.tooltip = {
             callbacks: {
                 title(tooltipItems) {
-                    return tooltipItems.map(el => `${el.parsed.x * 1000}ms`);
+                    return tooltipItems.map(el => `${el.parsed.x}ms`);
                 },
             }
         };
