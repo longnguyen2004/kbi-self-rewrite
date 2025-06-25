@@ -4,6 +4,7 @@
     import { SunIcon, MoonIcon } from "@lucide/svelte";
 
     import { Button } from "$lib/components/ui/button";
+    import { Checkbox } from "$lib/components/ui/checkbox";
     import { Input } from "$lib/components/ui/input";
     import { Label } from "$lib/components/ui/label";
     import * as Select from "$lib/components/ui/select";
@@ -13,10 +14,15 @@
 
     import { Analyzer } from "$lib/analyzer/analyzer.svelte.js";
     import { parseKbiResult } from "$lib/parser/parser";
+    import { postprocess } from "$lib/analyzer/postprocess";
     import type { Result } from "$lib/validator/validator";
+    import type { PostprocessOptions } from "$lib/analyzer/postprocess";
 
     let analyzer = new Analyzer();
     let data: Result | undefined = $state.raw();
+    let postprocessOpts: PostprocessOptions = $state({
+        lowCut: true
+    });
 
     $effect(() => {
         untrack(() => analyzer.reset());
@@ -59,7 +65,7 @@
             </Button>
         </div>
         <div class="row">
-            <div>
+            <div class="flex flex-col gap-2">
                 <Label for="binning-rate">Binning rate</Label>
                 <Select.Root id="binning-rate" type="single" bind:value={
                     () => analyzer.binRate.toString(),
@@ -75,6 +81,10 @@
                     </Select.Content>
                 </Select.Root>
             </div>
+            <div class="flex flex-row gap-2">
+                <Label for="low-cut">Low Cut Filter</Label>
+                <Checkbox id="low-cut" bind:checked={postprocessOpts.lowCut} />
+            </div>
         </div>
     </div>
     <div class="diff-chart flex-1 flex flex-row gap-15">
@@ -82,18 +92,21 @@
         <DiffChart data={analyzer.allDiff} />
     </div>
     <div class="freq-chart flex-1 flex flex-row gap-15">
-        <FreqChart data={analyzer.consecutiveDiffFreq} />
-        <FreqChart data={analyzer.allDiffFreq} />
+        <FreqChart data={postprocess(analyzer.consecutiveDiffFreq, postprocessOpts)} />
+        <FreqChart data={postprocess(analyzer.allDiffFreq, postprocessOpts)} />
     </div>
 </main>
 <style>
     .controls {
         display: flex;
         flex-direction: column;
+        gap: 1rem;
 
         .row {
             display: flex;
             flex-direction: row;
+            align-items: flex-start;
+            gap: 1rem;
         }
     }
 </style>
