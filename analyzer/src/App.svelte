@@ -67,11 +67,11 @@
         <div class="row">
             <div class="flex flex-col gap-2">
                 <Label for="binning-rate">Binning rate</Label>
-                <Select.Root id="binning-rate" type="single" bind:value={
+                <Select.Root type="single" bind:value={
                     () => analyzer.binRate.toString(),
                     (v) => analyzer.binRate = parseInt(v)
                 }>
-                    <Select.Trigger>
+                    <Select.Trigger id="binning-rate">
                         {analyzer.binRate}Hz
                     </Select.Trigger>
                     <Select.Content>
