@@ -139,6 +139,28 @@ void recorder_win_gameinput::Start(bool keyboard, bool mouse, bool gamepad)
         kind |= GameInputKind::GameInputKindGamepad;
     m_timestamp_ref = m_gameinput->GetCurrentTimestamp();
     m_key_states.clear();
+    m_dispatcher_thread = std::jthread([&](const std::stop_token& stop) {
+        IGameInputDispatcher *dispatcher;
+        if (FAILED(m_gameinput->CreateDispatcher(&dispatcher)))
+            return;
+        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
+        SetThreadAffinityMask(GetCurrentThread(), 1);
+        HANDLE waitHandle = nullptr;
+        dispatcher->OpenWaitHandle(&waitHandle);
+        while (!stop.stop_requested())
+        {
+            if (waitHandle)
+            {
+                auto res = WaitForSingleObject(waitHandle, 100);
+                if (res != 0)
+                    continue;
+            }
+            dispatcher->Dispatch(1000);
+        }
+        if (waitHandle)
+            CloseHandle(waitHandle);
+        dispatcher->Release();
+    });
     m_gameinput->RegisterReadingCallback(
         nullptr, kind, this, _gameinput_reading_callback, &m_callback_token
     );
@@ -147,6 +169,9 @@ void recorder_win_gameinput::Start(bool keyboard, bool mouse, bool gamepad)
 void recorder_win_gameinput::Stop()
 {
     m_gameinput->UnregisterCallback(m_callback_token);
+    m_dispatcher_thread.request_stop();
+    if (m_dispatcher_thread.joinable())
+        m_dispatcher_thread.join();
 }
 
 std::string recorder_win_gameinput::GetDeviceName(std::string_view pnp) const
