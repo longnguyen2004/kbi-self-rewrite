@@ -44,6 +44,8 @@ if (WIN32)
         src/core/recorder/win/vk_to_keycode.cpp
         src/core/recorder/win/device_name.cpp
         src/core/recorder/win/recorder_win_gameinput.cpp
+        src/core/recorder/win/recorder_win_rawinput.cpp
+        src/core/recorder/win/wstring.cpp
     )
 elseif(LINUX)
     find_package(PkgConfig)

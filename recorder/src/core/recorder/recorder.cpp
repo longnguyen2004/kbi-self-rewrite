@@ -18,8 +18,10 @@ Recorder::Recorder(RecorderBackend backend, std::shared_ptr<spdlog::logger> logg
 {
 #ifdef _WIN32
     if (
-        backend == RecorderBackend::AUTO ||
-        backend == RecorderBackend::WINDOWS_GAMEINPUT
+        !p_impl && (
+            backend == RecorderBackend::AUTO ||
+            backend == RecorderBackend::WINDOWS_GAMEINPUT
+        )
     )
     {
         try {
@@ -32,12 +34,31 @@ Recorder::Recorder(RecorderBackend backend, std::shared_ptr<spdlog::logger> logg
             m_logger->info("Failed to initialize GameInput backend");
         }
     }
+    if (
+        !p_impl && (
+            backend == RecorderBackend::AUTO ||
+            backend == RecorderBackend::WINDOWS_RAWINPUT
+        )
+    )
+    {
+        try {
+            m_logger->info("Trying to initialize Raw Input backend");
+            p_impl = std::make_unique<recorder_win_rawinput>(logger);
+            m_backend = RecorderBackend::WINDOWS_RAWINPUT;
+            m_logger->info("Initialized Raw Input backend");
+        }
+        catch (const std::exception& e) {
+            m_logger->info("Failed to initialize Raw Input backend");
+        }
+    }
 #endif
 
 #ifdef __linux__
     if (
-        backend == RecorderBackend::AUTO ||
-        backend == RecorderBackend::LINUX_EVDEV
+        !p_impl && (
+            backend == RecorderBackend::AUTO ||
+            backend == RecorderBackend::LINUX_EVDEV
+        )
     )
     {
         try {

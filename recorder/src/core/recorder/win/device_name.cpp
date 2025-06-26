@@ -1,4 +1,5 @@
 #include "device_name.h"
+#include "wstring.h"
 #include <wil/resource.h>
 #include <wil/result.h>
 #include <windows.h>
@@ -18,27 +19,33 @@
 #include <optional>
 #include <vector>
 
-std::wstring string_to_wstring(std::string_view str)
+std::string hid_product_string_from_device_path(std::wstring_view wid)
 {
-    int length = MultiByteToWideChar(CP_UTF8, 0, str.data(), str.size(), nullptr, 0);
-    if (length == 0)
-        return std::wstring();
-    std::wstring wstr(length, '\0');
-    MultiByteToWideChar(CP_UTF8, 0, str.data(), str.size(), wstr.data(), length);
-    return wstr;
+    wil::unique_hfile devHandle(CreateFileW(
+        wid.data(),
+        0,
+        FILE_SHARE_READ | FILE_SHARE_WRITE,
+        nullptr,
+        OPEN_EXISTING,
+        0,
+        nullptr
+    ));
+    if (devHandle.get() == INVALID_HANDLE_VALUE)
+        return "Unknown";
+
+    std::wstring productString(126, '\0');
+    if (HidD_GetProductString(devHandle.get(), productString.data(), productString.size()) == FALSE)
+        return "Unknown";
+
+    return wstring_to_string(productString);
 }
 
-std::string wstring_to_string(std::wstring_view wstr)
+std::string hid_product_string_from_device_path(std::string_view id)
 {
-    int length = WideCharToMultiByte(CP_UTF8, 0, wstr.data(), wstr.size(), nullptr, 0, nullptr, nullptr);
-    if (length == 0)
-        return std::string();
-    std::string str(length, '\0');
-    WideCharToMultiByte(CP_UTF8, 0, wstr.data(), wstr.size(), str.data(), str.size(), nullptr, nullptr);
-    return str;
+    return hid_product_string_from_device_path(string_to_wstring(id));
 }
 
-std::string device_name_from_pnp(std::wstring_view wid)
+std::string hid_product_string_from_pnp(std::wstring_view wid)
 {
     GUID hidGuid;
     HidD_GetHidGuid(&hidGuid);
@@ -67,28 +74,12 @@ std::string device_name_from_pnp(std::wstring_view wid)
     ) == FALSE)
         return "Unknown";
 
-    wil::unique_hfile devHandle(CreateFileW(
-        detailDataPtr->DevicePath,
-        0,
-        FILE_SHARE_READ | FILE_SHARE_WRITE,
-        nullptr,
-        OPEN_EXISTING,
-        0,
-        nullptr
-    ));
-    if (devHandle.get() == INVALID_HANDLE_VALUE)
-        return "Unknown";
-
-    std::wstring productString(126, '\0');
-    if (HidD_GetProductString(devHandle.get(), productString.data(), productString.size()) == FALSE)
-        return "Unknown";
-
-    return wstring_to_string(productString);
+    return hid_product_string_from_device_path(detailDataPtr->DevicePath);
 }
 
 std::string device_name_from_pnp(std::string_view id)
 {
-    return device_name_from_pnp(string_to_wstring(id));
+    return hid_product_string_from_pnp(string_to_wstring(id));
 }
 
 std::optional<std::vector<unsigned char>> get_usb_device_info(std::wstring_view wid)
@@ -264,6 +255,6 @@ void device_info_from_pnp(std::string_view id)
     auto wid = string_to_wstring(id);
     std::string name;
     if (id.starts_with("HID"))
-        name = device_name_from_pnp(wid);
+        name = hid_product_string_from_pnp(wid);
     get_usb_device_info(wid);
 }
