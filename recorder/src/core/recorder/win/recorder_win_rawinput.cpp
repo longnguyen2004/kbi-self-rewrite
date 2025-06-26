@@ -90,6 +90,8 @@ void recorder_win_rawinput::_processRawInput(HRAWINPUT rawInput)
 void recorder_win_rawinput::Start(bool keyboard, bool mouse, bool gamepad)
 {
     m_window_thread = std::jthread([=, this](const std::stop_token& stop) {
+        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
+        SetThreadAffinityMask(GetCurrentThread(), 1);
         WNDCLASSW wnd_class = {
             .lpfnWndProc = WndProc,
             .cbWndExtra = 8,
@@ -118,7 +120,7 @@ void recorder_win_rawinput::Start(bool keyboard, bool mouse, bool gamepad)
             rawInputDevices.push_back({
                 .usUsagePage = 0x01,
                 .usUsage = 0x06,
-                .dwFlags = (DWORD)(RIDEV_INPUTSINK | RIDEV_NOHOTKEYS),
+                .dwFlags = (DWORD)(RIDEV_NOLEGACY | RIDEV_INPUTSINK | RIDEV_NOHOTKEYS),
                 .hwndTarget = m_hwnd
             });
             std::cout << keyboard << '\n';
