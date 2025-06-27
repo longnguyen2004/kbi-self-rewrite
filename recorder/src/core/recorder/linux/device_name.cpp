@@ -121,6 +121,5 @@ std::string device_name_from_path(std::string_view path)
     {
         return "Unknown";
     }
-    std::string name_str(name);
-    return name_str;
+    return name;
 }
