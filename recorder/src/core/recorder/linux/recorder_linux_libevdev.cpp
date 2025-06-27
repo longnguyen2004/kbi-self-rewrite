@@ -309,4 +309,14 @@ void recorder_linux_libevdev::Stop()
 std::string recorder_linux_libevdev::GetDeviceName(std::string_view syspath) const
 {
     return device_name_from_path(syspath);
+} 
+
+std::optional<std::string> recorder_linux_libevdev::GetUsbDeviceId(std::string_view id) const
+{
+    return find_usb_device(id);
+}
+
+std::optional<UsbDeviceInfo> recorder_linux_libevdev::GetUsbDeviceInfo(std::string_view id) const
+{
+    return get_usb_device_info(id);
 }

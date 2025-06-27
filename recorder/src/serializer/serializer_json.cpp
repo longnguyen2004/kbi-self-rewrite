@@ -6,17 +6,36 @@
 #include <boost/iostreams/device/array.hpp>
 #include <boost/iostreams/stream.hpp>
 #include <boost/json.hpp>
+#include <simdutf.h>
 
 using namespace boost::json;
 namespace io = boost::iostreams;
 
+void tag_invoke(const value_from_tag &, value &j, const UsbDeviceInfo &usbDevice)
+{
+    auto& val = j.emplace_object() = {
+        {"vid", usbDevice.VID},
+        {"pid", usbDevice.PID},
+        {"speed", static_cast<std::underlying_type_t<decltype(usbDevice.Speed)>>(usbDevice.Speed)},
+    };
+    if (usbDevice.Descriptors.size())
+    {
+        auto& source = usbDevice.Descriptors;
+        std::string base64(simdutf::base64_length_from_binary(source.size()), 0);
+        std::ignore = simdutf::binary_to_base64(source, base64);
+        val.insert_or_assign("descriptors", base64);
+    }
+}
+
 void tag_invoke(const value_from_tag &, value &j, const Device &device)
 {
-    j.emplace_object() = {
+    auto& val = j.emplace_object() = {
         {"name", device.Name},
         {"vid", device.VID},
         {"pid", device.PID}
     };
+    if (device.UsbDeviceId)
+        val.insert_or_assign("usb_device", device.UsbDeviceId.value());
 }
 
 void tag_invoke(const value_from_tag &, value &j, const Input &input)
@@ -57,6 +76,7 @@ void tag_invoke(const value_from_tag &, value &j, const Recorder &recorder)
             }
         }},
         {"time", std::format("{:%FT%TZ}", recorder.StartTime())},
+        {"usb_devices", value_from(recorder.UsbDevices())},
         {"devices", value_from(recorder.Devices())},
         {"inputs", value_from(recorder.Inputs())}
     };

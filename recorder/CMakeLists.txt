@@ -26,6 +26,7 @@ find_package(boost_iterator CONFIG REQUIRED)
 find_package(boost_json CONFIG REQUIRED)
 find_package(boost_signals2 CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
+find_package(simdutf CONFIG REQUIRED)
 
 target_link_libraries(recorder-lib
     PUBLIC Boost::signals2 Boost::unordered spdlog::spdlog
@@ -78,5 +79,5 @@ add_executable(recorder-app
     src/main.cpp
 )
 target_link_libraries(recorder-app PRIVATE recorder-lib)
-target_link_libraries(recorder-app PRIVATE Boost::endian Boost::iostreams Boost::json spdlog::spdlog)
+target_link_libraries(recorder-app PRIVATE Boost::endian Boost::iostreams Boost::json spdlog::spdlog simdutf::simdutf)
 target_include_directories(recorder-app PRIVATE ${BEXT_DI_INCLUDE_DIRS})

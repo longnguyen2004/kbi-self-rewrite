@@ -223,7 +223,7 @@ std::optional<UsbDeviceInfo> get_usb_device_info(std::wstring_view wid)
     auto speed = connectionInfoEx->Speed;
     auto deviceDescriptor = connectionInfoEx->DeviceDescriptor;
     auto deviceDescriptorPtr = reinterpret_cast<unsigned char*>(&deviceDescriptor);
-    std::vector<unsigned char> deviceDescriptorBytes(
+    std::vector<unsigned char> descriptors(
         deviceDescriptorPtr,
         deviceDescriptorPtr + deviceDescriptor.bLength
     );
@@ -274,16 +274,16 @@ std::optional<UsbDeviceInfo> get_usb_device_info(std::wstring_view wid)
     if (success == FALSE)
         return {};
     
-    std::vector<unsigned char> configurationDescriptorBytes(
+    descriptors.insert(
+        descriptors.end(),
         reinterpret_cast<unsigned char*>(confDesc),
-        reinterpret_cast<unsigned char*>(confDesc) + confDesc->wTotalLength
-    );
+        reinterpret_cast<unsigned char*>(confDesc) + bytesReturned
+    )
     return UsbDeviceInfo{
         .VID = deviceDescriptor.idVendor,
         .PID = deviceDescriptor.idProduct,
         .Speed = static_cast<UsbDeviceSpeed>(speed + 1),
-        .DeviceDescriptor = deviceDescriptorBytes,
-        .ConfigDescriptor = configurationDescriptorBytes
+        .Descriptors = descriptors,
     };
 }
 

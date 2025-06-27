@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <optional>
@@ -13,16 +14,15 @@ enum class UsbDeviceSpeed {
 };
 
 struct UsbDeviceInfo {
-    uint16_t VID;
-    uint16_t PID;
+    std::uint16_t VID;
+    std::uint16_t PID;
     UsbDeviceSpeed Speed;
-    std::vector<unsigned char> DeviceDescriptor;
-    std::vector<unsigned char> ConfigDescriptor;
+    std::vector<unsigned char> Descriptors;
 };
 
 struct Device {
     std::string Name;
-    uint16_t VID;
-    uint16_t PID;
+    std::uint16_t VID;
+    std::uint16_t PID;
     std::optional<std::string> UsbDeviceId;
 };
