@@ -97,8 +97,8 @@
         }
         newChart.options.plugins!.themeChanger = {
             scales: {
-                delta: colorOptions,
-                count: colorOptions
+                time: colorOptions,
+                keys: colorOptions
             }
         }
         newChart.update();
