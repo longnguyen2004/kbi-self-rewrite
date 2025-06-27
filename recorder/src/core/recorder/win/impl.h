@@ -16,6 +16,8 @@ public:
     virtual void Start(bool keyboard, bool mouse, bool gamepad);
     virtual void Stop();
     virtual std::string GetDeviceName(std::string_view id) const;
+    virtual std::optional<std::string> GetUsbDeviceId(std::string_view id) const;
+    virtual std::optional<UsbDeviceInfo> GetUsbDeviceInfo(std::string_view id) const;
 
     void _update_key_states(
         const std::string& pnp, std::uint16_t vid, std::uint16_t pid,
@@ -36,6 +38,8 @@ public:
     virtual void Start(bool keyboard, bool mouse, bool gamepad);
     virtual void Stop();
     virtual std::string GetDeviceName(std::string_view id) const;
+    virtual std::optional<std::string> GetUsbDeviceId(std::string_view id) const;
+    virtual std::optional<UsbDeviceInfo> GetUsbDeviceInfo(std::string_view id) const;
 
     void _processRawInput(HRAWINPUT rawInput);
 private:

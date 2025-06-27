@@ -1,5 +1,6 @@
 #pragma once
 
+#include <device.h>
 #include <keycode.h>
 #include <memory>
 #include <atomic>
@@ -12,12 +13,6 @@
 #include <boost/unordered/concurrent_flat_map.hpp>
 #include <boost/signals2.hpp>
 #include <spdlog/fwd.h>
-
-struct Device {
-    std::uint16_t VID;
-    std::uint16_t PID;
-    std::string Name;
-};
 
 struct Input {
     std::uint64_t Timestamp;
@@ -35,6 +30,7 @@ enum class RecorderBackend {
 class Recorder {
 public:
     class Impl;
+    using UsbDeviceMap = boost::unordered::concurrent_flat_map<std::string, std::optional<UsbDeviceInfo>>;
     using DeviceMap = boost::unordered::concurrent_flat_map<std::string, Device>;
     using InputMap = boost::unordered::concurrent_flat_map<std::string, std::deque<Input>>;
     using DeviceSignal = boost::signals2::signal<void(const std::string&, Device)>;
@@ -70,6 +66,7 @@ public:
     std::chrono::steady_clock::duration Elapsed() const;
 
     RecorderBackend Backend() const;
+    const UsbDeviceMap& UsbDevices() const;
     const DeviceMap& Devices() const;
     const InputMap& Inputs() const;
     size_t DeviceCount() const;
@@ -81,6 +78,7 @@ private:
     std::unique_ptr<Impl> p_impl;
     std::shared_ptr<spdlog::logger> m_logger;
     RecorderBackend m_backend;
+    UsbDeviceMap m_usb_devices;
     DeviceMap m_devices;
     InputMap m_inputs;
     DeviceSignal m_sig_device;

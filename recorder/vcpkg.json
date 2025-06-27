@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "builtin-baseline": "d31246c59095e8640a33b73d99c877da7459bbf1",
   "dependencies": [
+    "bext-di",
     "boost-container",
     "boost-endian",
     "boost-iostreams",
@@ -27,6 +28,6 @@
       "name": "wil",
       "platform": "windows"
     },
-    "bext-di"
+    "boost-algorithm"
   ]
 }

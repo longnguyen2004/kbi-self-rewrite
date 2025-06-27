@@ -74,12 +74,21 @@ void recorder_win_rawinput::_processRawInput(HRAWINPUT rawInput)
     if (raw->header.dwType == RIM_TYPEKEYBOARD)
     {
         auto devicePathStr = wstring_to_string(devicePath);
+        auto pnp = devicePathStr.substr(
+            4,                           /* Remove \\?\ */
+            devicePathStr.find("#{") - 4 /* Remove GUID at end */
+        );
+        for (auto& c: pnp)
+        {
+            if (c == '#')
+                c = '\\';
+        }
         RAWKEYBOARD& keyboard = raw->data.keyboard;
         bool released = keyboard.Flags & RI_KEY_BREAK;
         if (keyboard.MakeCode == KEYBOARD_OVERRUN_MAKE_CODE || keyboard.VKey >= UCHAR_MAX)
             return;
-        auto [ vid, pid ] = vid_pid_from_pnp(devicePathStr);
-        this->OnInput()(devicePathStr, vid, pid, Input{
+        auto [ vid, pid ] = vid_pid_from_pnp(pnp);
+        this->OnInput()(pnp, vid, pid, Input{
             .Timestamp = static_cast<std::uint64_t>(duration_cast<microseconds>(now - m_start_ref).count()),
             .Pressed = !released,
             .Code = vk_to_keycode(keyboard.VKey)
@@ -179,7 +188,17 @@ void recorder_win_rawinput::Stop()
     UnregisterClassW(CLASS_NAME, GetModuleHandleW(nullptr));
 }
 
-std::string recorder_win_rawinput::GetDeviceName(std::string_view device_path) const
+std::string recorder_win_rawinput::GetDeviceName(std::string_view pnp) const
 {
-    return hid_product_string_from_device_path(device_path);
+    return device_name_from_pnp(pnp);
+}
+
+std::optional<std::string> recorder_win_rawinput::GetUsbDeviceId(std::string_view id) const
+{
+    return find_usb_device(id);
+}
+
+std::optional<UsbDeviceInfo> recorder_win_rawinput::GetUsbDeviceInfo(std::string_view id) const
+{
+    return get_usb_device_info(id);
 }

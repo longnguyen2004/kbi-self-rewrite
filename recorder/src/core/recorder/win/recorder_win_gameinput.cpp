@@ -1,6 +1,7 @@
 #include "impl.h"
 #include "device_name.h"
 #include "vk_to_keycode.h"
+
 #include <spdlog/spdlog.h>
 #include <wil/win32_result_macros.h>
 #include <wil/com.h>
@@ -177,4 +178,14 @@ void recorder_win_gameinput::Stop()
 std::string recorder_win_gameinput::GetDeviceName(std::string_view pnp) const
 {
     return device_name_from_pnp(pnp);
+}
+
+std::optional<std::string> recorder_win_gameinput::GetUsbDeviceId(std::string_view id) const
+{
+    return find_usb_device(id);
+}
+
+std::optional<UsbDeviceInfo> recorder_win_gameinput::GetUsbDeviceInfo(std::string_view id) const
+{
+    return get_usb_device_info(id);
 }

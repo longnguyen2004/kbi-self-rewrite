@@ -83,9 +83,16 @@ Recorder::Recorder(RecorderBackend backend, std::shared_ptr<spdlog::logger> logg
         const std::string& id, std::uint16_t vid, std::uint16_t pid, Input input
     ) {
         m_devices.try_emplace_and_visit(
-            id, vid, pid, ""s,
+            id,
+            ""s, vid, pid, std::nullopt,
             [&, this](DeviceMap::value_type& new_device) {
                 new_device.second.Name = p_impl->GetDeviceName(id);
+                auto usbDevice = p_impl->GetUsbDeviceId(id);
+                if (usbDevice)
+                {
+                    new_device.second.UsbDeviceId = usbDevice;
+                    m_usb_devices.emplace(usbDevice.value(), p_impl->GetUsbDeviceInfo(usbDevice.value()));
+                }
                 this->OnDevice()(id, new_device.second);
             },
             [](const DeviceMap::value_type& existing_device) {
@@ -146,6 +153,11 @@ std::chrono::steady_clock::duration Recorder::Elapsed() const
 RecorderBackend Recorder::Backend() const
 {
     return m_backend;
+}
+
+const Recorder::UsbDeviceMap& Recorder::UsbDevices() const
+{
+    return m_usb_devices;
 }
 
 const Recorder::DeviceMap& Recorder::Devices() const

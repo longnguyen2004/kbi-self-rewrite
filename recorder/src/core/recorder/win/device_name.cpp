@@ -77,12 +77,17 @@ std::string hid_product_string_from_pnp(std::wstring_view wid)
     return hid_product_string_from_device_path(detailDataPtr->DevicePath);
 }
 
+std::string hid_product_string_from_pnp(std::string_view id)
+{
+    return hid_product_string_from_pnp(string_to_wstring(id));
+}
+
 std::string device_name_from_pnp(std::string_view id)
 {
     return hid_product_string_from_pnp(string_to_wstring(id));
 }
 
-std::optional<std::vector<unsigned char>> get_usb_device_info(std::wstring_view wid)
+std::optional<std::string> find_usb_device(std::wstring_view wid)
 {
     DEVINST current, parent;
     // Get device instance handle for the HID device
@@ -124,11 +129,37 @@ std::optional<std::vector<unsigned char>> get_usb_device_info(std::wstring_view 
             // Found the hub, parent will be the hub, current will the be (composite) device
             break;
         current = parent;
-
     }
+    
+    // Get the USB device ID
+    ULONG deviceIdSize = 0;
+    if (CM_Get_Device_ID_Size(&deviceIdSize, current, 0) != CR_SUCCESS)
+        return {};
+    std::wstring usbDeviceId(deviceIdSize, 0);
+    if (CM_Get_Device_IDW(current, usbDeviceId.data(), deviceIdSize, 0) != CR_SUCCESS)
+        return {};
+    return wstring_to_string(usbDeviceId);
+}
+
+std::optional<std::string> find_usb_device(std::string_view id)
+{
+    return find_usb_device(string_to_wstring(id));
+}
+
+std::optional<UsbDeviceInfo> get_usb_device_info(std::wstring_view wid)
+{
+    DEVINST current, parent;
+    // Get device instance handle for the USB device
+    if (CM_Locate_DevNodeW(&current, const_cast<wchar_t*>(wid.data()), CM_LOCATE_DEVNODE_NORMAL) != CR_SUCCESS)
+        return {};
+
+    // Get parent of the USB device (guaranteed to be the hub)
+    if (CM_Get_Parent(&parent, current, 0) != CR_SUCCESS)
+        return {};
 
     // Get the port info of the device
-    size = 0;
+    DEVPROPTYPE propType;
+    ULONG size = 0;
     if (CM_Get_DevNode_PropertyW(current, &DEVPKEY_Device_LocationInfo, &propType, nullptr, &size, 0) != CR_BUFFER_SMALL)
         return {};
     std::wstring locationInfo(size / 2, 0);
@@ -247,7 +278,18 @@ std::optional<std::vector<unsigned char>> get_usb_device_info(std::wstring_view 
         reinterpret_cast<unsigned char*>(confDesc),
         reinterpret_cast<unsigned char*>(confDesc) + confDesc->wTotalLength
     );
-    return {};
+    return UsbDeviceInfo{
+        .VID = deviceDescriptor.idVendor,
+        .PID = deviceDescriptor.idProduct,
+        .Speed = static_cast<UsbDeviceSpeed>(speed + 1),
+        .DeviceDescriptor = deviceDescriptorBytes,
+        .ConfigDescriptor = configurationDescriptorBytes
+    };
+}
+
+std::optional<UsbDeviceInfo> get_usb_device_info(std::string_view id)
+{
+    return get_usb_device_info(string_to_wstring(id));
 }
 
 void device_info_from_pnp(std::string_view id)

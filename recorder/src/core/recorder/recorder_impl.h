@@ -22,6 +22,8 @@ public:
     virtual void Start(bool keyboard = true, bool mouse = false, bool gamepad = false) = 0;
     virtual void Stop() = 0;
     virtual std::string GetDeviceName(std::string_view id) const = 0;
+    virtual std::optional<std::string> GetUsbDeviceId(std::string_view id) const = 0;
+    virtual std::optional<UsbDeviceInfo> GetUsbDeviceInfo(std::string_view id) const = 0;
 
 protected:
     std::shared_ptr<spdlog::logger> m_logger;
