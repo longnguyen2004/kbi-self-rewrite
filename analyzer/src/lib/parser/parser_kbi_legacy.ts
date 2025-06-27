@@ -1,4 +1,6 @@
 import type { Input, Result } from "$lib/validator/validator";
+import { keyStrToVk, vkToKeycode } from "$lib/helper/vk_to_keycode";
+import { Keycode } from "$lib/keycode/keycode";
 
 type ReaderState = {
     buf: Uint8Array,
@@ -207,11 +209,11 @@ function parse_kbi_legacy_v3(state: ReaderState)
             inputArr = [] as Input[];
             inputMap.set(source, inputArr);
         }
+        const vk = keyStrToVk(input.input.key);
         inputArr.push({
             timestamp: input.time * 1000000,
             pressed: input.pressed,
-            // TODO: fill with actual codes
-            code: 0
+            code: vk ? vkToKeycode(vk) : Keycode.None
         })
     }
     return {
