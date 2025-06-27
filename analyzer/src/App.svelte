@@ -11,6 +11,7 @@
 
     import DiffChart from "$lib/components/charts/DiffChart.svelte";
     import FreqChart from "$lib/components/charts/FreqChart.svelte";
+    import InputTimeline from "$lib/components/charts/InputTimeline.svelte";
 
     import { Analyzer } from "$lib/analyzer/analyzer.svelte.js";
     import { parseKbiResult } from "$lib/parser/parser";
@@ -94,6 +95,9 @@
     <div class="freq-chart flex-1 flex flex-row gap-15">
         <FreqChart data={postprocess(analyzer.consecutiveDiffFreq, postprocessOpts)} />
         <FreqChart data={postprocess(analyzer.allDiffFreq, postprocessOpts)} />
+    </div>
+    <div class="input-timeline">
+        <InputTimeline devices={data?.devices} inputs={data?.inputs}/>
     </div>
 </main>
 <style>

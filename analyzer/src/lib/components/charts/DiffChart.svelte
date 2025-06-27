@@ -11,15 +11,14 @@
     import { createChart } from "./chartFactory.js";
     import { minmax } from "./yeOldeMinMax.js";
     import { onMount, untrack } from "svelte";
-    import type { Chart, LinearScaleOptions, LinearScale } from "chart.js";
-    import type { PartialDeep } from "type-fest";
+    import type { Chart, LinearScale } from "chart.js";
 
     let ref: HTMLCanvasElement;
     let chart: Chart | undefined = $state.raw();
     let { data }: Props = $props();
 
     onMount(() => {
-        const newChart = createChart(ref);
+        const newChart = createChart<"line", {x: number, y: number}[]>(ref, "line");
         newChart.options.scales = {
             delta: {
                 title: {

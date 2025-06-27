@@ -18,7 +18,7 @@
     let { data }: Props = $props();
 
     onMount(() => {
-        const newChart = createChart(ref);
+        const newChart = createChart<"line", {x: number, y: number}[]>(ref, "line");
         newChart.options.scales = {
             freq: {
                 axis: "x",
