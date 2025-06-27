@@ -114,7 +114,7 @@
             ];
             nonNullChart.options.scales!.count!.max = minmax(data)[1];
             nonNullChart.update();
-            nonNullChart.zoomScale("delta", {min: 0, max: 5});
+            nonNullChart.zoomScale("delta", {min: 0, max: 50});
         });
     });
 </script>
