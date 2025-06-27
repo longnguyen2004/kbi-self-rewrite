@@ -16,6 +16,7 @@ const VK_LEFT      = 0x25;
 const VK_UP        = 0x26;
 const VK_RIGHT     = 0x27;
 const VK_DOWN      = 0x28;
+const VK_SNAPSHOT  = 0x2C;
 const VK_INSERT    = 0x2D;
 const VK_DELETE    = 0x2E;
 const VK_LWIN      = 0x5B;
@@ -69,6 +70,17 @@ const VK_LCONTROL  = 0xA2;
 const VK_RCONTROL  = 0xA3;
 const VK_LMENU     = 0xA4;
 const VK_RMENU     = 0xA5;
+const VK_OEM_1     = 0xBA;
+const VK_OEM_PLUS  = 0xBB;
+const VK_OEM_COMMA = 0xBC;
+const VK_OEM_MINUS = 0xBD;
+const VK_OEM_PERIOD = 0xBE;
+const VK_OEM_2     = 0xBF;
+const VK_OEM_3     = 0xC0;
+const VK_OEM_4     = 0xDB;
+const VK_OEM_5     = 0xDC;
+const VK_OEM_6     = 0xDD;
+const VK_OEM_7     = 0xDE;
 
 const vkToKeycodeArr = (() => {
     // Thank you Copilot
@@ -90,6 +102,7 @@ const vkToKeycodeArr = (() => {
     arr[VK_UP]        = Keycode.UpArrow;
     arr[VK_RIGHT]     = Keycode.RightArrow;
     arr[VK_DOWN]      = Keycode.DownArrow;
+    arr[VK_SNAPSHOT]  = Keycode.PrintScreen;
     arr[VK_INSERT]    = Keycode.Insert;
     arr[VK_DELETE]    = Keycode.Delete;
 
@@ -191,6 +204,17 @@ const vkToKeycodeArr = (() => {
     arr[VK_LMENU]     = Keycode.LeftAlt;
     arr[VK_RMENU]     = Keycode.RightAlt;
 
+    arr[VK_OEM_1]      = Keycode.Semicolon;
+    arr[VK_OEM_PLUS]   = Keycode.Equal;
+    arr[VK_OEM_COMMA]  = Keycode.Comma;
+    arr[VK_OEM_MINUS]  = Keycode.Minus;
+    arr[VK_OEM_PERIOD] = Keycode.Period;
+    arr[VK_OEM_2]      = Keycode.Slash;
+    arr[VK_OEM_3]      = Keycode.Grave;
+    arr[VK_OEM_4]      = Keycode.LeftBracket;
+    arr[VK_OEM_5]      = Keycode.Backslash;
+    arr[VK_OEM_6]      = Keycode.RightBracket;
+    arr[VK_OEM_7]      = Keycode.Apostrophe;
     return arr
 })();
 
@@ -225,6 +249,8 @@ const keyStrToVkMap: Record<string, number | undefined> = {
     Up: VK_UP,
     Right: VK_RIGHT,
     Down: VK_DOWN,
+    PrintScreen: VK_SNAPSHOT,
+    Snapshot: VK_SNAPSHOT,
     Insert: VK_INSERT,
     Delete: VK_DELETE,
     LWin: VK_LWIN,
@@ -244,6 +270,24 @@ const keyStrToVkMap: Record<string, number | undefined> = {
     RControlKey: VK_RCONTROL,
     LMenu: VK_LMENU,
     RMenu: VK_RMENU,
+    OemSemicolon: VK_OEM_1,
+    Oem1: VK_OEM_1,
+    Oemplus: VK_OEM_PLUS,
+    Oemcomma: VK_OEM_COMMA,
+    OemMinus: VK_OEM_MINUS,
+    OemPeriod: VK_OEM_PERIOD,
+    OemQuestion: VK_OEM_2,
+    Oem2: VK_OEM_2,
+    OemTilde: VK_OEM_3,
+    Oem3: VK_OEM_3,
+    OemOpenBrackets: VK_OEM_4,
+    Oem4: VK_OEM_4,
+    OemPipe: VK_OEM_5,
+    Oem5: VK_OEM_5,
+    OemCloseBrackets: VK_OEM_6,
+    Oem6: VK_OEM_6,
+    OemQuotes: VK_OEM_7,
+    Oem7: VK_OEM_7
 };
 
 export function vkToKeycode(vk: number) {
