@@ -36,7 +36,7 @@
 </script>
 
 <ModeWatcher />
-<main class="w-full h-full flex flex-col gap-10">
+<main class="w-full h-full flex flex-col gap-5">
     <div class="controls">
         <div class="row">
             <div class="flex flex-row gap-4">
@@ -88,15 +88,15 @@
             </div>
         </div>
     </div>
-    <div class="diff-chart flex-1 flex flex-row gap-15">
+    <div class="diff-chart flex-3 flex flex-row gap-15">
         <DiffChart data={analyzer.consecutiveDiff} />
         <DiffChart data={analyzer.allDiff} />
     </div>
-    <div class="freq-chart flex-1 flex flex-row gap-15">
+    <div class="freq-chart flex-3 flex flex-row gap-15">
         <FreqChart data={postprocess(analyzer.consecutiveDiffFreq, postprocessOpts)} />
         <FreqChart data={postprocess(analyzer.allDiffFreq, postprocessOpts)} />
     </div>
-    <div class="input-timeline">
+    <div class="input-timeline flex-4">
         <InputTimeline devices={data?.devices} inputs={data?.inputs}/>
     </div>
 </main>
