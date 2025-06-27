@@ -17,6 +17,8 @@ public:
     virtual void Start(bool kseyboard, bool mouse, bool gamepad);
     virtual void Stop();
     virtual std::string GetDeviceName(std::string_view id) const;
+    virtual std::optional<std::string> GetUsbDeviceId(std::string_view id) const;
+    virtual std::optional<UsbDeviceInfo> GetUsbDeviceInfo(std::string_view id) const;
 
 private:
     using EvdevDeviceMap = boost::unordered::concurrent_flat_map<std::string, internal_device>;
