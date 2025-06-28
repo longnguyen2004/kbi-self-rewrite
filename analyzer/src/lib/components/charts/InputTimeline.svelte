@@ -83,6 +83,7 @@
                 }
             }
         }
+        newChart.options.interaction!.intersect = true;
         const gridColors = {
             light: "rgba(0, 0, 0, 0.1)",
             dark: "rgba(255, 255, 255, 0.25)"
@@ -114,6 +115,7 @@
             const [data, max] = chartData;
             nonNullChart.data = data;
             nonNullChart.options.scales!.keys!.max = data.labels.length;
+            nonNullChart.options.scales!.time!.min = 0;
             nonNullChart.options.scales!.time!.max = max;
             nonNullChart.update();
             nonNullChart.resetZoom();
