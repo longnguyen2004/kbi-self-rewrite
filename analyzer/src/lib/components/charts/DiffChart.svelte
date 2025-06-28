@@ -19,6 +19,10 @@
 
     onMount(() => {
         const newChart = createChart<"line", {x: number, y: number}[]>(ref, "line");
+        newChart.options.layout!.padding = {
+            left: 10,
+            right: 10,
+        }
         newChart.options.scales = {
             delta: {
                 title: {
@@ -36,7 +40,9 @@
                         const fractionalPart = tickValue - Math.floor(tickValue);
                         if (Math.floor(fractionalPart * 8) - fractionalPart * 8 !== 0)
                             return '';
-                        return `${tickValue}ms`;
+                        if (fractionalPart === 0)
+                            return `${tickValue}ms`;
+                        return `${fractionalPart.toFixed(3).slice(1)}`;
                     },
                     maxRotation: 45,
                     minRotation: 45,

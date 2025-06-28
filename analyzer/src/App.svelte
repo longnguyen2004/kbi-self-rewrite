@@ -36,8 +36,8 @@
 </script>
 
 <ModeWatcher />
-<main class="w-full h-full flex flex-col gap-5">
-    <div class="controls">
+<main class="w-full h-full flex flex-col">
+    <div class="controls mb-4">
         <div class="row">
             <div class="flex flex-row gap-4">
                 <Label for="kbi-file" class="whitespace-nowrap">KBI file</Label>
@@ -88,11 +88,11 @@
             </div>
         </div>
     </div>
-    <div class="diff-chart min-h-0 flex-3 flex flex-row gap-15">
+    <div class="diff-chart min-h-0 flex-3 flex flex-row gap-10">
         <DiffChart data={analyzer.consecutiveDiff} />
         <DiffChart data={analyzer.allDiff} />
     </div>
-    <div class="freq-chart min-h-0 flex-3 flex flex-row gap-15">
+    <div class="freq-chart min-h-0 flex-3 flex flex-row gap-10">
         <FreqChart data={postprocess(analyzer.consecutiveDiffFreq, postprocessOpts)} />
         <FreqChart data={postprocess(analyzer.allDiffFreq, postprocessOpts)} />
     </div>

@@ -19,6 +19,10 @@
 
     onMount(() => {
         const newChart = createChart<"line", {x: number, y: number}[]>(ref, "line");
+        newChart.options.layout!.padding = {
+            left: 10,
+            right: 10
+        }
         newChart.options.scales = {
             freq: {
                 axis: "x",
@@ -134,6 +138,6 @@
     });
 </script>
 
-<div class="overflow-hidden w-full h-full relative">
+<div class="min-w-0 min-h-0 w-full h-full relative">
     <canvas bind:this={ref}> </canvas>
 </div>

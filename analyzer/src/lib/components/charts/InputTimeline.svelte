@@ -72,7 +72,8 @@
                 type: "linear",
                 axis: "x",
                 ticks: {
-                    precision: 3
+                    stepSize: 1,
+                    maxRotation: 0
                 }
             },
             keys: {
@@ -126,6 +127,6 @@
     })
 </script>
 
-<div class="overflow-hidden w-full h-full relative">
+<div class="min-w-0 min-h-0 w-full h-full relative">
     <canvas bind:this={ref}> </canvas>
 </div>
