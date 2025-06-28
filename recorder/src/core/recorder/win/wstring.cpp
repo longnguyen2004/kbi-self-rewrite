@@ -1,22 +1,24 @@
 #include "wstring.h"
-#include <windows.h>
+#include <simdutf.h>
+
+using namespace simdutf;
 
 std::wstring string_to_wstring(std::string_view str)
 {
-    int length = MultiByteToWideChar(CP_UTF8, 0, str.data(), str.size(), nullptr, 0);
+    auto length = utf16_length_from_utf8(str);
     if (length == 0)
         return std::wstring();
-    std::wstring wstr(length, '\0');
-    MultiByteToWideChar(CP_UTF8, 0, str.data(), str.size(), wstr.data(), length);
+    std::wstring wstr(length, 0);
+    convert_utf8_to_utf16(str.data(), str.size(), reinterpret_cast<char16_t*>(wstr.data()));
     return wstr;
 }
 
 std::string wstring_to_string(std::wstring_view wstr)
 {
-    int length = WideCharToMultiByte(CP_UTF8, 0, wstr.data(), wstr.size(), nullptr, 0, nullptr, nullptr);
+    auto length = utf8_length_from_utf16(reinterpret_cast<const char16_t*>(wstr.data()), wstr.size());
     if (length == 0)
         return std::string();
-    std::string str(length, '\0');
-    WideCharToMultiByte(CP_UTF8, 0, wstr.data(), wstr.size(), str.data(), str.size(), nullptr, nullptr);
+    std::string str(length, 0);
+    convert_utf16_to_utf8(reinterpret_cast<const char16_t*>(wstr.data()), wstr.size(), str.data());
     return str;
 }
