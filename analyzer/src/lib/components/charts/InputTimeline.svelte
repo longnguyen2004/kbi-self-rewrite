@@ -44,7 +44,7 @@
                         continue;
                     keypresses.push({ x: [keydown / 1000000, event.timestamp / 1000000], y: keyName });
                     keys.add(keyName);
-                    max = Math.max(event.timestamp / 1000000);
+                    max = Math.max(max, event.timestamp / 1000000);
                 }
             }
             datasets.push({
