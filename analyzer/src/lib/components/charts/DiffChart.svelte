@@ -1,6 +1,7 @@
 <script lang="ts" module>
     import { ZoomSynchronizer } from "./synchronizeZoom.js";
     export type Props = {
+        title?: string;
         data: number[];
     };
 
@@ -11,21 +12,20 @@
     import { createChart } from "./chartFactory.js";
     import { minmax } from "./yeOldeMinMax.js";
     import { onMount, untrack } from "svelte";
-    import type { Chart, LinearScaleOptions, LinearScale } from "chart.js";
-    import type { PartialDeep } from "type-fest";
+    import type { Chart, LinearScale } from "chart.js";
 
     let ref: HTMLCanvasElement;
     let chart: Chart | undefined = $state.raw();
-    let { data }: Props = $props();
+    let { title, data }: Props = $props();
 
     onMount(() => {
-        const newChart = createChart(ref);
+        const newChart = createChart<"line", {x: number, y: number}[]>(ref, "line");
+        newChart.options.layout!.padding = {
+            left: 10,
+            right: 10,
+        }
         newChart.options.scales = {
             delta: {
-                title: {
-                    display: true,
-                    text: "Delta (ms)"
-                },
                 axis: "x",
                 type: "quantizedTickLinear",
                 min: 0,
@@ -37,7 +37,9 @@
                         const fractionalPart = tickValue - Math.floor(tickValue);
                         if (Math.floor(fractionalPart * 8) - fractionalPart * 8 !== 0)
                             return '';
-                        return `${tickValue}ms`;
+                        if (fractionalPart === 0)
+                            return `${tickValue}ms`;
+                        return `${fractionalPart.toFixed(3).slice(1)}`;
                     },
                     maxRotation: 45,
                     minRotation: 45,
@@ -115,11 +117,16 @@
             ];
             nonNullChart.options.scales!.count!.max = minmax(data)[1];
             nonNullChart.update();
-            nonNullChart.zoomScale("delta", {min: 0, max: 5});
+            nonNullChart.zoomScale("delta", {min: 0, max: 50});
         });
     });
 </script>
 
-<div class="w-full h-full relative">
-    <canvas bind:this={ref}> </canvas>
+<div class="flex flex-col items-center gap-1 w-full h-full">
+    {#if title}
+    <h1 class="select-none">{title}</h1>
+    {/if}
+    <div class="overflow-hidden w-full h-full relative">
+        <canvas bind:this={ref}> </canvas>
+    </div>
 </div>

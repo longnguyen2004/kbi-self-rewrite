@@ -1,15 +1,15 @@
-import { Chart, LineController, LineElement, PointElement, LinearScale, Tooltip, Decimation } from "chart.js";
+import { Chart, Colors, BarController, BarElement, LineController, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Decimation, type ChartType, type ChartOptions, type ChartConfiguration } from "chart.js";
 import { QuantizedTickLinearScale } from "./quantizedTickLinearScale";
 import { ThemeChanger } from "./themeChanger.svelte";
 import Zoom from "chartjs-plugin-zoom";
 
-Chart.register(LineController, LineElement, PointElement, LinearScale, Tooltip, Decimation, Zoom);
+Chart.register(Colors, BarController, BarElement, LineController, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Decimation, Zoom);
 Chart.register(QuantizedTickLinearScale);
 Chart.register(ThemeChanger);
 
-export function createChart(canvas: HTMLCanvasElement) {
-    return new Chart(canvas, {
-        type: "line",
+export function createChart<TType extends ChartType, TData>(canvas: HTMLCanvasElement, type: TType) {
+    return new Chart<TType, TData>(canvas, {
+        type,
         data: {
             datasets: [],
         },
@@ -53,8 +53,8 @@ export function createChart(canvas: HTMLCanvasElement) {
                 intersect: false,
             },
             animation: false,
-            spanGaps: true,
+            ...(type === "line" ? { spanGaps: true } : {}),
             maintainAspectRatio: false,
-        },
+        } as ChartOptions<TType>
     });
 }

@@ -11,15 +11,15 @@ importers:
       '@lng2004/rustfft-shim':
         specifier: ^0.1.0
         version: 0.1.0
+      avl:
+        specifier: ^1.6.0
+        version: 1.6.0
       chart.js:
         specifier: ^4.4.9
         version: 4.4.9
       chartjs-plugin-zoom:
         specifier: ^2.2.0
         version: 2.2.0(chart.js@4.4.9)
-      js-sdsl:
-        specifier: ^4.4.2
-        version: 4.4.2
       mode-watcher:
         specifier: ^1.0.7
         version: 1.0.7(svelte@5.33.18)
@@ -520,6 +520,9 @@ packages:
     resolution: {integrity: sha512-COROpnaoap1E2F000S62r6A60uHZnmlvomhfyT2DlTcrY1OrBKn2UhH7qn5wTC9zMvD0AY7csdPSNwKP+7WiQw==}
     engines: {node: '>= 0.4'}
 
+  avl@1.6.0:
+    resolution: {integrity: sha512-sXZcG/wbnIWbJJnH0wQrZl0iyzorHUQaL1BX9+8byrhIp2iPaXnloQ3bFkXTBEHKrshK6wcWe6iGblgMNXarUA==}
+
   axobject-query@4.1.0:
     resolution: {integrity: sha512-qIj0G9wZbMGNLjLmg1PT6v2mE9AH2zlnADJD/2tC6E00hgmhUOfEB6greHPAfLRSufHqROIUTkw6E+M3lH0PTQ==}
     engines: {node: '>= 0.4'}
@@ -613,9 +616,6 @@ packages:
   jiti@2.4.2:
     resolution: {integrity: sha512-rg9zJN+G4n2nfJl5MW3BMygZX56zKPNVEYYqq7adpmMh4Jn2QNEwhvQlFy6jPVdcod7txZtKHWnyZiA3a0zP7A==}
     hasBin: true
-
-  js-sdsl@4.4.2:
-    resolution: {integrity: sha512-dwXFwByc/ajSV6m5bcKAPwe4yDDF6D614pxmIi5odytzxRlwqF6nwoiCek80Ixc7Cvma5awClxrzFtxCQvcM8w==}
 
   kleur@4.1.5:
     resolution: {integrity: sha512-o+NO+8WrRiQEE4/7nwRJhN1HWpVmJm511pBHUxPLtp0BUISzlBplORYSmTclCnJvQq2tKu/sgl3xVpkc7ZWuQQ==}
@@ -1215,6 +1215,8 @@ snapshots:
 
   aria-query@5.3.2: {}
 
+  avl@1.6.0: {}
+
   axobject-query@4.1.0: {}
 
   bits-ui@2.8.8(@internationalized/date@3.8.2)(svelte@5.33.18):
@@ -1311,8 +1313,6 @@ snapshots:
       '@types/estree': 1.0.8
 
   jiti@2.4.2: {}
-
-  js-sdsl@4.4.2: {}
 
   kleur@4.1.5: {}
 

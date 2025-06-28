@@ -1,5 +1,5 @@
 import { LinearScale } from "chart.js";
-import type { Tick, LinearScaleOptions, ScaleTypeRegistry } from "chart.js";
+import type { Tick, LinearScaleOptions } from "chart.js";
 
 declare module "chart.js" {
     interface CartesianScaleTypeRegistry {

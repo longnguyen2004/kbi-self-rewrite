@@ -69,6 +69,7 @@ void ConsoleController::Run()
         while (rec.Recording())
         {
             std::print("\rDevices: {}, Inputs: {}", rec.DeviceCount(), rec.InputCount());
+            std::fflush(stdout);
             std::this_thread::sleep_for(100ms);
         }
         std::println();

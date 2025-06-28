@@ -11,6 +11,7 @@
 
     import DiffChart from "$lib/components/charts/DiffChart.svelte";
     import FreqChart from "$lib/components/charts/FreqChart.svelte";
+    import InputTimeline from "$lib/components/charts/InputTimeline.svelte";
 
     import { Analyzer } from "$lib/analyzer/analyzer.svelte.js";
     import { parseKbiResult } from "$lib/parser/parser";
@@ -35,15 +36,15 @@
 </script>
 
 <ModeWatcher />
-<main class="w-full h-full flex flex-col gap-10">
-    <div class="controls">
+<main class="w-full h-full flex flex-col">
+    <div class="controls mb-4">
         <div class="row">
             <div class="flex flex-row gap-4">
                 <Label for="kbi-file" class="whitespace-nowrap">KBI file</Label>
                 <Input type="file" id="kbi-file" accept=".json,.kbi"
-                    onchange={async (e) => {
+                    onclick={(e) => e.currentTarget.value = ""}
+                    oninput={async (e) => {
                         const { files } = e.currentTarget;
-                        e.currentTarget.files = null;
                         if (!files?.[0])
                         {
                             data = undefined;
@@ -65,7 +66,7 @@
             </Button>
         </div>
         <div class="row">
-            <div class="flex flex-col gap-2">
+            <div class="flex flex-row gap-2">
                 <Label for="binning-rate">Binning rate</Label>
                 <Select.Root type="single" bind:value={
                     () => analyzer.binRate.toString(),
@@ -87,13 +88,18 @@
             </div>
         </div>
     </div>
-    <div class="diff-chart flex-1 flex flex-row gap-15">
-        <DiffChart data={analyzer.consecutiveDiff} />
-        <DiffChart data={analyzer.allDiff} />
+    <div class="diff-chart min-h-0 flex-3 flex flex-row gap-10">
+        <DiffChart title="Consecutive timestamp diffs" data={analyzer.consecutiveDiff} />
+        <DiffChart title="All timestamp diffs" data={analyzer.allDiff} />
+        <DiffChart title="Timestamp fractional parts" data={analyzer.wrappedTimestamp} />
     </div>
-    <div class="freq-chart flex-1 flex flex-row gap-15">
-        <FreqChart data={postprocess(analyzer.consecutiveDiffFreq, postprocessOpts)} />
-        <FreqChart data={postprocess(analyzer.allDiffFreq, postprocessOpts)} />
+    <div class="freq-chart min-h-0 flex-3 flex flex-row gap-10">
+        <FreqChart title="Consecutive timestamp diffs (frequency domain)" data={postprocess(analyzer.consecutiveDiffFreq, postprocessOpts)} />
+        <FreqChart title="All timestamp diffs (frequency domain)" data={postprocess(analyzer.allDiffFreq, postprocessOpts)} />
+        <FreqChart title="Timestamp fractional parts (frequency domain)" data={postprocess(analyzer.wrappedTimestampFreq, postprocessOpts)} />
+    </div>
+    <div class="input-timeline min-h-0 flex-4">
+        <InputTimeline devices={data?.devices} inputs={data?.inputs}/>
     </div>
 </main>
 <style>
@@ -105,7 +111,7 @@
         .row {
             display: flex;
             flex-direction: row;
-            align-items: flex-start;
+            align-items: center;
             gap: 1rem;
         }
     }

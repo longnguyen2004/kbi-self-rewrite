@@ -1,6 +1,7 @@
 <script lang="ts" module>
     import { ZoomSynchronizer } from "./synchronizeZoom.js";
     export type Props = {
+        title?: string;
         data: number[];
     };
 
@@ -15,20 +16,20 @@
 
     let ref: HTMLCanvasElement;
     let chart: Chart | undefined = $state.raw();
-    let { data }: Props = $props();
+    let { title, data }: Props = $props();
 
     onMount(() => {
-        const newChart = createChart(ref);
+        const newChart = createChart<"line", {x: number, y: number}[]>(ref, "line");
+        newChart.options.layout!.padding = {
+            left: 10,
+            right: 10
+        }
         newChart.options.scales = {
             freq: {
                 axis: "x",
                 type: "quantizedTickLinear",
                 min: 0,
                 max: 1000,
-                title: {
-                    display: true,
-                    text: "Frequency (Hz)"
-                },
                 ticks: {
                     callback(tickValue, index, ticks) {
                         if (typeof tickValue === "string")
@@ -134,6 +135,12 @@
     });
 </script>
 
-<div class="w-full h-full relative">
-    <canvas bind:this={ref}> </canvas>
+
+<div class="flex flex-col items-center gap-1 w-full h-full">
+    {#if title}
+    <h1 class="select-none">{title}</h1>
+    {/if}
+    <div class="overflow-hidden w-full h-full relative">
+        <canvas bind:this={ref}> </canvas>
+    </div>
 </div>
