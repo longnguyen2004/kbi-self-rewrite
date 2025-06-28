@@ -71,6 +71,9 @@
                 },
                 type: "linear",
                 axis: "x",
+                ticks: {
+                    precision: 3
+                }
             },
             keys: {
                 type: "category",
