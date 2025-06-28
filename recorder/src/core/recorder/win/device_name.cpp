@@ -278,7 +278,7 @@ std::optional<UsbDeviceInfo> get_usb_device_info(std::wstring_view wid)
         descriptors.end(),
         reinterpret_cast<unsigned char*>(confDesc),
         reinterpret_cast<unsigned char*>(confDesc) + bytesReturned
-    )
+    );
     return UsbDeviceInfo{
         .VID = deviceDescriptor.idVendor,
         .PID = deviceDescriptor.idProduct,
