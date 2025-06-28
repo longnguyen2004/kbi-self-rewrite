@@ -66,7 +66,7 @@
             </Button>
         </div>
         <div class="row">
-            <div class="flex flex-col gap-2">
+            <div class="flex flex-row gap-2">
                 <Label for="binning-rate">Binning rate</Label>
                 <Select.Root type="single" bind:value={
                     () => analyzer.binRate.toString(),
@@ -89,14 +89,14 @@
         </div>
     </div>
     <div class="diff-chart min-h-0 flex-3 flex flex-row gap-10">
-        <DiffChart data={analyzer.consecutiveDiff} />
-        <DiffChart data={analyzer.allDiff} />
-        <DiffChart data={analyzer.wrappedTimestamp} />
+        <DiffChart title="Consecutive timestamp diffs" data={analyzer.consecutiveDiff} />
+        <DiffChart title="All timestamp diffs" data={analyzer.allDiff} />
+        <DiffChart title="Timestamp fractional parts" data={analyzer.wrappedTimestamp} />
     </div>
     <div class="freq-chart min-h-0 flex-3 flex flex-row gap-10">
-        <FreqChart data={postprocess(analyzer.consecutiveDiffFreq, postprocessOpts)} />
-        <FreqChart data={postprocess(analyzer.allDiffFreq, postprocessOpts)} />
-        <FreqChart data={postprocess(analyzer.wrappedTimestampFreq, postprocessOpts)} />
+        <FreqChart title="Consecutive timestamp diffs (frequency domain)" data={postprocess(analyzer.consecutiveDiffFreq, postprocessOpts)} />
+        <FreqChart title="All timestamp diffs (frequency domain)" data={postprocess(analyzer.allDiffFreq, postprocessOpts)} />
+        <FreqChart title="Timestamp fractional parts (frequency domain)" data={postprocess(analyzer.wrappedTimestampFreq, postprocessOpts)} />
     </div>
     <div class="input-timeline min-h-0 flex-4">
         <InputTimeline devices={data?.devices} inputs={data?.inputs}/>
@@ -111,7 +111,7 @@
         .row {
             display: flex;
             flex-direction: row;
-            align-items: flex-start;
+            align-items: center;
             gap: 1rem;
         }
     }
