@@ -210,6 +210,8 @@ function parse_kbi_legacy_v3(state: ReaderState)
             inputMap.set(source, inputArr);
         }
         const vk = keyStrToVk(input.input.key);
+        if (vk === undefined)
+            console.log(`Unrecognized key: ${input.input.key}`);
         inputArr.push({
             timestamp: input.time * 1000000,
             pressed: input.pressed,
