@@ -88,15 +88,15 @@
             </div>
         </div>
     </div>
-    <div class="diff-chart flex-3 flex flex-row gap-15">
+    <div class="diff-chart min-h-0 flex-3 flex flex-row gap-15">
         <DiffChart data={analyzer.consecutiveDiff} />
         <DiffChart data={analyzer.allDiff} />
     </div>
-    <div class="freq-chart flex-3 flex flex-row gap-15">
+    <div class="freq-chart min-h-0 flex-3 flex flex-row gap-15">
         <FreqChart data={postprocess(analyzer.consecutiveDiffFreq, postprocessOpts)} />
         <FreqChart data={postprocess(analyzer.allDiffFreq, postprocessOpts)} />
     </div>
-    <div class="input-timeline flex-4">
+    <div class="input-timeline min-h-0 flex-4">
         <InputTimeline devices={data?.devices} inputs={data?.inputs}/>
     </div>
 </main>

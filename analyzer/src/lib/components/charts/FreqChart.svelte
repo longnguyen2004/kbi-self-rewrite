@@ -134,6 +134,6 @@
     });
 </script>
 
-<div class="w-full h-full relative">
+<div class="overflow-hidden w-full h-full relative">
     <canvas bind:this={ref}> </canvas>
 </div>
