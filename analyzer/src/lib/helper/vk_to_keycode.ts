@@ -236,6 +236,7 @@ const keyStrToVkMap: Record<string, number | undefined> = {
     Back: VK_BACK,
     Tab: VK_TAB,
     Enter: VK_RETURN,
+    Return: VK_RETURN,
     Pause: VK_PAUSE,
     Capital: VK_CAPITAL,
     CapsLock: VK_CAPITAL,
