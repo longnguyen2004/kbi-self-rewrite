@@ -91,10 +91,12 @@
     <div class="diff-chart min-h-0 flex-3 flex flex-row gap-10">
         <DiffChart data={analyzer.consecutiveDiff} />
         <DiffChart data={analyzer.allDiff} />
+        <DiffChart data={analyzer.wrappedTimestamp} />
     </div>
     <div class="freq-chart min-h-0 flex-3 flex flex-row gap-10">
         <FreqChart data={postprocess(analyzer.consecutiveDiffFreq, postprocessOpts)} />
         <FreqChart data={postprocess(analyzer.allDiffFreq, postprocessOpts)} />
+        <FreqChart data={postprocess(analyzer.wrappedTimestampFreq, postprocessOpts)} />
     </div>
     <div class="input-timeline min-h-0 flex-4">
         <InputTimeline devices={data?.devices} inputs={data?.inputs}/>

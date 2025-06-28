@@ -1,5 +1,5 @@
 import FftWorker from "./analyzer_fft_thread?worker";
-import { OrderedMap } from "js-sdsl";
+import { AVLTree } from "avl";
 import type { Request, Response } from "./analyzer_fft_thread";
 
 class FftCalculator {
@@ -29,18 +29,21 @@ class FftCalculator {
 export class Analyzer {
     private _binRate: number = $state(128000);
     private _timestampRaw: number[] = [];
-    private _timestampBinned = new OrderedMap<number, number>();
+    private _timestampBinned = new AVLTree<number, number>();
 
     private _consecutiveDiffCount: number[] = $state.raw([]);
     private _allDiffCount: number[] = $state.raw([]);
+    private _wrappedTimestampCount: number[] = $state.raw([]);
 
     private _consecutiveDiffFreq: number[] = $state.raw([]);
     private _allDiffFreq: number[] = $state.raw([]);
+    private _wrappedTimestampFreq: number[] = $state.raw([]);
 
     private _calculating = false;
     private _calculationQueued = false;
     private _consecutiveDiffFftCalculator = new FftCalculator();
     private _allDiffFftCalculator = new FftCalculator();
+    private _wrappedTimestampFftCalculator = new FftCalculator();
 
     constructor() {
         this.reset();
@@ -56,20 +59,29 @@ export class Analyzer {
             const interval = 1000000 / this._binRate;
             const binned = Math.round(timestamp / interval) * interval;
 
-            const last = this._timestampBinned.back();
+            const last = this._timestampBinned.maxNode();
             if (last) {
-                const consecutiveDiff = binned - last[0];
+                // Consecutive diff calculation
+                const consecutiveDiff = binned - last.key;
                 if (consecutiveDiff <= 1000000)
-                    this._consecutiveDiffCount[consecutiveDiff / interval] += last[1];
-                const start = this._timestampBinned.lowerBound(binned - 1000000);
-                for (let i = start; !i.equals(this._timestampBinned.end()); i = i.next()) {
-                    const longDiff = binned - i.pointer[0];
-                    this._allDiffCount[longDiff / interval] += i.pointer[1];
-                }
-                this._timestampBinned.setElement(binned, consecutiveDiff === 0 ? last[1] + 1 : 1);
+                    this._consecutiveDiffCount[consecutiveDiff / interval] += last.data!;
+
+                // All diff calculation
+                this._timestampBinned.range(binned - 1000000, last.key, (node) => {
+                    const longDiff = binned - node.key;
+                    this._allDiffCount[longDiff / interval] += node.data!;
+                })
+                if (consecutiveDiff === 0)
+                    last.data!++;
+                else if (!this._timestampBinned.insert(binned, 1))
+                    throw new Error("Duplicate key (this should not happen!)")
+
+                // 1s modulo calculation
+                const binnedWrapped = binned % 1000000;
+                this._wrappedTimestampCount[binnedWrapped / interval]++;
             }
             else {
-                this._timestampBinned.setElement(binned, 1);
+                this._timestampBinned.insert(binned, 1);
             }
         }
         this._consecutiveDiffCount = Array.from(this._consecutiveDiffCount);
@@ -89,13 +101,18 @@ export class Analyzer {
                 const calc2 = this._allDiffFftCalculator.submit(
                     this._allDiffCount
                 );
-                const [freq1, freq2] = await Promise.all([calc1, calc2]);
+                const calc3 = this._wrappedTimestampFftCalculator.submit(
+                    this._wrappedTimestampCount
+                );
+                const [freq1, freq2, freq3] = await Promise.all([calc1, calc2, calc3]);
                 this._consecutiveDiffFreq = new Array(freq1.length / 2);
                 this._allDiffFreq = new Array(freq2.length / 2);
+                this._wrappedTimestampFreq = new Array(freq3.length / 2);
                 for (let i = 0; i < freq1.length; i += 2)
                 {
                     this._consecutiveDiffFreq[i / 2] = (Math.hypot(freq1[i], freq1[i + 1]));
                     this._allDiffFreq[i / 2] = (Math.hypot(freq2[i], freq2[i + 1]));
+                    this._wrappedTimestampFreq[i / 2] = (Math.hypot(freq3[i], freq3[i + 1]));
                 }
             }
             this._calculating = false;
@@ -106,8 +123,10 @@ export class Analyzer {
         this._timestampBinned.clear();
         this._consecutiveDiffCount = new Array(this._binRate + 1).fill(0);
         this._allDiffCount = new Array(this._binRate + 1).fill(0);
+        this._wrappedTimestampCount = new Array(this._binRate + 1).fill(0);
         this._consecutiveDiffFreq = new Array(this._binRate / 2 + 1).fill(0);
         this._allDiffFreq = new Array(this._binRate / 2 + 1).fill(0);
+        this._wrappedTimestampFreq = new Array(this._binRate / 2 + 1).fill(0);
     }
     get binRate() {
         return this._binRate;
@@ -131,11 +150,17 @@ export class Analyzer {
     get allDiff() {
         return this._allDiffCount;
     }
+    get wrappedTimestamp() {
+        return this._wrappedTimestampCount;
+    }
     get consecutiveDiffFreq() {
         return this._consecutiveDiffFreq;
     }
     get allDiffFreq() {
         return this._allDiffFreq;
+    }
+    get wrappedTimestampFreq() {
+        return this._wrappedTimestampFreq;
     }
     get calculating() {
         return this._calculating;

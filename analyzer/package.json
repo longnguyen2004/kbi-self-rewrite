@@ -36,9 +36,9 @@
   },
   "dependencies": {
     "@lng2004/rustfft-shim": "^0.1.0",
+    "avl": "^1.6.0",
     "chart.js": "^4.4.9",
     "chartjs-plugin-zoom": "^2.2.0",
-    "js-sdsl": "^4.4.2",
     "mode-watcher": "^1.0.7",
     "valibot": "^1.1.0"
   }
