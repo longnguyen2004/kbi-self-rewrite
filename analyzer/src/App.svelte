@@ -42,9 +42,9 @@
             <div class="flex flex-row gap-4">
                 <Label for="kbi-file" class="whitespace-nowrap">KBI file</Label>
                 <Input type="file" id="kbi-file" accept=".json,.kbi"
-                    onchange={async (e) => {
+                    onclick={(e) => e.currentTarget.value = ""}
+                    oninput={async (e) => {
                         const { files } = e.currentTarget;
-                        e.currentTarget.files = null;
                         if (!files?.[0])
                         {
                             data = undefined;
