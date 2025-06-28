@@ -279,7 +279,7 @@ const keyStrToVkMap: Record<string, number | undefined> = {
     OemPeriod: VK_OEM_PERIOD,
     OemQuestion: VK_OEM_2,
     Oem2: VK_OEM_2,
-    OemTilde: VK_OEM_3,
+    Oemtilde: VK_OEM_3,
     Oem3: VK_OEM_3,
     OemOpenBrackets: VK_OEM_4,
     Oem4: VK_OEM_4,
