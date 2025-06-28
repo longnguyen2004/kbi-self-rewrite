@@ -1,5 +1,33 @@
 import * as v from "valibot";
 
+export enum UsbDeviceSpeed {
+    UNKNOWN,
+    LOW_SPEED,
+    FULL_SPEED,
+    HIGH_SPEED,
+    SUPERSPEED
+};
+
+export const usbDeviceSchema = v.object({
+    vid: v.pipe(
+        v.number(),
+        v.minValue(0),
+        v.maxValue(0xFFFF)
+    ),
+    pid: v.pipe(
+        v.number(),
+        v.minValue(0),
+        v.maxValue(0xFFFF)
+    ),
+    speed: v.enum(UsbDeviceSpeed),
+    descriptors: v.optional(v.pipe(
+        v.string(),
+        v.base64()
+    ))
+})
+
+export type UsbDevice = v.InferOutput<typeof usbDeviceSchema>;
+
 export const deviceSchema = v.object({
     name: v.string(),
     vid: v.pipe(
@@ -11,7 +39,8 @@ export const deviceSchema = v.object({
         v.number(),
         v.minValue(0),
         v.maxValue(0xFFFF)
-    )
+    ),
+    usb_device: v.optional(v.string())
 });
 export type Device = v.InferOutput<typeof deviceSchema>;
 
@@ -34,6 +63,7 @@ export const resultSchema = v.object({
         backend: v.string()
     }),
     time: v.string(),
+    usb_devices: v.optional(v.record(v.string(), usbDeviceSchema)),
     devices: v.record(v.string(), deviceSchema),
     inputs: v.record(v.string(), v.array(inputSchema))
 });
