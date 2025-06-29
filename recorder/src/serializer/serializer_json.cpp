@@ -1,5 +1,6 @@
 #include "serializer.h"
 #include "../system/helper_os.h"
+#include "../system/info.h"
 #include <concepts>
 #include <iterator>
 #include <boost/unordered/concurrent_flat_map.hpp>
@@ -57,24 +58,44 @@ void tag_invoke(const value_from_tag &, value &j, const boost::unordered::concur
     });
 }
 
+void tag_invoke(const value_from_tag &, value &j, const SystemInfo& sysInfo)
+{
+    // clang-format off
+    j.emplace_object() = {
+#if defined(_WIN32)
+        {"os", "windows"},
+        {"os_name", sysInfo.Common.OsName},
+        {"os_ver", sysInfo.Common.OsVersion},
+        {"arch", sysInfo.Common.Architecture},
+        {"cpu", sysInfo.Common.CpuName},
+        {"safe_mode", sysInfo.IsSafeMode},
+        {"clock_freq", sysInfo.ClockFrequency},
+#elif defined(__linux__)
+        {"os", "linux"},
+        {"os_name", sysInfo.Common.OsName},
+        {"os_ver", sysInfo.Common.OsVersion},
+        {"arch", sysInfo.Common.Architecture},
+        {"cpu", sysInfo.Common.CpuName},
+        {"distro_name", sysInfo.DistroName},
+        {"distro_ver", sysInfo.DistroVersion},
+        {"clock_source", sysInfo.ClockSource},
+        {"clock_freq", sysInfo.ClockFrequency}
+#endif
+    };
+    // clang-format on
+}
+
 void tag_invoke(const value_from_tag &, value &j, const Recorder &recorder)
 {
     auto backend = recorder.Backend();
+    auto sysInfo = value_from(GetSystemInfo()).as_object();
     // clang-format off
+    sysInfo["backend"] =
+        backend == RecorderBackend::WINDOWS_GAMEINPUT ? "gameinput" :
+        backend == RecorderBackend::LINUX_EVDEV       ? "evdev"     :
+                                                        "unknown";
     j.emplace_object() = {
-        {"info", {
-            {"os_name", get_os_name()},
-            {"os_ver", get_os_version()},
-            {"arch", get_arch()},
-#ifdef _WIN32
-            {"safe_mode", is_safe_mode()},
-#endif
-            {"backend",
-                backend == RecorderBackend::WINDOWS_GAMEINPUT ? "gameinput" :
-                backend == RecorderBackend::LINUX_EVDEV       ? "evdev"     :
-                                                                "unknown"
-            }
-        }},
+        {"info", sysInfo},
         {"time", std::format("{:%FT%TZ}", recorder.StartTime())},
         {"usb_devices", value_from(recorder.UsbDevices())},
         {"devices", value_from(recorder.Devices())},
