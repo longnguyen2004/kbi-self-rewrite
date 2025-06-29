@@ -30,7 +30,7 @@ find_package(simdutf CONFIG REQUIRED)
 
 target_link_libraries(recorder-lib
     PUBLIC Boost::signals2 Boost::unordered spdlog::spdlog
-    PRIVATE Boost::container Boost::iterator
+    PRIVATE Boost::container Boost::iterator simdutf::simdutf
 )
 
 if (WIN32)
@@ -74,11 +74,15 @@ add_executable(recorder-app
     src/exporter/exporter.h
     src/exporter/exporter_mat_kbi.cpp
     src/system/helper_os.cpp
-    $<${LINUX}:src/system/info_linux.cpp>
+    $<$<BOOL:${LINUX}>:src/system/info_linux.cpp>
+    $<$<BOOL:${WIN32}>:src/system/info_win.cpp>
     src/serializer/serializer.cpp
     src/serializer/serializer_json.cpp
     src/main.cpp
 )
 target_link_libraries(recorder-app PRIVATE recorder-lib)
 target_link_libraries(recorder-app PRIVATE Boost::endian Boost::iostreams Boost::json spdlog::spdlog simdutf::simdutf)
+if (WIN32)
+    target_link_libraries(recorder-app PRIVATE wbemuuid)
+endif()
 target_include_directories(recorder-app PRIVATE ${BEXT_DI_INCLUDE_DIRS})
