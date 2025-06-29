@@ -19,11 +19,11 @@ IWbemServices* connect_cim()
         return pServices.get();
     if (!init)
         init = wil::CoInitializeEx();
-    THROW_IF_FAILED(CoInitializeSecurity(
+    CoInitializeSecurity(
         nullptr, -1, nullptr, nullptr,
         RPC_C_AUTHN_LEVEL_DEFAULT, RPC_C_IMP_LEVEL_IMPERSONATE,
         nullptr, EOAC_NONE, nullptr
-    ));
+    );
     if (!pLocator)
         pLocator = wil::CoCreateInstance<IWbemLocator>(CLSID_WbemLocator, CLSCTX_INPROC_SERVER);
     if (!pServices)
