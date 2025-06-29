@@ -27,7 +27,7 @@ class FftCalculator {
 }
 
 export class Analyzer {
-    private _binRate: number = $state(128000);
+    private _binRate: number = $state(16000);
     private _timestampRaw: number[] = [];
     private _timestampBinned = new AVLTree<number, number>();
 
