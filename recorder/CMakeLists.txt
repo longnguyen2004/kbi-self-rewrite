@@ -73,7 +73,8 @@ add_executable(recorder-app
     src/controller/controller_console.cpp
     src/exporter/exporter.h
     src/exporter/exporter_mat_kbi.cpp
-    src/helper/helper_os.cpp
+    src/system/helper_os.cpp
+    $<${LINUX}:src/system/info_linux.cpp>
     src/serializer/serializer.cpp
     src/serializer/serializer_json.cpp
     src/main.cpp
