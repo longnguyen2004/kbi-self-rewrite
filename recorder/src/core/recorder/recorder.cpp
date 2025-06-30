@@ -91,7 +91,19 @@ Recorder::Recorder(RecorderBackend backend, std::shared_ptr<spdlog::logger> logg
                 if (usbDevice)
                 {
                     new_device.second.UsbDeviceId = usbDevice;
-                    m_usb_devices.emplace(usbDevice.value(), p_impl->GetUsbDeviceInfo(usbDevice.value()));
+                    m_usb_devices.try_emplace_and_visit(
+                        usbDevice.value(), std::nullopt,
+                        [&, this](UsbDeviceMap::value_type& new_usb_device)
+                        {
+                            auto& [id, device] = new_usb_device;
+                            device = std::move(p_impl->GetUsbDeviceInfo(id));
+                            if (device)
+                                this->OnUsbDevice()(id, device.value());
+                        },
+                        [](auto& _)
+                        {
+                        }
+                    );
                 }
                 this->OnDevice()(id, new_device.second);
             },

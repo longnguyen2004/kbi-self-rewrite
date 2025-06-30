@@ -42,6 +42,10 @@ public:
     Recorder(RecorderBackend backend = RecorderBackend::AUTO, std::shared_ptr<spdlog::logger> logger = nullptr);
     ~Recorder();
 
+    UsbDeviceSignal& OnUsbDevice()
+    {
+        return m_sig_usb_device;
+    }
     DeviceSignal& OnDevice()
     {
         return m_sig_device;
@@ -82,6 +86,7 @@ private:
     UsbDeviceMap m_usb_devices;
     DeviceMap m_devices;
     InputMap m_inputs;
+    UsbDeviceSignal m_sig_usb_device;
     DeviceSignal m_sig_device;
     InputSignal m_sig_input;
     StartSignal m_sig_start;
