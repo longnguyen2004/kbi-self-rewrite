@@ -1,29 +1,20 @@
 <script lang="ts">
     import { ModeWatcher, toggleMode } from "mode-watcher";
-    import { untrack } from "svelte";
+    import { untrack, onDestroy } from "svelte";
     import { SunIcon, MoonIcon } from "@lucide/svelte";
 
     import { Button } from "$lib/components/ui/button";
-    import { Checkbox } from "$lib/components/ui/checkbox";
     import { Input } from "$lib/components/ui/input";
     import { Label } from "$lib/components/ui/label";
-    import * as Select from "$lib/components/ui/select";
 
-    import DiffChart from "$lib/components/charts/DiffChart.svelte";
-    import FreqChart from "$lib/components/charts/FreqChart.svelte";
-    import InputTimeline from "$lib/components/charts/InputTimeline.svelte";
+    import Analysis from "./pages/Analysis.svelte";
 
     import { Analyzer } from "$lib/analyzer/analyzer.svelte.js";
     import { parseKbiResult } from "$lib/parser/parser";
-    import { postprocess } from "$lib/analyzer/postprocess";
     import type { Result } from "$lib/validator/validator";
-    import type { PostprocessOptions } from "$lib/analyzer/postprocess";
 
     let analyzer = new Analyzer();
     let data: Result | undefined = $state.raw();
-    let postprocessOpts: PostprocessOptions = $state({
-        lowCut: true
-    });
 
     $effect(() => {
         untrack(() => analyzer.reset());
@@ -33,6 +24,7 @@
         timestamps.sort((a, b) => a - b);
         untrack(() => analyzer.add(timestamps));
     });
+    onDestroy(() => analyzer.terminate());
 </script>
 
 <ModeWatcher />
@@ -65,42 +57,10 @@
                 <span class="sr-only">Toggle theme</span>
             </Button>
         </div>
-        <div class="row">
-            <div class="flex flex-row gap-2">
-                <Label for="binning-rate">Binning rate</Label>
-                <Select.Root type="single" bind:value={
-                    () => analyzer.binRate.toString(),
-                    (v) => analyzer.binRate = parseInt(v)
-                }>
-                    <Select.Trigger id="binning-rate">
-                        {analyzer.binRate}Hz
-                    </Select.Trigger>
-                    <Select.Content>
-                        {#each [1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000] as binRate}
-                            <Select.Item value={binRate.toString()} label="{binRate}Hz" />
-                        {/each}
-                    </Select.Content>
-                </Select.Root>
-            </div>
-            <div class="flex flex-row gap-2">
-                <Label for="low-cut">Low Cut Filter</Label>
-                <Checkbox id="low-cut" bind:checked={postprocessOpts.lowCut} />
-            </div>
-        </div>
     </div>
-    <div class="diff-chart min-h-0 flex-3 flex flex-row gap-10">
-        <DiffChart title="Consecutive timestamp diffs" data={analyzer.consecutiveDiff} />
-        <DiffChart title="All timestamp diffs" data={analyzer.allDiff} />
-        <DiffChart title="Timestamp fractional parts" data={analyzer.wrappedTimestamp} />
-    </div>
-    <div class="freq-chart min-h-0 flex-3 flex flex-row gap-10">
-        <FreqChart title="Consecutive timestamp diffs (frequency domain)" data={postprocess(analyzer.consecutiveDiffFreq, postprocessOpts)} />
-        <FreqChart title="All timestamp diffs (frequency domain)" data={postprocess(analyzer.allDiffFreq, postprocessOpts)} />
-        <FreqChart title="Timestamp fractional parts (frequency domain)" data={postprocess(analyzer.wrappedTimestampFreq, postprocessOpts)} />
-    </div>
-    <div class="input-timeline min-h-0 flex-4">
-        <InputTimeline devices={data?.devices} inputs={data?.inputs}/>
-    </div>
+    {#if data}
+    <Analysis {analyzer} {...data}/>
+    {/if}
 </main>
 <style>
     .controls {
