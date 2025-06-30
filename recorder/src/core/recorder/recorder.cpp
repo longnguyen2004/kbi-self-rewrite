@@ -138,6 +138,7 @@ void Recorder::Start(bool keyboard, bool mouse, bool gamepad)
     p_impl->Start(keyboard, mouse, gamepad);
     m_start_time = std::chrono::steady_clock::now();
     m_start_wallclock = std::chrono::system_clock::now();
+    m_logger->debug("Started recording");
     OnStart()();
 }
 
@@ -148,6 +149,7 @@ void Recorder::Stop()
     p_impl->Stop();
     m_end_time = std::chrono::steady_clock::now();
     m_running = false;
+    m_logger->debug("Stopped recording");
     OnStop()();
 }
 
