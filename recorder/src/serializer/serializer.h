@@ -4,18 +4,21 @@
 #include <ostream>
 
 #define DECLARE_OSTREAM_SERIALIZER \
+    virtual void Serialize(const UsbDeviceInfo& device, std::ostream& out) PURE; \
     virtual void Serialize(const Device& device, std::ostream& out) PURE;        \
     virtual void Serialize(const Input& input, std::ostream& out) PURE;          \
     virtual void Serialize(const Recorder& recorder, std::ostream& out) PURE;    \
     virtual void Serialize(const SystemInfo& sysInfo, std::ostream& out) PURE;
 
 #define DECLARE_STRING_SERIALIZER \
+    virtual std::string Serialize(const UsbDeviceInfo& device); \
     virtual std::string Serialize(const Device& device);        \
     virtual std::string Serialize(const Input& input);          \
     virtual std::string Serialize(const Recorder& recorder);    \
     virtual std::string Serialize(const SystemInfo& sysInfo);
 
 #define DECLARE_BUFFER_SERIALIZER \
+    virtual void Serialize(const UsbDeviceInfo& device, char* out, size_t n); \
     virtual void Serialize(const Device& device, char* out, size_t n);        \
     virtual void Serialize(const Input& input, char* out, size_t n);          \
     virtual void Serialize(const Recorder& recorder, char* out, size_t n);    \

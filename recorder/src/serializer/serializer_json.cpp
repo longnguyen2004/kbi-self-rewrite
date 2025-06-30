@@ -238,6 +238,7 @@ void CborSerializer::Serialize(const type& a, std::ostream& out)    \
     serialize_cbor_value(value_from(a), out);                       \
 }
 
+DEFINE_JSON_SERIALIZER(UsbDeviceInfo)
 DEFINE_JSON_SERIALIZER(Device)
 DEFINE_JSON_SERIALIZER(Input)
 DEFINE_JSON_SERIALIZER(Recorder)

@@ -18,6 +18,7 @@ namespace io = boost::iostreams;
         Serialize(a, os);                                           \
     }
 
+DEFINE_SERIALIZE_WRAPPER(UsbDeviceInfo)
 DEFINE_SERIALIZE_WRAPPER(Device)
 DEFINE_SERIALIZE_WRAPPER(Input)
 DEFINE_SERIALIZE_WRAPPER(Recorder)
