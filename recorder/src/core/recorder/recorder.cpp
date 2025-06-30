@@ -75,7 +75,7 @@ Recorder::Recorder(RecorderBackend backend, std::shared_ptr<spdlog::logger> logg
 
     if (!p_impl)
     {
-        m_logger->warn("Failed to initialize any backend");
+        m_logger->error("Failed to initialize any backend");
         throw std::runtime_error("Failed to initialize any backend");
     }
 
