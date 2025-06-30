@@ -109,7 +109,7 @@
             zoomSync.remove(newChart);
         }
     });
-    $effect(() => {
+    $effect.pre(() => {
         if (!chart || !data) return;
         const nonNullChart = chart;
         untrack(() => {
