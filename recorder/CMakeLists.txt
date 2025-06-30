@@ -27,6 +27,7 @@ find_package(boost_json CONFIG REQUIRED)
 find_package(boost_signals2 CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(simdutf CONFIG REQUIRED)
+find_package(unofficial-uwebsockets CONFIG REQUIRED)
 
 target_link_libraries(recorder-lib
     PUBLIC Boost::signals2 Boost::unordered spdlog::spdlog
@@ -71,6 +72,7 @@ target_include_directories(recorder-lib PUBLIC include)
 find_path(BEXT_DI_INCLUDE_DIRS "boost/di.hpp")
 add_executable(recorder-app
     src/controller/controller_console.cpp
+    src/controller/controller_websocket.cpp
     src/exporter/exporter.h
     src/exporter/exporter_mat_kbi.cpp
     src/system/helper_os.cpp
@@ -81,7 +83,10 @@ add_executable(recorder-app
     src/main.cpp
 )
 target_link_libraries(recorder-app PRIVATE recorder-lib)
-target_link_libraries(recorder-app PRIVATE Boost::endian Boost::iostreams Boost::json spdlog::spdlog simdutf::simdutf)
+target_link_libraries(recorder-app PRIVATE
+    Boost::endian Boost::iostreams Boost::json spdlog::spdlog simdutf::simdutf
+    unofficial::uwebsockets::uwebsockets
+)
 if (WIN32)
     target_link_libraries(recorder-app PRIVATE wbemuuid)
 endif()
