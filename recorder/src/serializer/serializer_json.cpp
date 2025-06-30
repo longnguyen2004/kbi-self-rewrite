@@ -104,31 +104,6 @@ void tag_invoke(const value_from_tag &, value &j, const Recorder &recorder)
     // clang-format on
 }
 
-void JsonTextSerializer::Serialize(const Device &device, std::ostream &out)
-{
-    out << value_from(device);
-}
-void JsonTextSerializer::Serialize(const Input &input, std::ostream &out)
-{
-    out << value_from(input);
-}
-void JsonTextSerializer::Serialize(const Recorder &recorder, std::ostream &out)
-{
-    out << value_from(recorder);
-}
-std::string JsonTextSerializer::Serialize(const Device &device)
-{
-    return serialize(value_from(device));
-}
-std::string JsonTextSerializer::Serialize(const Input &input)
-{
-    return serialize(value_from(input));
-}
-std::string JsonTextSerializer::Serialize(const Recorder &recorder)
-{
-    return serialize(value_from(recorder));
-}
-
 // CBOR serializer taken from https://www.boost.org/doc/libs/latest/libs/json/doc/html/json/examples.html#json.examples.cbor
 void serialize_cbor_number(
     unsigned char mt, std::uint64_t n, std::ostream& out)
@@ -248,15 +223,22 @@ serialize_cbor_value( const value& jv, std::ostream& out )
     }
 }
 
-void CborSerializer::Serialize(const Device &device, std::ostream &out)
-{
-    serialize_cbor_value(value_from(device), out);
+
+#define DEFINE_JSON_SERIALIZER(type) \
+void JsonTextSerializer::Serialize(const type& a, std::ostream& out)    \
+{                                                                       \
+    out << value_from(a);                                               \
+}                                                                       \
+std::string JsonTextSerializer::Serialize(const type& a)    \
+{                                                           \
+    return serialize(value_from(a));                        \
+}                                                           \
+void CborSerializer::Serialize(const type& a, std::ostream& out)    \
+{                                                                   \
+    serialize_cbor_value(value_from(a), out);                       \
 }
-void CborSerializer::Serialize(const Input &input, std::ostream &out)
-{
-    serialize_cbor_value(value_from(input), out);
-}
-void CborSerializer::Serialize(const Recorder &recorder, std::ostream &out)
-{
-    serialize_cbor_value(value_from(recorder), out);
-}
+
+DEFINE_JSON_SERIALIZER(Device)
+DEFINE_JSON_SERIALIZER(Input)
+DEFINE_JSON_SERIALIZER(Recorder)
+DEFINE_JSON_SERIALIZER(SystemInfo)
