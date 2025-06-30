@@ -40,6 +40,7 @@
     "chart.js": "^4.4.9",
     "chartjs-plugin-zoom": "^2.2.0",
     "mode-watcher": "^1.0.7",
+    "runed": "^0.29.1",
     "valibot": "^1.1.0"
   }
 }
