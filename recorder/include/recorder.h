@@ -33,8 +33,9 @@ public:
     using UsbDeviceMap = boost::unordered::concurrent_flat_map<std::string, std::optional<UsbDeviceInfo>>;
     using DeviceMap = boost::unordered::concurrent_flat_map<std::string, Device>;
     using InputMap = boost::unordered::concurrent_flat_map<std::string, std::deque<Input>>;
-    using DeviceSignal = boost::signals2::signal<void(const std::string&, Device)>;
-    using InputSignal = boost::signals2::signal<void(const std::string&, Input)>;
+    using UsbDeviceSignal = boost::signals2::signal<void(const std::string&, const UsbDeviceInfo&)>;
+    using DeviceSignal = boost::signals2::signal<void(const std::string&, const Device&)>;
+    using InputSignal = boost::signals2::signal<void(const std::string&, const Input&)>;
     using StartSignal = boost::signals2::signal<void()>;
     using StopSignal = boost::signals2::signal<void()>;
 
