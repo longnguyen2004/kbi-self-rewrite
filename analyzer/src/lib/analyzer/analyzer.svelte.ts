@@ -24,6 +24,10 @@ class FftCalculator {
             this._worker.postMessage(req);
         })
     }
+    terminate()
+    {
+        this._worker.terminate();
+    }
 }
 
 export class Analyzer {
@@ -127,6 +131,11 @@ export class Analyzer {
         this._consecutiveDiffFreq = new Array(this._binRate / 2 + 1).fill(0);
         this._allDiffFreq = new Array(this._binRate / 2 + 1).fill(0);
         this._wrappedTimestampFreq = new Array(this._binRate / 2 + 1).fill(0);
+    }
+    terminate() {
+        this._consecutiveDiffFftCalculator.terminate();
+        this._allDiffFftCalculator.terminate();
+        this._wrappedTimestampFftCalculator.terminate();
     }
     get binRate() {
         return this._binRate;
