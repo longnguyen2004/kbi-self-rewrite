@@ -27,8 +27,10 @@ SystemInfo GetSystemInfo()
         while (std::getline(cpuinfo, line))
         {
             if (line.starts_with("model name"))
+            {
                 cpu_name = line.substr(line.find(':') + 2);
-            break;
+                break;
+            }
         }
     }
 
@@ -44,13 +46,13 @@ SystemInfo GetSystemInfo()
             {
                 distro_name = line.substr(5);
                 if (distro_name[0] == '"')
-                    distro_name = line.substr(1, distro_name.size() - 2);
+                    distro_name = distro_name.substr(1, distro_name.size() - 2);
             }
             else if (line.starts_with("VERSION="))
             {
                 distro_ver = line.substr(8);
                 if (distro_ver[0] == '"')
-                    distro_ver = line.substr(1, distro_ver.size() - 2);
+                    distro_ver = distro_name.substr(1, distro_ver.size() - 2);
             }
         }
     }
@@ -62,9 +64,10 @@ SystemInfo GetSystemInfo()
 
     // Clock frequency
     std::int64_t res = -1;
-    timespec tp;
-    clock_getres(CLOCK_MONOTONIC, &tp);
-    std::int64_t res = tp.tv_sec * 1000000000ULL + tp.tv_nsec;
+    // (this doesn't work because clock_getres always return 1ns for high res clocks)
+    // timespec tp;
+    // if (clock_getres(CLOCK_MONOTONIC, &tp) == 0);
+    //     res = tp.tv_sec * 1000000000ULL + tp.tv_nsec;
     return {
         .Common = {
             .OsName = buffer.sysname ? buffer.sysname : "Unknown",
@@ -75,6 +78,6 @@ SystemInfo GetSystemInfo()
         .DistroName = distro_name,
         .DistroVersion = distro_ver,
         .ClockSource = current_clocksource,
-        .ClockFrequency = 1e9 / res
+        .ClockFrequency = res == -1 ? 0 : 1e9 / res
     };
 }
