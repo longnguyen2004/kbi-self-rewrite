@@ -24,11 +24,12 @@
       "name": "libsystemd",
       "platform": "linux"
     },
+    "simdutf",
     "spdlog",
+    "uwebsockets",
     {
       "name": "wil",
       "platform": "windows"
-    },
-    "simdutf"
+    }
   ]
 }
