@@ -223,8 +223,7 @@ serialize_cbor_value( const value& jv, std::ostream& out )
     }
 }
 
-
-#define DEFINE_JSON_SERIALIZER(type) \
+#define DEFINE_JSON_SERIALIZER(r, _, type) \
 void JsonTextSerializer::Serialize(const type& a, std::ostream& out)    \
 {                                                                       \
     out << value_from(a);                                               \
@@ -238,8 +237,4 @@ void CborSerializer::Serialize(const type& a, std::ostream& out)    \
     serialize_cbor_value(value_from(a), out);                       \
 }
 
-DEFINE_JSON_SERIALIZER(UsbDeviceInfo)
-DEFINE_JSON_SERIALIZER(Device)
-DEFINE_JSON_SERIALIZER(Input)
-DEFINE_JSON_SERIALIZER(Recorder)
-DEFINE_JSON_SERIALIZER(SystemInfo)
+BOOST_PP_SEQ_FOR_EACH(DEFINE_JSON_SERIALIZER, _, SERIALIZER_CLASS_TO_DECLARE)

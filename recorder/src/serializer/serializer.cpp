@@ -5,7 +5,7 @@
 
 namespace io = boost::iostreams;
 
-#define DEFINE_SERIALIZE_WRAPPER(type) \
+#define DEFINE_SERIALIZE_WRAPPER(r, _, type) \
     std::string Serializer::Serialize(const type& a)    \
     {                                                   \
         std::ostringstream os;                          \
@@ -18,8 +18,4 @@ namespace io = boost::iostreams;
         Serialize(a, os);                                           \
     }
 
-DEFINE_SERIALIZE_WRAPPER(UsbDeviceInfo)
-DEFINE_SERIALIZE_WRAPPER(Device)
-DEFINE_SERIALIZE_WRAPPER(Input)
-DEFINE_SERIALIZE_WRAPPER(Recorder)
-DEFINE_SERIALIZE_WRAPPER(SystemInfo)
+BOOST_PP_SEQ_FOR_EACH(DEFINE_SERIALIZE_WRAPPER, _, SERIALIZER_CLASS_TO_DECLARE)
