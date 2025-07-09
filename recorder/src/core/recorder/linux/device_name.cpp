@@ -6,6 +6,7 @@
 #include <vector>
 #include <tuple>
 #include <fcntl.h>
+#include <unistd.h>
 
 std::tuple<const char*, const char*> subsys_driver_chain[] = {
     { "input", "" },
