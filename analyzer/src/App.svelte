@@ -64,7 +64,7 @@
                         f.send("changeSource");
                         return;
                 }
-            }} class="flex flex-row gap-4">
+            }} class="flex flex-row! gap-4">
                 <Tabs.List>
                     <Tabs.Trigger value="from-file">
                         From file

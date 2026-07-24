@@ -23,7 +23,7 @@
     });
 </script>
 
-<div class="analysis-options flex flex-row gap-2 items-center">
+<div class="analysis-options flex flex-row gap-2 items-center mb-2">
     <div class="flex flex-row gap-2">
         <Label for="binning-rate">Binning rate</Label>
         <Select.Root
