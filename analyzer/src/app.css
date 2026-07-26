@@ -1,10 +1,10 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
-@import "tw-animate-css";
+@import 'tw-animate-css';
 
-@import "shadcn-svelte/tailwind.css";
+@import 'shadcn-svelte/tailwind.css';
 
-@import "@fontsource-variable/geist";
+@import '@fontsource-variable/geist';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -126,8 +126,8 @@
   body {
     @apply bg-background text-foreground;
   }
-	html {
-		@apply font-sans;
+  html {
+    @apply font-sans;
   }
 }
 
