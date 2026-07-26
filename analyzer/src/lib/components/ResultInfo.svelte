@@ -5,7 +5,7 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Tabs from '$lib/components/ui/tabs';
   import { Separator } from '$lib/components/ui/separator';
-  import { parseUsbDescriptors, toHex } from '$lib/parser/parser_usb_descriptors';
+  import { parseUsbDescriptors, toHex, type DescriptorField } from '$lib/parser/parser_usb_descriptors';
 
   type Props = {
     result: Result;
@@ -98,11 +98,23 @@
                           <div class="mt-1 ml-4 flex flex-col gap-1">
                             <div class="text-xs font-medium">Fields:</div>
                             <div class="flex flex-col gap-0.5">
+                              {#snippet renderField(field: DescriptorField)}
+                                {const container = field.children?.length ? 'details' : 'div'}
+                                {const summaryTextContainer = field.children?.length ? 'summary' : 'div'}
+                                <svelte:element this={container}>
+                                  <svelte:element this={summaryTextContainer} class="gap-2 align-baseline text-xs">
+                                    <span class="shrink-0 text-muted-foreground">{field.name}:</span>
+                                    <code class="break-all">{field.value}</code>
+                                  </svelte:element>
+                                  <div class="ml-4">
+                                    {#each field.children ?? [] as childField}
+                                      {@render renderField(childField)}
+                                    {/each}
+                                  </div>
+                                </svelte:element>
+                              {/snippet}
                               {#each desc.fields as field}
-                                <div class="gap-2 align-baseline text-xs">
-                                  <span class="shrink-0 text-muted-foreground">{field.name}:</span>
-                                  <code class="break-all">{field.value}</code>
-                                </div>
+                                {@render renderField(field)}
                               {/each}
                             </div>
                             <details class="mt-1">
