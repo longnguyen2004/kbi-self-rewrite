@@ -153,8 +153,8 @@ function toHex(bytes: Uint8Array): string {
     .join(' ');
 }
 
-function toHexByte(b: number): string {
-  return '0x' + b.toString(16).padStart(2, '0').toUpperCase();
+function toHexByte(b: number, minLength = 2): string {
+  return '0x' + b.toString(16).padStart(minLength, '0').toUpperCase();
 }
 
 function decodeBase64(base64: string): Uint8Array {
@@ -187,8 +187,8 @@ function parseDeviceDescriptor(raw: Uint8Array): DescriptorField[] {
     { name: 'bDeviceSubClass', value: toHexByte(v.getUint8(5)) },
     { name: 'bDeviceProtocol', value: toHexByte(v.getUint8(6)) },
     { name: 'bMaxPacketSize0', value: v.getUint8(7).toString() },
-    { name: 'idVendor', value: toHexByte(v.getUint16(8, true)) },
-    { name: 'idProduct', value: toHexByte(v.getUint16(10, true)) },
+    { name: 'idVendor', value: toHexByte(v.getUint16(8, true), 4) },
+    { name: 'idProduct', value: toHexByte(v.getUint16(10, true), 4) },
     { name: 'bcdDevice', value: v.getUint16(12, true).toString(16).padStart(4, '0') },
     { name: 'iManufacturer', value: v.getUint8(14).toString() },
     { name: 'iProduct', value: v.getUint8(15).toString() },
