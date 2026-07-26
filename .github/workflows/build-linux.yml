@@ -11,7 +11,7 @@ jobs:
         uses: lukka/get-cmake@latest
 
       - name: Install vcpkg
-        uses: lukka/get-vcpkg@v11
+        uses: lukka/run-vcpkg@v11
       
       - name: Build
         uses: lukka/run-cmake@v10
