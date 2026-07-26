@@ -1,0 +1,21 @@
+name: build-linux
+on: workflow_dispatch
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install CMake
+        uses: lukka/get-cmake@latest
+
+      - name: Install vcpkg
+        uses: lukka/get-vcpkg@v11
+      
+      - name: Build
+        uses: lukka/run-cmake@v10
+        with:
+          cmakeListsTxtPath: '${{ github.workspace }}/recorder/CMakeLists.txt'
+          configurePreset: 'vcpkg - Ninja'
+          buildPreset: 'CI - Release'

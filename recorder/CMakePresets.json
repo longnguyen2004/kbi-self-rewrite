@@ -23,6 +23,11 @@
       "name": "MSVC Release",
       "configurePreset": "vcpkg - Windows MSVC",
       "configuration": "Release"
+    },
+    {
+      "name": "CI - Release",
+      "configurePreset": "vcpkg - Ninja",
+      "configuration": "Release"
     }
   ]
 }
