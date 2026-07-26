@@ -258,20 +258,21 @@ function parseEndpointDescriptor(raw: Uint8Array): DescriptorField[] {
 
 function parseHidDescriptor(raw: Uint8Array): DescriptorField[] {
   const v = dv(raw);
+  const subDescriptors: DescriptorField[] = [];
   const fields: DescriptorField[] = [
     { name: 'bLength', value: v.getUint8(0).toString() },
     { name: 'bDescriptorType', value: toHexByte(v.getUint8(1)) },
     { name: 'bcdHID', value: v.getUint16(2, true).toString(16).padStart(4, '0') },
     { name: 'bCountryCode', value: HID_COUNTRY_CODES[v.getUint8(4)] ?? toHexByte(v.getUint8(4)) },
-    { name: 'bNumDescriptors', value: v.getUint8(5).toString() },
+    { name: 'bNumDescriptors', value: v.getUint8(5).toString(), children: subDescriptors },
   ];
   // Parse subordinate descriptors
   let offset = 6;
   for (let i = 0; i < v.getUint8(5) && offset + 3 <= raw.length; i++) {
     const subType = v.getUint8(offset);
     const subLen = v.getUint16(offset + 1, true);
-    fields.push({
-      name: `  Sub-descriptor ${i + 1}`,
+    subDescriptors.push({
+      name: `Sub-descriptor ${i + 1}`,
       value: `${USB_DESCRIPTOR_TYPES[subType] ?? toHexByte(subType)} (${subLen} bytes)`,
     });
     offset += 3;
