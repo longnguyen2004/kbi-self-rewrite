@@ -5,7 +5,11 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Tabs from '$lib/components/ui/tabs';
   import { Separator } from '$lib/components/ui/separator';
-  import { parseUsbDescriptors, toHex, type DescriptorField } from '$lib/parser/parser_usb_descriptors';
+  import { toHex } from '$lib/helper/hex';
+  import {
+    parseUsbDescriptors,
+    type DescriptorField,
+  } from '$lib/parser/parser_usb_descriptors';
 
   type Props = {
     result: Result;
@@ -100,10 +104,16 @@
                             <div class="flex flex-col gap-0.5">
                               {#snippet renderField(field: DescriptorField)}
                                 {const container = field.children?.length ? 'details' : 'div'}
-                                {const summaryTextContainer = field.children?.length ? 'summary' : 'div'}
+                                {const summaryTextContainer = field.children?.length
+                                  ? 'summary'
+                                  : 'div'}
                                 <svelte:element this={container}>
-                                  <svelte:element this={summaryTextContainer} class="gap-2 align-baseline text-xs">
-                                    <span class="shrink-0 text-muted-foreground">{field.name}:</span>
+                                  <svelte:element
+                                    this={summaryTextContainer}
+                                    class="gap-2 align-baseline text-xs"
+                                  >
+                                    <span class="shrink-0 text-muted-foreground">{field.name}:</span
+                                    >
                                     <code class="break-all">{field.value}</code>
                                   </svelte:element>
                                   <div class="ml-4">
