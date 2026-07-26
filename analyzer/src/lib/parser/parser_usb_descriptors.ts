@@ -1,4 +1,4 @@
-import { toHex, toHexByte } from "$lib/helper/hex";
+import { toHex, toHexByte } from '$lib/helper/hex';
 
 // USB descriptor type constants
 export const USB_DESCRIPTOR_TYPES: Record<number, string> = {

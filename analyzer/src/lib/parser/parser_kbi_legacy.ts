@@ -185,7 +185,7 @@ function parse_kbi_legacy_v3(state: ReaderState) {
     },
     time: time.toString(),
     devices: Object.fromEntries(
-      sources.map((el) => [el.device_id, { name: el.name, vid: 0, pid: 0 }]),
+      sources.map((el) => [el.device_id, { name: el.name, vid: -1, pid: -1 }]),
     ),
     inputs: Object.fromEntries(inputMap.entries()),
   } satisfies Result;

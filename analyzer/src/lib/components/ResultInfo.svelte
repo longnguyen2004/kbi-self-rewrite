@@ -6,10 +6,7 @@
   import * as Tabs from '$lib/components/ui/tabs';
   import { Separator } from '$lib/components/ui/separator';
   import { toHex } from '$lib/helper/hex';
-  import {
-    parseUsbDescriptors,
-    type DescriptorField,
-  } from '$lib/parser/parser_usb_descriptors';
+  import { parseUsbDescriptors, type DescriptorField } from '$lib/parser/parser_usb_descriptors';
 
   type Props = {
     result: Result;
@@ -57,18 +54,24 @@
       </Tabs.Content>
       <Tabs.Content value="devices">
         <div class="flex flex-col gap-1">
-          {#each Object.entries(result.devices) as [id, device], i}
+          {#each Object.entries(result.devices) as [id, { vid, pid, name, usb_device }], i (id)}
             <details class="rounded-md border px-2 py-1">
               <summary class="cursor-pointer">
-                Device {i + 1}: <code class="text-xs">{id}</code>
+                Device {i + 1}: <code>{id}</code>
               </summary>
               <ul class="mt-1 ml-6 list-disc">
-                <li>Name: {device.name}</li>
-                <li>VID: <code>{device.vid.toString(16).padStart(4, '0')}</code></li>
-                <li>PID: <code>{device.pid.toString(16).padStart(4, '0')}</code></li>
+                <li>Name: {name}</li>
+                <li>
+                  VID:
+                  <code>{vid === -1 ? 'N/A' : vid.toString(16).padStart(4, '0')}</code>
+                </li>
+                <li>
+                  PID:
+                  <code>{pid === -1 ? 'N/A' : pid.toString(16).padStart(4, '0')}</code>
+                </li>
                 <li>Number of inputs: {result.inputs[id]?.length ?? 0}</li>
-                {#if device.usb_device}
-                  <li>Associated USB device: <code class="text-xs">{device.usb_device}</code></li>
+                {#if usb_device}
+                  <li>Associated USB device: <code class="text-xs">{usb_device}</code></li>
                 {/if}
               </ul>
             </details>
