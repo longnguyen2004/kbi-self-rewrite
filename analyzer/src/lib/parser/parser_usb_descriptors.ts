@@ -240,10 +240,14 @@ function parseEndpointDescriptor(raw: Uint8Array): DescriptorField[] {
         { name: "bLength", value: v.getUint8(0).toString() },
         { name: "bDescriptorType", value: toHexByte(v.getUint8(1)) },
         { name: "bEndpointAddress", value: `${toHexByte(epAddr)} (Endpoint ${epNum}, ${epDir})` },
-        { name: "bmAttributes", value: toHexByte(attr) },
-        { name: "  Transfer Type", value: EP_TRANSFER_TYPES[transferType] ?? `Unknown (${transferType})` },
-        { name: "  Sync Type", value: EP_SYNC_TYPES[syncType] ?? `Unknown (${syncType})` },
-        { name: "  Usage Type", value: EP_USAGE_TYPES[usageType] ?? `Unknown (${usageType})` },
+        {
+            name: "bmAttributes", value: toHexByte(attr),
+            children: [
+                { name: "Transfer Type", value: EP_TRANSFER_TYPES[transferType] ?? `Unknown (${transferType})` },
+                { name: "Sync Type", value: EP_SYNC_TYPES[syncType] ?? `Unknown (${syncType})` },
+                { name: "Usage Type", value: EP_USAGE_TYPES[usageType] ?? `Unknown (${usageType})` },
+            ]
+        },
         { name: "wMaxPacketSize", value: v.getUint16(4, true).toString() },
         { name: "bInterval", value: v.getUint8(6).toString() },
     ];
@@ -282,10 +286,11 @@ function parseHubDescriptor(raw: Uint8Array): DescriptorField[] {
         { name: "bLength", value: v.getUint8(0).toString() },
         { name: "bDescriptorType", value: toHexByte(v.getUint8(1)) },
         { name: "bNbrPorts", value: v.getUint8(2).toString() },
-        { name: "wHubCharacteristics", value: toHexByte(chars) },
-        { name: "  Power Switching", value: HUB_CHAR_POWER_MODE[powerMode] ?? `Unknown (${powerMode})` },
-        { name: "  Compound Device", value: HUB_CHAR_COMPOUND[compound] ?? `Unknown (${compound})` },
-        { name: "  Over-current Protection", value: HUB_CHAR_OC_MODE[ocMode] ?? `Unknown (${ocMode})` },
+        { name: "wHubCharacteristics", value: toHexByte(chars), children: [
+            { name: "Power Switching", value: HUB_CHAR_POWER_MODE[powerMode] ?? `Unknown (${powerMode})` },
+        { name: "Compound Device", value: HUB_CHAR_COMPOUND[compound] ?? `Unknown (${compound})` },
+        { name: "Over-current Protection", value: HUB_CHAR_OC_MODE[ocMode] ?? `Unknown (${ocMode})` },
+        ] },
         { name: "bPwrOn2PwrGood", value: `${v.getUint8(5) * 2} ms` },
         { name: "bHubContrCurrent", value: `${v.getUint8(6)} mA` },
     ];
