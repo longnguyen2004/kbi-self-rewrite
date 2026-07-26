@@ -21,7 +21,7 @@
       "$lib/*": ["./src/lib/*"]
     },
     "types": ["vite/client"],
-    "lib": ["WebWorker", "ES2017", "ES2019"]
+    "lib": ["WebWorker", "ES2017", "ES2019", "ES2022"]
   },
   "include": ["src/**/*.ts", "src/**/*.js", "src/**/*.svelte"]
 }
