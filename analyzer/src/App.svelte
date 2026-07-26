@@ -10,6 +10,7 @@
     import * as Tabs from "$lib/components/ui/tabs";
 
     import Analysis from "./pages/Analysis.svelte";
+    import ResultInfo from "$lib/components/ResultInfo.svelte";
 
     import { Analyzer } from "$lib/analyzer/analyzer.svelte.js";
     import { parseKbiResult } from "$lib/parser/parser";
@@ -99,6 +100,14 @@
                     <Button>{f.current === "recording" ? "Stop Recording" : "Start Recording"}</Button>
                 </Tabs.Content>
             </Tabs.Root>
+
+            {#if data}
+                <ResultInfo result={data}>
+                    {#snippet child({ props })}
+                        <Button {...props} variant="outline">Info</Button>
+                    {/snippet}
+                </ResultInfo>
+            {/if}
 
             <Button class="ml-auto" onclick={toggleMode} variant="outline" size="icon">
                 <SunIcon
