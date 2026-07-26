@@ -31,6 +31,7 @@
         min: 0,
         max: 1000,
         ticks: {
+          autoSkip: false,
           callback(tickValue, index, ticks) {
             if (typeof tickValue === 'string') return tickValue;
             const fractionalPart = tickValue - Math.floor(tickValue);
@@ -66,6 +67,8 @@
     };
     newChart.options.plugins!.zoom!.zoom!.onZoom = zoomSync.onZoom;
     newChart.options.plugins!.zoom!.pan!.onPan = zoomSync.onPan;
+    newChart.options.plugins!.zoom!.limits!.x!.min = 0;
+    newChart.options.plugins!.zoom!.limits!.x!.max = 25;
     const gridColors = {
       light: 'rgba(0, 0, 0, 0.1)',
       dark: 'rgba(255, 255, 255, 0.25)',
@@ -112,7 +115,7 @@
       ];
       nonNullChart.options.scales!.count!.max = minmax(data)[1];
       nonNullChart.update();
-      nonNullChart.zoomScale('delta', { min: 0, max: 50 });
+      nonNullChart.zoomScale('delta', { min: 0, max: 25 });
     });
   });
 </script>
