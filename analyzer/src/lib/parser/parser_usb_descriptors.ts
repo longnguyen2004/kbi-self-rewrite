@@ -405,7 +405,60 @@ export function parseDescriptors(raw: Uint8Array): ParsedDescriptor[] {
 
 export function parseUsbDescriptors(base64: string): ParsedDescriptor[] {
   try {
-    return parseDescriptors(decodeBase64(base64));
+    const descriptors = parseDescriptors(decodeBase64(base64));
+    let usbMajorVersion = 0,
+      usbMinorVersion = 0;
+    for (const desc of descriptors) {
+      switch (desc.type) {
+        // Device descriptor, extract USB version
+        case 0x01:
+          {
+            const bcdUSB = desc.fields.filter((el) => el.name === 'bcdUSB').at(0);
+            if (bcdUSB) {
+              usbMajorVersion = parseInt(bcdUSB.value[1]);
+              usbMinorVersion = parseInt(bcdUSB.value[2]);
+              bcdUSB.value += ` (USB ${usbMajorVersion}.${usbMinorVersion})`;
+            }
+          }
+          break;
+
+        // Endpoint descriptor, calculate requested and effective polling rate
+        case 0x05: {
+          const bInterval = desc.fields.filter((el) => el.name === 'bInterval').at(0);
+          if (bInterval && usbMajorVersion) {
+            // USB 1.x has 1ms frames, USB 2.0+ has 125us microframes
+            const frameDuration = usbMajorVersion == 1 ? 1000 : 125;
+            function roundDownToPowerOf2(x: number) {
+              x |= x >>> 1;
+              x |= x >>> 2;
+              x |= x >>> 4;
+              x |= x >>> 8;
+              x |= x >>> 16;
+              return x - (x >>> 1);
+            }
+            const bIntervalRequested = parseInt(bInterval.value);
+            const bIntervalEffective = roundDownToPowerOf2(bIntervalRequested);
+
+            function formatDuration(us: number) {
+              return us >= 1000 ? `${us / 1000}ms` : `${us}μs`;
+            }
+
+            bInterval.children = [
+              {
+                name: 'Polling Interval (Requested)',
+                value: formatDuration(bIntervalRequested * frameDuration),
+              },
+              {
+                name: 'Polling Interval (Effective)',
+                value: formatDuration(bIntervalEffective * frameDuration),
+              },
+              { name: 'Polling Rate', value: `${1000000 / bIntervalEffective / frameDuration}Hz` },
+            ];
+          }
+        }
+      }
+    }
+    return descriptors;
   } catch {
     return [];
   }
