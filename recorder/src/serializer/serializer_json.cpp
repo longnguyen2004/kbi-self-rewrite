@@ -23,7 +23,10 @@ void tag_invoke(const value_from_tag &, value &j, const UsbDeviceInfo &usbDevice
     {
         auto& source = usbDevice.Descriptors;
         std::string base64(simdutf::base64_length_from_binary(source.size()), 0);
-        std::ignore = simdutf::binary_to_base64(source, base64);
+        std::ignore = simdutf::binary_to_base64(
+            reinterpret_cast<const char*>(source.data()), source.size(),
+            base64.data()
+        );
         val.insert_or_assign("descriptors", base64);
     }
 }
