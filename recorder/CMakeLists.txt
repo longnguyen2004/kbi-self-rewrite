@@ -25,6 +25,7 @@ find_package(boost_iostreams CONFIG REQUIRED)
 find_package(boost_iterator CONFIG REQUIRED)
 find_package(boost_json CONFIG REQUIRED)
 find_package(boost_preprocessor CONFIG REQUIRED)
+find_package(boost_program_options CONFIG REQUIRED)
 find_package(boost_signals2 CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(simdutf CONFIG REQUIRED)
@@ -85,7 +86,7 @@ add_executable(recorder-app
 )
 target_link_libraries(recorder-app PRIVATE recorder-lib)
 target_link_libraries(recorder-app PRIVATE
-    Boost::endian Boost::iostreams Boost::json Boost::preprocessor spdlog::spdlog simdutf::simdutf
+    Boost::endian Boost::iostreams Boost::json Boost::preprocessor Boost::program_options spdlog::spdlog simdutf::simdutf
     unofficial::uwebsockets::uwebsockets
 )
 if (WIN32)

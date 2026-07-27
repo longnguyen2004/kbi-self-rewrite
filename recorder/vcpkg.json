@@ -11,6 +11,7 @@
     "boost-iterator",
     "boost-json",
     "boost-preprocessor",
+    "boost-program-options",
     "boost-signals2",
     "boost-unordered",
     {
