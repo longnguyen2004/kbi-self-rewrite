@@ -33,7 +33,7 @@ jobs:
         uses: lukka/run-cmake@v10
         with:
           cmakeListsTxtPath: '${{ github.workspace }}/recorder/CMakeLists.txt'
-          configurePreset: 'vcpkg - Ninja'
+          configurePreset: 'vcpkg - Ninja - Release'
           buildPreset: 'CI - Release'
 
       - name: Upload
