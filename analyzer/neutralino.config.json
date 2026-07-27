@@ -1,0 +1,37 @@
+{
+  "applicationId": "keyboard-inspector-analyzer",
+  "version": "1.0.0",
+  "defaultMode": "window",
+  "documentRoot": "/dist",
+  "url": "/",
+  "enableServer": true,
+  "enableNativeAPI": true,
+  "nativeAllowList": [
+    "app.*"
+  ],
+  "singlePageServe": true,
+  "modes": {
+    "window": {
+      "title": "Keyboard Inspector Analyzer",
+      "width": 800,
+      "height": 500,
+      "minWidth": 400,
+      "minHeight": 200,
+      "enableInspector": true,
+      "injectGlobals": true
+    }
+  },
+  "cli": {
+    "binaryName": "analyzer",
+    "resourcesPath": "/dist",
+    "extensionsPath": "/extensions/",
+    "frontendLibrary": {
+			"devUrl": "http://localhost:5173",
+			"projectPath": "/",
+			"initCommand": "npm install",
+			"devCommand": "npm run dev",
+			"buildCommand": "npm run build"
+		},
+    "distributionPath": "/dist-neu"
+  }
+}
