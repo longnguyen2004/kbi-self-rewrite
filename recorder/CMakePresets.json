@@ -16,6 +16,13 @@
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
       }
+    },
+    {
+      "name": "vcpkg - Ninja - Release",
+      "inherits": "vcpkg - Ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
     }
   ],
   "buildPresets": [
@@ -26,8 +33,7 @@
     },
     {
       "name": "CI - Release",
-      "configurePreset": "vcpkg - Ninja",
-      "configuration": "Release"
+      "configurePreset": "vcpkg - Ninja - Release"
     }
   ]
 }
