@@ -241,3 +241,11 @@ void CborSerializer::Serialize(const type& a, std::ostream& out)    \
 }
 
 BOOST_PP_SEQ_FOR_EACH(DEFINE_JSON_SERIALIZER, _, SERIALIZER_CLASS_TO_DECLARE)
+
+#define DEFINE_GET_JSON(r, _, type) \
+value JsonTextSerializer::GetJson(const type& a)    \
+{                                                   \
+    return value_from(a);                           \
+}
+
+BOOST_PP_SEQ_FOR_EACH(DEFINE_GET_JSON, _, SERIALIZER_CLASS_TO_DECLARE)
