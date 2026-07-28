@@ -13,7 +13,7 @@
 #include <stop_token>
 #include <type_traits>
 
-using namespace GameInput::v1;
+using namespace GameInput::v3;
 using namespace std::chrono;
 using namespace std::literals;
 

@@ -6,7 +6,7 @@
 #include <chrono>
 #include <thread>
 
-using namespace GameInput::v1;
+using namespace GameInput::v3;
 using KeyStateArray = boost::container::static_vector<GameInputKeyState, 50>;
 
 class recorder_win_gameinput: public Recorder::Impl
