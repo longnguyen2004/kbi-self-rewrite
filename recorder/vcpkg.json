@@ -14,9 +14,14 @@
     "boost-program-options",
     "boost-signals2",
     "boost-unordered",
+    "boost-uuid",
     {
       "name": "gameinput",
       "platform": "windows"
+    },
+    {
+      "name": "ixwebsocket",
+      "default-features": false
     },
     {
       "name": "libevdev",

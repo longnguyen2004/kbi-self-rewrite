@@ -1,9 +1,11 @@
 #include "../serializer/serializer.h"
 #include <recorder.h>
+#include <boost/json/fwd.hpp>
 #include <spdlog/fwd.h>
+#include <ixwebsocket/IXWebSocket.h>
 #include <uwebsockets/App.h>
 #include <atomic>
-#include <variant>
+#include <string_view>
 
 class Controller
 {
@@ -38,4 +40,17 @@ private:
     std::atomic<unsigned long> m_client_id = 0;
 
     JsonTextSerializer m_serializer;
+};
+
+class NeutralinoController: public Controller
+{
+public:
+    NeutralinoController(Recorder& recorder, std::shared_ptr<spdlog::logger> logger);
+    virtual void Run();
+
+private:
+    ix::WebSocket m_ws;
+    std::string m_access_token;
+
+    void _sendNeutralinoEvent(std::string_view event, const boost::json::value& payload);
 };

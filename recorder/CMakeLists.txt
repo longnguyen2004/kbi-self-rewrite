@@ -27,6 +27,8 @@ find_package(boost_json CONFIG REQUIRED)
 find_package(boost_preprocessor CONFIG REQUIRED)
 find_package(boost_program_options CONFIG REQUIRED)
 find_package(boost_signals2 CONFIG REQUIRED)
+find_package(boost_uuid CONFIG REQUIRED)
+find_package(ixwebsocket CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(simdutf CONFIG REQUIRED)
 find_package(unofficial-uwebsockets CONFIG REQUIRED)
@@ -75,6 +77,7 @@ find_path(BEXT_DI_INCLUDE_DIRS "boost/di.hpp")
 add_executable(recorder-app
     src/controller/controller_console.cpp
     src/controller/controller_websocket.cpp
+    src/controller/controller_neutralino.cpp
     src/exporter/exporter.h
     src/exporter/exporter_mat_kbi.cpp
     src/system/helper_os.cpp
@@ -86,7 +89,15 @@ add_executable(recorder-app
 )
 target_link_libraries(recorder-app PRIVATE recorder-lib)
 target_link_libraries(recorder-app PRIVATE
-    Boost::endian Boost::iostreams Boost::json Boost::preprocessor Boost::program_options spdlog::spdlog simdutf::simdutf
+    Boost::endian
+    Boost::iostreams
+    Boost::json
+    Boost::preprocessor
+    Boost::program_options
+    Boost::uuid
+    ixwebsocket::ixwebsocket
+    spdlog::spdlog
+    simdutf::simdutf
     unofficial::uwebsockets::uwebsockets
 )
 if (WIN32)

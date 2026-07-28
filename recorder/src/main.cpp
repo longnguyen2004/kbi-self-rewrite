@@ -7,7 +7,11 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/basic_file_sink.h>
 
+#include <cassert>
+#include <exception>
+#include <istream>
 #include <iterator>
+#include <print>
 #include <stdio.h>
 
 #ifdef __linux__
@@ -17,15 +21,52 @@
 namespace di = boost::di;
 namespace po = boost::program_options;
 
+enum class ProgramMode {
+    CONSOLE,
+    WEBSOCKET,
+    NEUTRALINO
+};
+
+std::istream& operator>>(std::istream& in, ProgramMode& mode) {
+    std::string token;
+    in >> token;
+
+    if (token == "console") {
+        mode = ProgramMode::CONSOLE;
+    }
+    else if (token == "websocket") {
+        mode = ProgramMode::WEBSOCKET;
+    }
+    else if (token == "neutralino") {
+        mode = ProgramMode::NEUTRALINO;
+    }
+    else {
+        in.setstate(std::ios_base::failbit);
+    }
+    return in;
+}
+
 int main(int argc, char const *argv[])
 {
+    ProgramMode mode;
     po::options_description desc("Allowed options");
     desc.add_options()
         ("help", "produce help message")
-        ("websocket", "run in websocket mode");
+        (
+            "mode",
+            po::value<ProgramMode>(&mode)->default_value(ProgramMode::CONSOLE, "console"),
+            "Operating mode (console, websocket, neutralino)"
+        );
     po::variables_map vm;
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);
+
+    try {
+        po::store(po::parse_command_line(argc, argv, desc), vm);
+        po::notify(vm);
+    }
+    catch (const std::exception& e) {
+        std::println("Error: {}", e.what());
+        return 1;
+    }
     if (vm.count("help")) {
         std::cout << desc << "\n";
         return 0;
@@ -53,12 +94,25 @@ int main(int argc, char const *argv[])
             return multi_sink;
         }),
         di::bind<Controller>.to([&](const auto& injector) -> Controller& {
-            if (vm.count("websocket"))
-                return injector.template create<WebSocketController&>();
-            return injector.template create<ConsoleController&>();
+            switch (mode) {
+                case ProgramMode::CONSOLE:
+                    return injector.template create<ConsoleController&>();
+                case ProgramMode::WEBSOCKET:
+                    return injector.template create<WebSocketController&>();
+                case ProgramMode::NEUTRALINO:
+                    return injector.template create<NeutralinoController&>();
+                default:
+                    throw std::runtime_error("Unknown/unimplemented program mode");
+            }
         })
     );
-    auto& controller = injector.create<Controller&>();
-    controller.Run();
+    auto logger = injector.create<std::shared_ptr<spdlog::logger>>();
+    try {
+        auto& controller = injector.create<Controller&>();
+        controller.Run();
+    }
+    catch (const std::exception& e) {
+        logger->error("An exception occurred: {}", e.what());
+    }
     return 0;
 }
