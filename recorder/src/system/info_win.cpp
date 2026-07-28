@@ -1,3 +1,6 @@
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+
 #include "info.h"
 #include <comdef.h>
 #include <windows.h>
