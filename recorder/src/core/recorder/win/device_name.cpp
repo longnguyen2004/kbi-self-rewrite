@@ -37,6 +37,10 @@ std::string hid_product_string_from_device_path(std::wstring_view wid)
     if (HidD_GetProductString(devHandle.get(), productString.data(), productString.size()) == FALSE)
         return "Unknown";
 
+    auto len = productString.find(L'\0');
+    if (len != std::wstring::npos)
+        productString.resize(len);
+
     return wstring_to_string(productString);
 }
 
