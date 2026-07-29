@@ -45,12 +45,11 @@
     ]
   },
   "dependencies": {
-    "@keenmate/svelte-treeview": "^4.8.0",
     "@lng2004/rustfft-shim": "^0.1.0",
     "@neutralinojs/lib": "^6.9.0",
-    "avl": "^2.0.0",
     "chart.js": "^4.5.1",
     "chartjs-plugin-zoom": "^2.2.0",
+    "emittery": "^2.0.0",
     "mode-watcher": "^1.1.0",
     "runed": "^0.37.1",
     "valibot": "^1.4.2"

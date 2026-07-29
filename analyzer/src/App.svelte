@@ -13,39 +13,59 @@
   import ResultInfo from '$lib/components/ResultInfo.svelte';
 
   import { Analyzer } from '$lib/analyzer/analyzer.svelte.js';
-  import { parseKbiResult } from '$lib/parser/parser';
-  import type { Result } from '$lib/validator/validator';
+  import { FromFileDataSource } from '$lib/data_source/from_file.svelte';
+  import { FromRecorderDataSource } from '$lib/data_source/from_recorder.svelte';
+  import type { DataSource } from '$lib/data_source';
 
   let analyzer = new Analyzer();
-  let data: Result | undefined = $state.raw();
 
   type States = 'from-file' | 'from-recorder' | 'recording';
-  type Events = 'changeSource' | 'startRecording' | 'stopRecording';
+  type Events = 'changeSource' | 'toggleRecording';
+
+  let dataSource: DataSource | undefined = $state();
+  let result = $derived(dataSource?.result);
+  let pendingTimestamps: number[] = [];
+  let submitLoop: number | undefined;
+
   let currentTab = $state('from-file');
   let f = new FiniteStateMachine<States, Events>('from-file', {
     'from-file': {
-      _enter() {
+      _enter({ from, event }) {
+        if (event === "changeSource" || from === null)
+        {
+          analyzer.reset();
+          dataSource = new FromFileDataSource();
+        }
         currentTab = 'from-file';
-      },
-      _exit() {
-        analyzer.reset();
-        data = undefined;
       },
       changeSource: 'from-recorder',
     },
     'from-recorder': {
-      _enter() {
+      _enter({ event }) {
+        if (event === "changeSource")
+        {
+          analyzer.reset();
+          const recorderSource = dataSource = new FromRecorderDataSource();
+          recorderSource.on("input", (e) => {
+            analyzer.add([e.data[1].timestamp]);
+          });
+        }
         currentTab = 'from-recorder';
       },
-      _exit() {
-        analyzer.reset();
-        data = undefined;
-      },
       changeSource: 'from-file',
-      startRecording: 'recording',
+      toggleRecording: 'recording',
     },
     recording: {
-      stopRecording: 'from-recorder',
+      _enter() {
+        analyzer.reset();
+        const recorderSource = dataSource as FromRecorderDataSource;
+        recorderSource.start();
+      },
+      _exit() {
+        const recorderSource = dataSource as FromRecorderDataSource;
+        recorderSource.stop();
+      },
+      toggleRecording: 'from-recorder',
     },
   });
   onDestroy(() => analyzer.terminate());
@@ -83,13 +103,12 @@
             oninput={async (e) => {
               const { files } = e.currentTarget;
               if (!files?.[0]) {
-                data = undefined;
                 return;
               }
-              data = await parseKbiResult(files[0]);
-              if (!data) return;
+              await (dataSource as FromFileDataSource).parse(files[0]);
+              if (!result) return;
               analyzer.reset();
-              const timestamps = Object.values(data.inputs)
+              const timestamps = Object.values(result.inputs)
                 .flat()
                 .map((val) => val.timestamp);
               timestamps.sort((a, b) => a - b);
@@ -98,12 +117,14 @@
           />
         </Tabs.Content>
         <Tabs.Content class="flex flex-row gap-4" value="from-recorder">
-          <Button>{f.current === 'recording' ? 'Stop Recording' : 'Start Recording'}</Button>
+          <Button onclick={() => f.send('toggleRecording')}>
+            {f.current === 'recording' ? 'Stop Recording' : 'Start Recording'}
+          </Button>
         </Tabs.Content>
       </Tabs.Root>
 
-      {#if data}
-        <ResultInfo result={data}>
+      {#if result}
+        <ResultInfo result={result}>
           {#snippet child({ props })}
             <Button {...props} variant="outline">Info</Button>
           {/snippet}
@@ -121,8 +142,8 @@
       </Button>
     </div>
   </div>
-  {#if data}
-    <Analysis {analyzer} {...data} />
+  {#if result}
+    <Analysis {analyzer} {...result} />
   {/if}
 </main>
 

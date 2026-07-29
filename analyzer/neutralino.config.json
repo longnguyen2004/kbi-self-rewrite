@@ -7,8 +7,9 @@
   "url": "/",
   "enableServer": true,
   "enableNativeAPI": true,
+  "enableExtensions": true,
   "nativeAllowList": [
-    "app.*"
+    "app.*", "extensions.*"
   ],
   "singlePageServe": true,
   "modes": {
@@ -19,7 +20,8 @@
       "minWidth": 400,
       "minHeight": 200,
       "injectGlobals": true,
-      "icon": "/public/icon.png"
+      "icon": "/public/icon.png",
+      "enableInspector": true
     }
   },
   "cli": {
@@ -34,5 +36,11 @@
 			"buildCommand": "npm run build"
 		},
     "distributionPath": "/dist-neu"
-  }
+  },
+  "extensions": [
+    {
+      "id": "recorder",
+      "commandLinux": "${NL_PATH}/extensions/recorder-app_linux --mode neutralino"
+    }
+  ]
 }

@@ -117,6 +117,7 @@ export class Analyzer {
   private _queueRecalcFourier() {
     this._calculationQueued = true;
     if (this._calculating) return;
+    this._calculating = true;
     (async () => {
       while (this._calculationQueued) {
         this._calculationQueued = false;
