@@ -41,19 +41,19 @@ void NeutralinoController::Run()
     auto conn1 = m_recorder.OnUsbDevice().connect(
         [&](const std::string& id, const UsbDeviceInfo& device) {
             auto json = serializer.GetJson(device);
-            this->_sendNeutralinoEvent("usbDevice", json);
+            this->_sendNeutralinoEvent("usbDevice", {{id, json}});
         }
     );
     auto conn2 = m_recorder.OnDevice().connect(
         [&](const std::string& id, const Device& device) {
             auto json = serializer.GetJson(device);
-            this->_sendNeutralinoEvent("device", json);
+            this->_sendNeutralinoEvent("device", {{id, json}});
         }
     );
     auto conn3 = m_recorder.OnInput().connect(
         [&](const std::string& id, const Input& input) {
             auto json = serializer.GetJson(input);
-            this->_sendNeutralinoEvent("input", json);
+            this->_sendNeutralinoEvent("input", {{id, json}});
         }
     );
 
