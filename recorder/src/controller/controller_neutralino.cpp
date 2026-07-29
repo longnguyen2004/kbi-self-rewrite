@@ -37,6 +37,7 @@ void NeutralinoController::_sendNeutralinoEvent(
 
 void NeutralinoController::Run()
 {
+    auto sys_info = GetSystemInfo();
     JsonTextSerializer serializer;
     auto conn1 = m_recorder.OnUsbDevice().connect(
         [&](const std::string& id, const UsbDeviceInfo& device) {
@@ -83,16 +84,16 @@ void NeutralinoController::Run()
             }
             auto event = msg_json.at("event").as_string();
             if (event == "start")
+            {
+                this->_sendNeutralinoEvent("systemInfo", serializer.GetJson(sys_info));
                 this->m_recorder.Start();
+            }
             else if (event == "stop")
                 this->m_recorder.Stop();
         }
     });
 
     this->m_ws.start();
-
-    auto sys_info = GetSystemInfo();
-    this->_sendNeutralinoEvent("systemInfo", serializer.GetJson(sys_info));
 
     while (true) {
         // Just spin this thread
