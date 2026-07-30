@@ -76,36 +76,17 @@
     xScale.range([0, dims.innerWidth]);
     yScale.range([0, dims.innerHeight]);
 
-    const xAxis = axisBottom(xScale).ticks(Math.max(1, Math.floor(dims.innerWidth / 60))).tickFormat((d) => `${Number(d)}s`);
+    const tickCount = Math.max(1, Math.floor(dims.innerWidth / 60));
+    const gridTicks = xScale.ticks(tickCount);
+    const xAxis = axisBottom(xScale)
+      .tickValues(gridTicks)
+      .tickFormat((d) => `${Number(d)}s`);
     select(xAxisG).call(xAxis).attr('transform', `translate(0,${dims.innerHeight})`);
 
     const yAxis = axisLeft(yScale);
     select(yAxisG).call(yAxis);
 
-    // Grid lines (vertical): only rebuild when the tick values actually
-    // changed. During pan/zoom with a stable width the tick count is
-    // constant, so we skip the remove/append churn.
-    const gridTicks = xScale.ticks(Math.max(1, Math.floor(dims.innerWidth / 60)));
-    const gridSel = select(plotG).selectAll('.grid-x');
-    const sameTicks =
-      lastGridTicks !== undefined &&
-      lastGridTicks.length === gridTicks.length &&
-      lastGridTicks.every((t, i) => t === gridTicks[i]);
-    if (!sameTicks) {
-      gridSel.remove();
-      select(plotG)
-        .selectAll('.grid-x')
-        .data(gridTicks)
-        .enter()
-        .append('line')
-        .attr('class', 'grid-x')
-        .attr('x1', (d) => xScale(d))
-        .attr('x2', (d) => xScale(d))
-        .attr('y1', 0)
-        .attr('y2', dims.innerHeight)
-        .attr('stroke-width', 1);
-      lastGridTicks = gridTicks;
-    }
+    updateGridLines(gridTicks);
 
     const bandH = yScale.bandwidth();
     const sel = select(barsG).selectAll<SVGRectElement, Keypress>('rect').data(keypresses);
@@ -134,6 +115,35 @@
       renderQueued = false;
       render();
     });
+  }
+
+  function updateGridLines(gridTicks: number[]) {
+    if (!plotG) return;
+
+    const gridSel = select(plotG).selectAll<SVGLineElement, number>('.grid-x');
+    const sameTicks =
+      lastGridTicks !== undefined &&
+      lastGridTicks.length === gridTicks.length &&
+      lastGridTicks.every((tick, index) => tick === gridTicks[index]);
+
+    if (!sameTicks) {
+      gridSel.remove();
+      select(plotG)
+        .selectAll('.grid-x')
+        .data(gridTicks)
+        .enter()
+        .append('line')
+        .attr('class', 'grid-x')
+        .attr('y1', 0)
+        .attr('stroke-width', 1);
+      lastGridTicks = gridTicks;
+    }
+
+    select(plotG)
+      .selectAll<SVGLineElement, number>('.grid-x')
+      .attr('x1', (tick) => xScale(tick))
+      .attr('x2', (tick) => xScale(tick))
+      .attr('y2', dims.innerHeight);
   }
 
   function applyTheme() {

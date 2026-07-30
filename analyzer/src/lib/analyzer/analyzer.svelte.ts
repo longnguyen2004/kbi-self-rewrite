@@ -56,10 +56,16 @@ export class Analyzer {
   private _consecutiveDiffCount: number[] = $state.raw([]);
   private _allDiffCount: number[] = $state.raw([]);
   private _wrappedTimestampCount: number[] = $state.raw([]);
+  private _consecutiveDiffCountMax = 0;
+  private _allDiffCountMax = 0;
+  private _wrappedTimestampCountMax = 0;
 
   private _consecutiveDiffFreq: number[] = $state.raw([]);
   private _allDiffFreq: number[] = $state.raw([]);
   private _wrappedTimestampFreq: number[] = $state.raw([]);
+  private _consecutiveDiffFreqMax = 0;
+  private _allDiffFreqMax = 0;
+  private _wrappedTimestampFreqMax = 0;
 
   private _calculating = false;
   private _calculationQueued = false;
@@ -85,7 +91,13 @@ export class Analyzer {
       if (last) {
         // Consecutive diff calculation
         const consecutiveDiff = binned - last;
-        if (consecutiveDiff <= 1000000) this._consecutiveDiffCount[consecutiveDiff / interval]++;
+        if (consecutiveDiff <= 1000000) {
+          const index = consecutiveDiff / interval;
+          this._consecutiveDiffCount[index]++;
+          if (this._consecutiveDiffCount[index] > this._consecutiveDiffCountMax) {
+            this._consecutiveDiffCountMax = this._consecutiveDiffCount[index];
+          }
+        }
 
         // All diff calculation
         const start = lowerBound(
@@ -97,12 +109,20 @@ export class Analyzer {
         );
         for (let i = start; i < this._timestampBinned.length; ++i) {
           const longDiff = binned - this._timestampBinned[i];
-          this._allDiffCount[longDiff / interval]++;
+          const index = longDiff / interval;
+          this._allDiffCount[index]++;
+          if (this._allDiffCount[index] > this._allDiffCountMax) {
+            this._allDiffCountMax = this._allDiffCount[index];
+          }
         }
 
         // 1s modulo calculation
         const binnedWrapped = binned % 1000000;
-        this._wrappedTimestampCount[binnedWrapped / interval]++;
+        const wrappedIndex = binnedWrapped / interval;
+        this._wrappedTimestampCount[wrappedIndex]++;
+        if (this._wrappedTimestampCount[wrappedIndex] > this._wrappedTimestampCountMax) {
+          this._wrappedTimestampCountMax = this._wrappedTimestampCount[wrappedIndex];
+        }
       }
       this._timestampBinned.push(binned);
       added++;
@@ -128,10 +148,20 @@ export class Analyzer {
         this._consecutiveDiffFreq = new Array(freq1.length / 2);
         this._allDiffFreq = new Array(freq2.length / 2);
         this._wrappedTimestampFreq = new Array(freq3.length / 2);
+        this._consecutiveDiffFreqMax = 0;
+        this._allDiffFreqMax = 0;
+        this._wrappedTimestampFreqMax = 0;
         for (let i = 0; i < freq1.length; i += 2) {
-          this._consecutiveDiffFreq[i / 2] = Math.hypot(freq1[i], freq1[i + 1]);
-          this._allDiffFreq[i / 2] = Math.hypot(freq2[i], freq2[i + 1]);
-          this._wrappedTimestampFreq[i / 2] = Math.hypot(freq3[i], freq3[i + 1]);
+          const index = i / 2;
+          const consecutive = Math.hypot(freq1[i], freq1[i + 1]);
+          const all = Math.hypot(freq2[i], freq2[i + 1]);
+          const wrapped = Math.hypot(freq3[i], freq3[i + 1]);
+          this._consecutiveDiffFreq[index] = consecutive;
+          this._allDiffFreq[index] = all;
+          this._wrappedTimestampFreq[index] = wrapped;
+          if (consecutive > this._consecutiveDiffFreqMax) this._consecutiveDiffFreqMax = consecutive;
+          if (all > this._allDiffFreqMax) this._allDiffFreqMax = all;
+          if (wrapped > this._wrappedTimestampFreqMax) this._wrappedTimestampFreqMax = wrapped;
         }
       }
       this._calculating = false;
@@ -143,9 +173,15 @@ export class Analyzer {
     this._consecutiveDiffCount = new Array(this._binRate + 1).fill(0);
     this._allDiffCount = new Array(this._binRate + 1).fill(0);
     this._wrappedTimestampCount = new Array(this._binRate + 1).fill(0);
+    this._consecutiveDiffCountMax = 0;
+    this._allDiffCountMax = 0;
+    this._wrappedTimestampCountMax = 0;
     this._consecutiveDiffFreq = new Array(this._binRate / 2 + 1).fill(0);
     this._allDiffFreq = new Array(this._binRate / 2 + 1).fill(0);
     this._wrappedTimestampFreq = new Array(this._binRate / 2 + 1).fill(0);
+    this._consecutiveDiffFreqMax = 0;
+    this._allDiffFreqMax = 0;
+    this._wrappedTimestampFreqMax = 0;
   }
   terminate() {
     this._consecutiveDiffFftCalculator.terminate();
@@ -168,20 +204,38 @@ export class Analyzer {
   get consecutiveDiff() {
     return this._consecutiveDiffCount;
   }
+  get consecutiveDiffMax() {
+    return this._consecutiveDiffCountMax;
+  }
   get allDiff() {
     return this._allDiffCount;
+  }
+  get allDiffMax() {
+    return this._allDiffCountMax;
   }
   get wrappedTimestamp() {
     return this._wrappedTimestampCount;
   }
+  get wrappedTimestampMax() {
+    return this._wrappedTimestampCountMax;
+  }
   get consecutiveDiffFreq() {
     return this._consecutiveDiffFreq;
+  }
+  get consecutiveDiffFreqMax() {
+    return this._consecutiveDiffFreqMax;
   }
   get allDiffFreq() {
     return this._allDiffFreq;
   }
+  get allDiffFreqMax() {
+    return this._allDiffFreqMax;
+  }
   get wrappedTimestampFreq() {
     return this._wrappedTimestampFreq;
+  }
+  get wrappedTimestampFreqMax() {
+    return this._wrappedTimestampFreqMax;
   }
   get calculating() {
     return this._calculating;

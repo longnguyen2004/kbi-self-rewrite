@@ -3,6 +3,7 @@
   export type Props = {
     title?: string;
     data: number[];
+    yMax?: number;
   };
 
   const zoomSync = new D3ZoomSynchronizer();
@@ -18,7 +19,7 @@
   import { getTranslateExtent, setupSvgChart, defaultMargin, type ChartDimensions } from './svgChart';
   import { useChartTheme } from './chartTheme.svelte';
 
-  let { title, data }: Props = $props();
+  let { title, data, yMax }: Props = $props();
 
   let svgRef: SVGSVGElement;
   let dims: ChartDimensions = {
@@ -64,6 +65,10 @@
   let rafId = 0;
   let renderQueued = false;
 
+  function clamp(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, value));
+  }
+
   function quantizedTicks(min: number, max: number): number[] {
     const range = max - min;
     let stepSize: number;
@@ -106,6 +111,79 @@
     select(plotG).attr('stroke', theme.grid)
   }
 
+  function updateGridLines(ticks: number[]) {
+    if (!plotG) return;
+
+    const gridSel = select(plotG).selectAll<SVGLineElement, number>('.grid-x');
+    const sameTicks =
+      lastGridTicks !== undefined &&
+      lastGridTicks.length === ticks.length &&
+      lastGridTicks.every((tick, index) => tick === ticks[index]);
+
+    if (!sameTicks) {
+      gridSel.remove();
+      select(plotG)
+        .selectAll('.grid-x')
+        .data(ticks)
+        .enter()
+        .append('line')
+        .attr('class', 'grid-x')
+        .attr('y1', 0)
+        .attr('stroke-width', 1);
+      lastGridTicks = ticks;
+    }
+
+    select(plotG)
+      .selectAll<SVGLineElement, number>('.grid-x')
+      .attr('x1', (tick) => xScale(tick))
+      .attr('x2', (tick) => xScale(tick))
+      .attr('y2', dims.innerHeight);
+  }
+
+  function buildPeakPreservingPoints() {
+    const n = data.length;
+    if (n === 0) return [];
+
+    const [domainMin, domainMax] = xScale.domain();
+    const xMin = Math.min(domainMin, domainMax);
+    const xMax = Math.max(domainMin, domainMax);
+    const indexMin = clamp(Math.floor((xMin / 1000) * (n - 1)), 0, n - 1);
+    const indexMax = clamp(Math.ceil((xMax / 1000) * (n - 1)), indexMin, n - 1);
+    const visibleCount = indexMax - indexMin + 1;
+    const maxPoints = Math.max(256, Math.floor(dims.innerWidth * 2));
+    const bucketSize = Math.max(1, Math.ceil(visibleCount / maxPoints));
+    const sampleCount = Math.ceil(visibleCount / bucketSize);
+
+    if (points.length !== sampleCount) points = new Array(sampleCount);
+    else points.length = sampleCount;
+
+    const denom = n > 1 ? n - 1 : 1;
+    let pointIndex = 0;
+    for (let bucketStart = indexMin; bucketStart <= indexMax; bucketStart += bucketSize) {
+      const bucketEnd = Math.min(indexMax + 1, bucketStart + bucketSize);
+      let bucketMax = -Infinity;
+      let bucketMaxIndex = bucketStart;
+      for (let i = bucketStart; i < bucketEnd; i++) {
+        const value = data[i];
+        if (value > bucketMax) {
+          bucketMax = value;
+          bucketMaxIndex = i;
+        }
+      }
+
+      const x = (bucketMaxIndex / denom) * 1000;
+      const y = bucketMax;
+      if (!points[pointIndex]) points[pointIndex] = { x, y };
+      else {
+        points[pointIndex].x = x;
+        points[pointIndex].y = y;
+      }
+      pointIndex++;
+    }
+
+    return points;
+  }
+
   function render() {
     if (!plotG || !xAxisG || !yAxisG || !pathEl) return;
     xScale.range([0, dims.innerWidth]);
@@ -120,45 +198,10 @@
     const yAxis = axisLeft(yScale).ticks(5).tickFormat((d) => `${Number(d)}`);
     select(yAxisG).call(yAxis);
 
-    // Grid lines: only rebuild when the tick values actually changed. The
-    // x-domain is constant for this chart, so during real-time insertion the
-    // grid is stable and we skip the remove/append churn entirely.
-    const gridSel = select(plotG).selectAll('.grid-x');
-    const sameTicks =
-      lastGridTicks !== undefined &&
-      lastGridTicks.length === ticks.length &&
-      lastGridTicks.every((t, i) => t === ticks[i]);
-    if (!sameTicks) {
-      gridSel.remove();
-      select(plotG)
-        .selectAll('.grid-x')
-        .data(ticks)
-        .enter()
-        .append('line')
-        .attr('class', 'grid-x')
-        .attr('x1', (d) => xScale(d))
-        .attr('x2', (d) => xScale(d))
-        .attr('y1', 0)
-        .attr('y2', dims.innerHeight)
-        .attr('stroke-width', 1);
-      lastGridTicks = ticks;
-    }
+    updateGridLines(ticks);
 
-    // Reuse the points buffer: x is a fixed function of index, so we only
-    // overwrite y in place. This avoids allocating a new object array on
-    // every render (critical for real-time insertion).
-    const n = data.length;
-    if (points.length !== n) {
-      points = new Array(n);
-      const denom = n > 1 ? n - 1 : 1;
-      for (let i = 0; i < n; i++) {
-        points[i] = { x: (i / denom) * 1000, y: data[i] };
-      }
-    } else {
-      for (let i = 0; i < n; i++) points[i].y = data[i];
-    }
     select(pathEl)
-      .datum(points)
+      .datum(buildPeakPreservingPoints())
       .attr('d', lineGen)
       .attr('fill', 'none')
       .attr('stroke', 'rgb(65, 140, 240)')
@@ -259,16 +302,21 @@
           rootSel.call(zoomBehavior.transform, zoomIdentity.scale(k));
         }
       }
-      // Incremental y-max update: only scan if the previous max was
-      // exceeded (cheap), otherwise the cached max is still valid.
-      let newMax = cachedYMax;
-      for (let i = 0; i < len; i++) {
-        const v = data[i];
-        if (v > newMax) newMax = v;
-      }
-      if (newMax !== cachedYMax) {
-        cachedYMax = newMax;
-        yScale.domain([0, newMax]);
+      if (yMax !== undefined) {
+        cachedYMax = yMax;
+        yScale.domain([0, yMax]);
+      } else {
+        // Incremental y-max update: only scan if the previous max was
+        // exceeded (cheap), otherwise the cached max is still valid.
+        let newMax = cachedYMax;
+        for (let i = 0; i < len; i++) {
+          const v = data[i];
+          if (v > newMax) newMax = v;
+        }
+        if (newMax !== cachedYMax) {
+          cachedYMax = newMax;
+          yScale.domain([0, newMax]);
+        }
       }
       // Coalesce: avoid a synchronous full render per insertion.
       queueRender();

@@ -17,7 +17,7 @@ export function getTranslateExtent(dims: ChartDimensions): [[number, number], [n
 
 export const defaultMargin = {
   top: 10,
-  right: 0,
+  right: 30,
   bottom: 30,
   left: 40,
 };

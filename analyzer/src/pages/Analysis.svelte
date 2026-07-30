@@ -2,7 +2,7 @@
   import DiffChart from '$lib/components/charts/DiffChart.svelte';
   import FreqChart from '$lib/components/charts/FreqChart.svelte';
   import InputTimeline from '$lib/components/charts/InputTimeline.svelte';
-  import { postprocess, type PostprocessOptions } from '$lib/analyzer/postprocess';
+  import { postprocessWithMax, type PostprocessOptions } from '$lib/analyzer/postprocess';
   import { Checkbox } from '$lib/components/ui/checkbox';
   import { Label } from '$lib/components/ui/label';
   import * as Select from '$lib/components/ui/select';
@@ -17,6 +17,12 @@
   let postprocessOpts: PostprocessOptions = $state({
     lowCut: true,
   });
+
+  const consecutiveDiffFreq = $derived(postprocessWithMax(analyzer.consecutiveDiffFreq, postprocessOpts));
+  const allDiffFreq = $derived(postprocessWithMax(analyzer.allDiffFreq, postprocessOpts));
+  const wrappedTimestampFreq = $derived(
+    postprocessWithMax(analyzer.wrappedTimestampFreq, postprocessOpts),
+  );
 </script>
 
 <div class="analysis-options mb-2 flex flex-row items-center gap-2">
@@ -42,22 +48,25 @@
   </div>
 </div>
 <div class="diff-chart flex min-h-0 flex-3 flex-row gap-10">
-  <DiffChart title="Consecutive timestamp diffs" data={analyzer.consecutiveDiff} />
-  <DiffChart title="All timestamp diffs" data={analyzer.allDiff} />
-  <DiffChart title="Timestamp fractional parts" data={analyzer.wrappedTimestamp} />
+  <DiffChart title="Consecutive timestamp diffs" data={analyzer.consecutiveDiff} yMax={analyzer.consecutiveDiffMax} />
+  <DiffChart title="All timestamp diffs" data={analyzer.allDiff} yMax={analyzer.allDiffMax} />
+  <DiffChart title="Timestamp fractional parts" data={analyzer.wrappedTimestamp} yMax={analyzer.wrappedTimestampMax} />
 </div>
 <div class="freq-chart flex min-h-0 flex-3 flex-row gap-10">
   <FreqChart
     title="Consecutive timestamp diffs (frequency domain)"
-    data={postprocess(analyzer.consecutiveDiffFreq, postprocessOpts)}
+    data={consecutiveDiffFreq.data}
+    yMax={consecutiveDiffFreq.max}
   />
   <FreqChart
     title="All timestamp diffs (frequency domain)"
-    data={postprocess(analyzer.allDiffFreq, postprocessOpts)}
+    data={allDiffFreq.data}
+    yMax={allDiffFreq.max}
   />
   <FreqChart
     title="Timestamp fractional parts (frequency domain)"
-    data={postprocess(analyzer.wrappedTimestampFreq, postprocessOpts)}
+    data={wrappedTimestampFreq.data}
+    yMax={wrappedTimestampFreq.max}
   />
 </div>
 <div class="input-timeline min-h-0 flex-4">
