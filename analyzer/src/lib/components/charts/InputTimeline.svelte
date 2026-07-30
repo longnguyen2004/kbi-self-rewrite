@@ -1,26 +1,23 @@
 <script lang="ts" module>
-  import type { Device, Input } from '$lib/validator/validator';
+  import type { TimelineProvider } from '$lib/analyzer/input_timeline.svelte';
   export type Props = {
-    devices?: Record<string, Device>;
-    inputs?: Record<string, Input[]>;
+    timeline: TimelineProvider
   };
 </script>
 
 <script lang="ts">
-  import { onMount, untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import { select, type Selection } from 'd3-selection';
   import { scaleLinear, scaleBand } from 'd3-scale';
   import { axisBottom, axisLeft } from 'd3-axis';
   import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from 'd3-zoom';
-  import { setupSvgChart, type ChartDimensions } from './svgChart';
+  import { getTranslateExtent, setupSvgChart, type ChartDimensions } from './svgChart';
   import { useChartTheme } from './chartTheme.svelte';
-  import { Keycode } from '$lib/keycode/keycode';
+  import type { Keypress } from '$lib/analyzer/input_timeline.svelte';
 
-  type Keypress = { start: number; end: number; key: string; deviceId: string };
+  const { timeline }: Props = $props();
+  const { keypresses, keys, endTimestamp } = $derived(timeline);
 
-  const { devices = {}, inputs = {} }: Props = $props();
-
-  const deviceIds = $derived.by(() => Object.keys(inputs));
   const deviceColors = new Map<string, string>();
   const palette = [
     'rgb(65, 140, 240)',
@@ -39,31 +36,6 @@
     return c;
   }
 
-  const processed = $derived.by(() => {
-    if (!inputs) return { presses: [] as Keypress[], keys: [] as string[], max: 0 };
-    const keys = new Set<string>();
-    const presses: Keypress[] = [];
-    let max = 0;
-    for (const [id, events] of Object.entries(inputs)) {
-      const keyDownMap = new Map<number, number>();
-      for (const event of events) {
-        if (event.pressed) {
-          keyDownMap.set(event.code, event.timestamp);
-        } else {
-          const keyName = Keycode[event.code];
-          const keydown = keyDownMap.get(event.code);
-          if (keydown === undefined) continue;
-          const start = keydown / 1000000;
-          const end = event.timestamp / 1000000;
-          presses.push({ start, end, key: keyName, deviceId: id });
-          keys.add(keyName);
-          max = Math.max(max, end);
-        }
-      }
-    }
-    return { presses, keys: [...keys], max };
-  });
-
   let svgRef: SVGSVGElement;
   let dims: ChartDimensions = {
     width: 0,
@@ -76,7 +48,7 @@
 
   let xScale = scaleLinear().domain([0, 1]);
   let yScale = scaleBand<string>().domain([]).padding(0.2);
-  let xDomain: [number, number] = $derived([0, processed.max]);
+  let xDomain: [number, number] = $derived([0, endTimestamp]);
   let zoomBehavior: ZoomBehavior<SVGGElement, unknown> | undefined;
   let rootSel: Selection<SVGGElement, unknown, null, undefined> | undefined;
   let plotG: SVGGElement | undefined;
@@ -84,6 +56,20 @@
   let yAxisG: SVGGElement | undefined;
   let barsG: SVGGElement | undefined;
   let cleanup: (() => void) | undefined;
+
+  // --- Real-time insertion optimization caches ---
+  // Last tick values used for grid lines — skip the remove/append cycle when
+  // unchanged (the common case during pan/zoom where the tick count is
+  // stable for a given width).
+  let lastGridTicks: number[] | undefined;
+  // Last key set (as a joined string) used to detect when the y-domain
+  // actually changes — only then do we reset zoom; otherwise we preserve the
+  // user's zoom/pan during real-time recording.
+  let lastKeysSig = '';
+  // rAF coalescing: collapse multiple input events within the same animation
+  // frame into a single render.
+  let rafId = 0;
+  let renderQueued = false;
 
   function render() {
     if (!plotG || !xAxisG || !yAxisG || !barsG) return;
@@ -96,23 +82,33 @@
     const yAxis = axisLeft(yScale);
     select(yAxisG).call(yAxis);
 
-    // Grid lines (vertical)
-    select(plotG).selectAll('.grid-x').remove();
-    select(plotG)
-      .selectAll('.grid-x')
-      .data(xScale.ticks(Math.max(1, Math.floor(dims.innerWidth / 60))))
-      .enter()
-      .append('line')
-      .attr('class', 'grid-x')
-      .attr('x1', (d) => xScale(d))
-      .attr('x2', (d) => xScale(d))
-      .attr('y1', 0)
-      .attr('y2', dims.innerHeight)
-      .attr('stroke-width', 1);
+    // Grid lines (vertical): only rebuild when the tick values actually
+    // changed. During pan/zoom with a stable width the tick count is
+    // constant, so we skip the remove/append churn.
+    const gridTicks = xScale.ticks(Math.max(1, Math.floor(dims.innerWidth / 60)));
+    const gridSel = select(plotG).selectAll('.grid-x');
+    const sameTicks =
+      lastGridTicks !== undefined &&
+      lastGridTicks.length === gridTicks.length &&
+      lastGridTicks.every((t, i) => t === gridTicks[i]);
+    if (!sameTicks) {
+      gridSel.remove();
+      select(plotG)
+        .selectAll('.grid-x')
+        .data(gridTicks)
+        .enter()
+        .append('line')
+        .attr('class', 'grid-x')
+        .attr('x1', (d) => xScale(d))
+        .attr('x2', (d) => xScale(d))
+        .attr('y1', 0)
+        .attr('y2', dims.innerHeight)
+        .attr('stroke-width', 1);
+      lastGridTicks = gridTicks;
+    }
 
-    const { presses } = processed;
     const bandH = yScale.bandwidth();
-    const sel = select(barsG).selectAll<SVGRectElement, Keypress>('rect').data(presses);
+    const sel = select(barsG).selectAll<SVGRectElement, Keypress>('rect').data(keypresses);
     sel.exit().remove();
     sel.enter()
       .append('rect')
@@ -126,6 +122,18 @@
       .attr('fill', (d) => colorFor(d.deviceId));
 
     applyTheme();
+  }
+
+  // Coalesce multiple input events within a single animation frame into one
+  // render. During real-time recording, keypresses may arrive faster than the
+  // display refreshes; this avoids redundant synchronous re-renders.
+  function queueRender() {
+    if (renderQueued) return;
+    renderQueued = true;
+    rafId = requestAnimationFrame(() => {
+      renderQueued = false;
+      render();
+    });
   }
 
   function applyTheme() {
@@ -150,7 +158,9 @@
     const svg = svgRef;
     const { cleanup: chartCleanup, clipId } = setupSvgChart(svg, dims.margin, (newDims) => {
       dims = newDims;
-      render();
+      // Dimensions changed: grid line positions are now stale, force rebuild.
+      lastGridTicks = undefined;
+      queueRender();
     });
     cleanup = chartCleanup;
     const svgSel = select(svg);
@@ -171,36 +181,50 @@
         else {
           const newX = xScale.copy().domain(xDomain);
           const rescaled = t.rescaleX(newX);
-          const [d0, d1] = rescaled.domain();
-          xScale.domain([Math.max(0, d0), Math.min(xDomain[1], d1)]);
+          xScale.domain(rescaled.domain() as [number, number]);
         }
-        render();
+        queueRender();
       })
     zoomBehavior = zb;
     rootSel.call(zb);
 
     return () => {
+      if (rafId) cancelAnimationFrame(rafId);
       cleanup?.();
     };
   });
 
   $effect(() => {
     if (zoomBehavior)
-      zoomBehavior.translateExtent([[0, 0], [dims.innerWidth, dims.innerHeight]])
+      zoomBehavior
+        .extent(getTranslateExtent(dims))
+        .translateExtent(getTranslateExtent(dims))
   });
 
   $effect(() => {
-    const { keys } = processed;
-    if (keys.length === 0) return;
-    untrack(() => {
-      xScale.domain(xDomain);
+    // Only reset the y-domain (and zoom) when the set of keys actually
+    // changes. During real-time recording new keypresses for already-known
+    // keys arrive frequently. We detect a key-set change via a cheap joined
+    // signature.
+    const keysSig = [...keys.entries()].join('\u0000');
+    const keysChanged = keysSig !== lastKeysSig;
+    lastKeysSig = keysSig;
+
+    if (keysChanged) {
       yScale.domain(keys);
-      // Reset zoom to show full range
-      if (zoomBehavior && rootSel) {
-        rootSel.call(zoomBehavior.transform, zoomIdentity);
-      }
-      render();
-    });
+      // Keep the user's zoom/pan; just refresh the bars via a coalesced
+      // render so multiple events per frame collapse into one.
+      queueRender();
+    }
+  });
+
+  $effect(() => {
+    xScale.domain(xDomain);
+    // Reset zoom to show full range
+    if (zoomBehavior && rootSel) {
+      rootSel.call(zoomBehavior.transform, zoomIdentity);
+    }
+    queueRender();
   });
 
   $effect(() => {

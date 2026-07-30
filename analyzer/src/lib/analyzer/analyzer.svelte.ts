@@ -1,5 +1,5 @@
-import FftWorker from './analyzer_fft_thread?worker';
-import type { Request, Response } from './analyzer_fft_thread';
+import FftWorker from './fft_thread?worker';
+import type { Request, Response } from './fft_thread';
 
 class FftCalculator {
   private _worker = new FftWorker();

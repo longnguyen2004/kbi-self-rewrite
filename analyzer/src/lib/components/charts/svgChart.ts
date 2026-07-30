@@ -8,6 +8,13 @@ export type ChartDimensions = {
   margin: { top: number; right: number; bottom: number; left: number };
 };
 
+export function getTranslateExtent(dims: ChartDimensions): [[number, number], [number, number]] {
+  return [
+    [0, 0],
+    [dims.innerWidth, dims.innerHeight],
+  ];
+}
+
 export const defaultMargin = {
   top: 10,
   right: 0,
@@ -37,9 +44,8 @@ export function setupSvgChart(
     .attr('y', 0);
 
   // Root group is translated by the margin. d3-zoom is attached to this
-  // group (not the <svg>), so its coordinate space matches the scales'
-  // range [0, innerWidth] / [0, innerHeight]. This keeps rescaleX aligned
-  // with the rendered axes and avoids panning/zooming offsets.
+  // group (not the <svg>), so its zoom space is the root-local chart area
+  // [0, innerWidth] / [0, innerHeight].
   const root = selection.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
   // Transparent background rect so the <g> captures pointer/wheel events

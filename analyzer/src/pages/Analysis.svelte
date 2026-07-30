@@ -6,15 +6,14 @@
   import { Checkbox } from '$lib/components/ui/checkbox';
   import { Label } from '$lib/components/ui/label';
   import * as Select from '$lib/components/ui/select';
-  import type { Device, Input } from '$lib/validator/validator';
   import type { Analyzer } from '$lib/analyzer/analyzer.svelte';
+  import type { TimelineProvider } from '$lib/analyzer/input_timeline.svelte';
 
   type Props = {
     analyzer: Analyzer;
-    devices: Record<string, Device>;
-    inputs: Record<string, Input[]>;
+    timeline: TimelineProvider
   };
-  const { analyzer, devices, inputs }: Props = $props();
+  const { analyzer, timeline }: Props = $props();
   let postprocessOpts: PostprocessOptions = $state({
     lowCut: true,
   });
@@ -62,5 +61,5 @@
   />
 </div>
 <div class="input-timeline min-h-0 flex-4">
-  <InputTimeline {devices} {inputs} />
+  <InputTimeline {timeline} />
 </div>

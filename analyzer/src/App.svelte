@@ -1,7 +1,7 @@
 <script lang="ts">
   import { FiniteStateMachine } from 'runed';
   import { ModeWatcher, toggleMode } from 'mode-watcher';
-  import { untrack, onDestroy } from 'svelte';
+  import { onDestroy } from 'svelte';
   import { SunIcon, MoonIcon } from '@lucide/svelte';
 
   import { Button } from '$lib/components/ui/button';
@@ -13,19 +13,20 @@
   import ResultInfo from '$lib/components/ResultInfo.svelte';
 
   import { Analyzer } from '$lib/analyzer/analyzer.svelte.js';
+  import { KeyEventToInputTimeline } from '$lib/analyzer/input_timeline.svelte';
   import { FromFileDataSource } from '$lib/data_source/from_file.svelte';
   import { FromRecorderDataSource } from '$lib/data_source/from_recorder.svelte';
+
   import type { DataSource } from '$lib/data_source';
 
   let analyzer = new Analyzer();
+  let timeline = new KeyEventToInputTimeline();
 
   type States = 'from-file' | 'from-recorder' | 'recording';
   type Events = 'changeSource' | 'toggleRecording';
 
   let dataSource: DataSource | undefined = $state();
   let result = $derived(dataSource?.result);
-  let pendingTimestamps: number[] = [];
-  let submitLoop: number | undefined;
 
   let currentTab = $state('from-file');
   let f = new FiniteStateMachine<States, Events>('from-file', {
@@ -34,6 +35,7 @@
         if (event === "changeSource" || from === null)
         {
           analyzer.reset();
+          timeline.reset();
           dataSource = new FromFileDataSource();
         }
         currentTab = 'from-file';
@@ -45,9 +47,11 @@
         if (event === "changeSource")
         {
           analyzer.reset();
+          timeline.reset();
           const recorderSource = dataSource = new FromRecorderDataSource();
           recorderSource.on("input", (e) => {
             analyzer.add([e.data[1].timestamp]);
+            timeline.add([e.data])
           });
         }
         currentTab = 'from-recorder';
@@ -58,6 +62,7 @@
     recording: {
       _enter() {
         analyzer.reset();
+        timeline.reset();
         const recorderSource = dataSource as FromRecorderDataSource;
         recorderSource.start();
       },
@@ -105,14 +110,20 @@
               if (!files?.[0]) {
                 return;
               }
-              await (dataSource as FromFileDataSource).parse(files[0]);
-              if (!result) return;
+              const fileSource = dataSource as FromFileDataSource;
+              await fileSource.parse(files[0]);
+              if (!fileSource.result) return;
               analyzer.reset();
-              const timestamps = Object.values(result.inputs)
+              timeline.reset();
+              const timestamps = Object.values(fileSource.result.inputs)
                 .flat()
                 .map((val) => val.timestamp);
               timestamps.sort((a, b) => a - b);
               analyzer.add(timestamps);
+              timeline.add(
+                Object.entries(fileSource.result.inputs)
+                  .flatMap(([id, events]) => events.map(el => [id, el] as [string, typeof el]))
+              )
             }}
           />
         </Tabs.Content>
@@ -143,7 +154,7 @@
     </div>
   </div>
   {#if result}
-    <Analysis {analyzer} {...result} />
+    <Analysis {analyzer} {timeline} />
   {/if}
 </main>
 

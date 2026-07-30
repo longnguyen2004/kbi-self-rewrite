@@ -15,9 +15,8 @@
   import { line } from 'd3-shape';
   import { axisBottom, axisLeft } from 'd3-axis';
   import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from 'd3-zoom';
-  import { setupSvgChart, defaultMargin, type ChartDimensions } from './svgChart';
+  import { getTranslateExtent, setupSvgChart, defaultMargin, type ChartDimensions } from './svgChart';
   import { useChartTheme } from './chartTheme.svelte';
-  import { minmax } from './yeOldeMinMax';
 
   let { title, data }: Props = $props();
 
@@ -41,6 +40,29 @@
   let yAxisG: SVGGElement | undefined;
   let pathEl: SVGPathElement | undefined;
   let cleanup: (() => void) | undefined;
+
+  // --- Real-time insertion optimization caches ---
+  // x is a fixed function of index (i / (n-1) * 1000), so we reuse a single
+  // points buffer and only overwrite y-values in place, avoiding per-render
+  // allocation of {x, y} objects.
+  let points: { x: number; y: number }[] = [];
+  // Cached line generator (scales are stable references, only their
+  // domain/range mutate).
+  const lineGen = line<{ x: number; y: number }>()
+    .x((d) => xScale(d.x))
+    .y((d) => yScale(d.y));
+  // Incremental y-domain max: updated as new data arrives instead of a full
+  // O(n) minmax scan on every insertion.
+  let cachedYMax = 0;
+  let cachedDataLen = -1;
+  // Last tick values used for grid lines — skip the remove/append cycle when
+  // unchanged (the common case during real-time insertion since x-domain is
+  // constant).
+  let lastGridTicks: number[] | undefined;
+  // rAF coalescing: collapse multiple data updates in the same frame into a
+  // single render.
+  let rafId = 0;
+  let renderQueued = false;
 
   function quantizedTicks(min: number, max: number): number[] {
     const range = max - min;
@@ -98,28 +120,43 @@
     const yAxis = axisLeft(yScale).ticks(5).tickFormat((d) => `${Number(d)}`);
     select(yAxisG).call(yAxis);
 
-    // Grid lines
-    select(plotG).selectAll('.grid-x').remove();
-    select(plotG)
-      .selectAll('.grid-x')
-      .data(ticks)
-      .enter()
-      .append('line')
-      .attr('class', 'grid-x')
-      .attr('x1', (d) => xScale(d))
-      .attr('x2', (d) => xScale(d))
-      .attr('y1', 0)
-      .attr('y2', dims.innerHeight)
-      .attr('stroke-width', 1);
+    // Grid lines: only rebuild when the tick values actually changed. The
+    // x-domain is constant for this chart, so during real-time insertion the
+    // grid is stable and we skip the remove/append churn entirely.
+    const gridSel = select(plotG).selectAll('.grid-x');
+    const sameTicks =
+      lastGridTicks !== undefined &&
+      lastGridTicks.length === ticks.length &&
+      lastGridTicks.every((t, i) => t === ticks[i]);
+    if (!sameTicks) {
+      gridSel.remove();
+      select(plotG)
+        .selectAll('.grid-x')
+        .data(ticks)
+        .enter()
+        .append('line')
+        .attr('class', 'grid-x')
+        .attr('x1', (d) => xScale(d))
+        .attr('x2', (d) => xScale(d))
+        .attr('y1', 0)
+        .attr('y2', dims.innerHeight)
+        .attr('stroke-width', 1);
+      lastGridTicks = ticks;
+    }
 
-    const lineGen = line<{ x: number; y: number }>()
-      .x((d) => xScale(d.x))
-      .y((d) => yScale(d.y));
-
-    const points = data.map((val, i) => ({
-      x: (i / (data.length - 1)) * 1000,
-      y: val,
-    }));
+    // Reuse the points buffer: x is a fixed function of index, so we only
+    // overwrite y in place. This avoids allocating a new object array on
+    // every render (critical for real-time insertion).
+    const n = data.length;
+    if (points.length !== n) {
+      points = new Array(n);
+      const denom = n > 1 ? n - 1 : 1;
+      for (let i = 0; i < n; i++) {
+        points[i] = { x: (i / denom) * 1000, y: data[i] };
+      }
+    } else {
+      for (let i = 0; i < n; i++) points[i].y = data[i];
+    }
     select(pathEl)
       .datum(points)
       .attr('d', lineGen)
@@ -128,6 +165,18 @@
       .attr('stroke-width', 1);
 
     applyTheme();
+  }
+
+  // Coalesce multiple data updates within a single animation frame into one
+  // render. During real-time insertion, add() may fire several times per
+  // frame; this avoids redundant synchronous re-renders.
+  function queueRender() {
+    if (renderQueued) return;
+    renderQueued = true;
+    rafId = requestAnimationFrame(() => {
+      renderQueued = false;
+      render();
+    });
   }
 
   function applyTransform(transform: ZoomTransform) {
@@ -139,7 +188,9 @@
     const svg = svgRef;
     const { cleanup: chartCleanup, clipId } = setupSvgChart(svg, defaultMargin, (newDims) => {
       dims = newDims;
-      render();
+      // Dimensions changed: grid line positions are now stale, force rebuild.
+      lastGridTicks = undefined;
+      queueRender();
     });
     cleanup = chartCleanup;
     const svgSel = select(svg);
@@ -160,14 +211,13 @@
         // When fully zoomed out (scale = 1), don't allow panning — the full domain should always be visible
         if (t.k <= 1.0001) {
           xScale.domain(xDomain);
-          render();
+          queueRender();
           return;
         }
         const newX = xScale.copy().domain(xDomain);
         const rescaled = t.rescaleX(newX);
-        const [d0, d1] = rescaled.domain();
-        xScale.domain([Math.max(0, d0), Math.min(xDomain[1], d1)]);
-        render();
+        xScale.domain(rescaled.domain() as [number, number]);
+        queueRender();
       });
     zoomBehavior = zb;
     rootSel.call(zb);
@@ -179,6 +229,7 @@
     zoomSync.add(syncable, { axis: 'x' });
 
     return () => {
+      if (rafId) cancelAnimationFrame(rafId);
       cleanup?.();
       zoomSync.remove(syncable);
     };
@@ -186,20 +237,41 @@
 
   $effect(() => {
     if (zoomBehavior)
-      zoomBehavior.translateExtent([[0, 0], [dims.innerWidth, dims.innerHeight]]);
+      zoomBehavior
+        .extent(getTranslateExtent(dims))
+        .translateExtent(getTranslateExtent(dims));
   });
 
   $effect(() => {
     if (!data || data.length === 0) return;
     untrack(() => {
-      const [, max] = minmax(data);
-      yScale.domain([0, max]);
-      // Reset zoom to show first 25ms by default
-      if (zoomBehavior && rootSel) {
-        const k = 1000 / 25;
-        rootSel.call(zoomBehavior.transform, zoomIdentity.scale(k));
+      const len = data.length;
+      // When the array length changes (bin-rate change or reset), the x
+      // mapping changes and we must recompute everything and reset zoom.
+      // Otherwise (real-time insertion: same length, new values) we keep
+      // the user's zoom/pan state and only update the y-domain + path.
+      const lengthChanged = len !== cachedDataLen;
+      if (lengthChanged) {
+        cachedDataLen = len;
+        // Reset zoom to show first 25ms by default
+        if (zoomBehavior && rootSel) {
+          const k = 1000 / 25;
+          rootSel.call(zoomBehavior.transform, zoomIdentity.scale(k));
+        }
       }
-      render();
+      // Incremental y-max update: only scan if the previous max was
+      // exceeded (cheap), otherwise the cached max is still valid.
+      let newMax = cachedYMax;
+      for (let i = 0; i < len; i++) {
+        const v = data[i];
+        if (v > newMax) newMax = v;
+      }
+      if (newMax !== cachedYMax) {
+        cachedYMax = newMax;
+        yScale.domain([0, newMax]);
+      }
+      // Coalesce: avoid a synchronous full render per insertion.
+      queueRender();
     });
   });
 
