@@ -9,6 +9,19 @@ export type TooltipDatum = {
 };
 
 /**
+ * Variant of the tooltip that takes a list of label lines and an
+ * arbitrary `anchorX`/`anchorY` for placement (e.g. the center of a bar).
+ * Used by charts whose data points are not on a continuous line — like
+ * the input timeline, where each bar represents a keypress with multiple
+ * fields to display.
+ */
+export type MultiLineTooltipOpts = {
+  anchorX: number;
+  anchorY: number;
+  lines: string[];
+};
+
+/**
  * Creates a tooltip overlay for an SVG chart. Renders a vertical crosshair
  * line and a floating label showing the nearest data point's (x, y) values.
  *
@@ -88,8 +101,6 @@ export function createChartTooltip(
       .addAll(data);
 
     const nearest = tree.find(mouseX, mouseY);
-    console.log([mouseX, mouseY]);
-    console.log(nearest);
     if (!nearest) {
       hide();
       return;
