@@ -62,6 +62,9 @@
   // unchanged (the common case during pan/zoom where the tick count is
   // stable for a given width).
   let lastGridTicks: number[] | undefined;
+  // Last y-key set used for horizontal grid lines — only rebuild when the
+  // key set actually changes.
+  let lastGridKeys: string[] | undefined;
   // Last key set (as a joined string) used to detect when the y-domain
   // actually changes — only then do we reset zoom; otherwise we preserve the
   // user's zoom/pan during real-time recording.
@@ -86,7 +89,8 @@
     const yAxis = axisLeft(yScale);
     select(yAxisG).call(yAxis);
 
-    updateGridLines(gridTicks);
+    updateVerticalGridLines(gridTicks);
+    updateHorizontalGridLines([...keys]);
 
     const bandH = yScale.bandwidth();
     const sel = select(barsG).selectAll<SVGRectElement, Keypress>('rect').data(keypresses);
@@ -117,7 +121,7 @@
     });
   }
 
-  function updateGridLines(gridTicks: number[]) {
+  function updateVerticalGridLines(gridTicks: number[]) {
     if (!plotG) return;
 
     const gridSel = select(plotG).selectAll<SVGLineElement, number>('.grid-x');
@@ -144,6 +148,35 @@
       .attr('x1', (tick) => xScale(tick))
       .attr('x2', (tick) => xScale(tick))
       .attr('y2', dims.innerHeight);
+  }
+
+  function updateHorizontalGridLines(gridKeys: string[]) {
+    if (!plotG) return;
+
+    const gridSel = select(plotG).selectAll<SVGLineElement, string>('.grid-y');
+    const sameKeys =
+      lastGridKeys !== undefined &&
+      lastGridKeys.length === gridKeys.length &&
+      lastGridKeys.every((key, index) => key === gridKeys[index]);
+
+    if (!sameKeys) {
+      gridSel.remove();
+      select(plotG)
+        .selectAll('.grid-y')
+        .data(gridKeys)
+        .enter()
+        .append('line')
+        .attr('class', 'grid-y')
+        .attr('x1', 0)
+        .attr('stroke-width', 1);
+      lastGridKeys = gridKeys;
+    }
+
+    select(plotG)
+      .selectAll<SVGLineElement, string>('.grid-y')
+      .attr('x2', dims.innerWidth)
+      .attr('y1', (key) => (yScale(key) ?? 0) + yScale.bandwidth() / 2)
+      .attr('y2', (key) => (yScale(key) ?? 0) + yScale.bandwidth() / 2);
   }
 
   function applyTheme() {
@@ -184,15 +217,10 @@
     const zb = zoom<SVGGElement, unknown>()
       .scaleExtent([1, 64])
       .on('zoom', (event) => {
-        const t = event.transform;        // When fully zoomed out (scale = 1), don't allow panning — the full domain should always be visible
-        if (t.k <= 1.0001) {
-          xScale.domain(xDomain);
-        }
-        else {
-          const newX = xScale.copy().domain(xDomain);
-          const rescaled = t.rescaleX(newX);
-          xScale.domain(rescaled.domain() as [number, number]);
-        }
+        const t = event.transform as ZoomTransform;
+        const newX = xScale.copy().domain(xDomain);
+        const rescaled = t.rescaleX(newX);
+        xScale.domain(rescaled.domain() as [number, number]);
         queueRender();
       })
     zoomBehavior = zb;
