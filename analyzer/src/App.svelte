@@ -17,6 +17,7 @@
   import { FromFileDataSource } from '$lib/data_source/from_file.svelte';
   import { FromRecorderDataSource } from '$lib/data_source/from_recorder.svelte';
 
+  import { isNeutralino } from '$lib/helper/is_neutralino';
   import type { DataSource } from '$lib/data_source';
 
   let analyzer = new Analyzer();
@@ -96,7 +97,9 @@
       >
         <Tabs.List>
           <Tabs.Trigger value="from-file">From file</Tabs.Trigger>
+          {#if isNeutralino()}
           <Tabs.Trigger value="from-recorder">From recorder</Tabs.Trigger>
+          {/if}
         </Tabs.List>
         <Tabs.Content class="flex flex-row gap-4" value="from-file">
           <Label for="kbi-file" class="whitespace-nowrap">KBI file</Label>
@@ -127,11 +130,13 @@
             }}
           />
         </Tabs.Content>
+        {#if isNeutralino()}
         <Tabs.Content class="flex flex-row gap-4" value="from-recorder">
           <Button onclick={() => f.send('toggleRecording')}>
             {f.current === 'recording' ? 'Stop Recording' : 'Start Recording'}
           </Button>
         </Tabs.Content>
+        {/if}
       </Tabs.Root>
 
       {#if result}
