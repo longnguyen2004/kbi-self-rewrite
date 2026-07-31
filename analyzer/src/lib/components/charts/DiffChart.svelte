@@ -17,6 +17,7 @@
   import { axisBottom, axisLeft } from 'd3-axis';
   import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from 'd3-zoom';
   import { getTranslateExtent, setupSvgChart, defaultMargin, type ChartDimensions } from './svgChart';
+  import { decimate } from './decimate';
   import { useChartTheme } from './chartTheme.svelte';
 
   let { title, data, yMax }: Props = $props();
@@ -42,11 +43,6 @@
   let pathEl: SVGPathElement | undefined;
   let cleanup: (() => void) | undefined;
 
-  // --- Real-time insertion optimization caches ---
-  // x is a fixed function of index (i / (n-1) * 1000), so we reuse a single
-  // points buffer and only overwrite y-values in place, avoiding per-render
-  // allocation of {x, y} objects.
-  let points: { x: number; y: number }[] = [];
   // Cached line generator (scales are stable references, only their
   // domain/range mutate).
   const lineGen = line<{ x: number; y: number }>()
@@ -64,10 +60,6 @@
   // single render.
   let rafId = 0;
   let renderQueued = false;
-
-  function clamp(value: number, min: number, max: number): number {
-    return Math.min(max, Math.max(min, value));
-  }
 
   function quantizedTicks(min: number, max: number): number[] {
     const range = max - min;
@@ -140,50 +132,6 @@
       .attr('y2', dims.innerHeight);
   }
 
-  function buildPeakPreservingPoints() {
-    const n = data.length;
-    if (n === 0) return [];
-
-    const [domainMin, domainMax] = xScale.domain();
-    const xMin = Math.min(domainMin, domainMax);
-    const xMax = Math.max(domainMin, domainMax);
-    const indexMin = clamp(Math.floor((xMin / 1000) * (n - 1)), 0, n - 1);
-    const indexMax = clamp(Math.ceil((xMax / 1000) * (n - 1)), indexMin, n - 1);
-    const visibleCount = indexMax - indexMin + 1;
-    const maxPoints = Math.max(256, Math.floor(dims.innerWidth * 2));
-    const bucketSize = Math.max(1, Math.ceil(visibleCount / maxPoints));
-    const sampleCount = Math.ceil(visibleCount / bucketSize);
-
-    if (points.length !== sampleCount) points = new Array(sampleCount);
-    else points.length = sampleCount;
-
-    const denom = n > 1 ? n - 1 : 1;
-    let pointIndex = 0;
-    for (let bucketStart = indexMin; bucketStart <= indexMax; bucketStart += bucketSize) {
-      const bucketEnd = Math.min(indexMax + 1, bucketStart + bucketSize);
-      let bucketMax = -Infinity;
-      let bucketMaxIndex = bucketStart;
-      for (let i = bucketStart; i < bucketEnd; i++) {
-        const value = data[i];
-        if (value > bucketMax) {
-          bucketMax = value;
-          bucketMaxIndex = i;
-        }
-      }
-
-      const x = (bucketMaxIndex / denom) * 1000;
-      const y = bucketMax;
-      if (!points[pointIndex]) points[pointIndex] = { x, y };
-      else {
-        points[pointIndex].x = x;
-        points[pointIndex].y = y;
-      }
-      pointIndex++;
-    }
-
-    return points;
-  }
-
   function render() {
     if (!plotG || !xAxisG || !yAxisG || !pathEl) return;
     xScale.range([0, dims.innerWidth]);
@@ -201,7 +149,7 @@
     updateGridLines(ticks);
 
     select(pathEl)
-      .datum(buildPeakPreservingPoints())
+      .datum(decimate(data, xDomain, xScale.domain() as [number, number], dims.innerWidth))
       .attr('d', lineGen)
       .attr('fill', 'none')
       .attr('stroke', 'rgb(65, 140, 240)')
@@ -250,13 +198,7 @@
     const zb = zoom<SVGGElement, unknown>()
       .scaleExtent([1, 1000])
       .on('zoom', (event) => {
-        const t = event.transform;
-        // When fully zoomed out (scale = 1), don't allow panning — the full domain should always be visible
-        if (t.k <= 1.0001) {
-          xScale.domain(xDomain);
-          queueRender();
-          return;
-        }
+        const t = event.transform as ZoomTransform;
         const newX = xScale.copy().domain(xDomain);
         const rescaled = t.rescaleX(newX);
         xScale.domain(rescaled.domain() as [number, number]);
