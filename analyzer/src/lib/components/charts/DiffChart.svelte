@@ -19,6 +19,7 @@
   import { getTranslateExtent, setupSvgChart, defaultMargin, type ChartDimensions } from './svgChart';
   import { decimate } from './decimate';
   import { useChartTheme } from './chartTheme.svelte';
+  import { createChartTooltip } from './chartTooltip';
 
   let { title, data, yMax }: Props = $props();
 
@@ -42,6 +43,8 @@
   let yAxisG: SVGGElement | undefined;
   let pathEl: SVGPathElement | undefined;
   let cleanup: (() => void) | undefined;
+  let tooltip: ReturnType<typeof createChartTooltip> | undefined;
+  let currentPoints: { x: number; y: number }[] = [];
 
   // Cached line generator (scales are stable references, only their
   // domain/range mutate).
@@ -148,8 +151,9 @@
 
     updateGridLines(ticks);
 
+    currentPoints = decimate(data, xDomain, xScale.domain() as [number, number], dims.innerWidth);
     select(pathEl)
-      .datum(decimate(data, xDomain, xScale.domain() as [number, number], dims.innerWidth))
+      .datum(currentPoints)
       .attr('d', lineGen)
       .attr('fill', 'none')
       .attr('stroke', 'rgb(65, 140, 240)')
@@ -195,6 +199,33 @@
       document.createElementNS('http://www.w3.org/2000/svg', 'path'),
     );
 
+    // Tooltip overlay: track mouse over the entire plot area (including
+    // empty space) and snap to the nearest decimated data point. We listen
+    // on the <svg> so we capture events anywhere in the chart area — the
+    // plot <g> only contains the path, so empty space inside it would not
+    // receive pointer events.
+    tooltip = createChartTooltip(
+      plotG,
+      getTheme,
+      () => xScale,
+      () => yScale,
+      (v) => `${v.toFixed(3)}ms`,
+      (v) => `${v} events`,
+    );
+    const onPointerMove = (event: PointerEvent) => {
+      const rect = svgRef.getBoundingClientRect();
+      // Convert SVG-local coordinates to plot-local by subtracting the
+      // margin offset.
+      const mx = event.clientX - rect.left - defaultMargin.left;
+      const my = event.clientY - rect.top - defaultMargin.top;
+      tooltip?.update(currentPoints, mx, my, dims.innerHeight);
+    };
+    const onPointerLeave = () => {
+      tooltip?.hide();
+    };
+    svgRef.addEventListener('pointermove', onPointerMove);
+    svgRef.addEventListener('pointerleave', onPointerLeave);
+
     const zb = zoom<SVGGElement, unknown>()
       .scaleExtent([1, 1000])
       .on('zoom', (event) => {
@@ -215,6 +246,9 @@
 
     return () => {
       if (rafId) cancelAnimationFrame(rafId);
+      svgRef?.removeEventListener('pointermove', onPointerMove);
+      svgRef?.removeEventListener('pointerleave', onPointerLeave);
+      tooltip?.destroy();
       cleanup?.();
       zoomSync.remove(syncable);
     };
