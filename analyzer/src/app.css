@@ -6,6 +6,8 @@
 
 @import '@fontsource-variable/geist';
 
+@import 'tippy.js/dist/tippy.css';
+
 @custom-variant dark (&:is(.dark *));
 
 :root {

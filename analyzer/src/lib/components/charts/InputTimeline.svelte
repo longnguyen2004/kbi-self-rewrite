@@ -11,8 +11,10 @@
   import { scaleLinear, scaleBand } from 'd3-scale';
   import { axisBottom, axisLeft } from 'd3-axis';
   import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from 'd3-zoom';
+  import { quadtree, type Quadtree } from 'd3-quadtree';
   import { getTranslateExtent, setupSvgChart, type ChartDimensions } from './svgChart';
   import { useChartTheme } from './chartTheme.svelte';
+  import { createChartTooltip } from './chartTooltip';
   import type { Keypress } from '$lib/analyzer/input_timeline.svelte';
 
   const { timeline }: Props = $props();
@@ -36,6 +38,19 @@
     return c;
   }
 
+  function escapeHtml(s: string): string {
+    return s.replace(/[&<>"']/g, (ch) => {
+      switch (ch) {
+        case '&': return '&';
+        case '<': return '<';
+        case '>': return '>';
+        case '"': return '"';
+        case "'": return '&#39;';
+        default: return ch;
+      }
+    });
+  }
+
   let svgRef: SVGSVGElement;
   let dims: ChartDimensions = {
     width: 0,
@@ -56,6 +71,10 @@
   let yAxisG: SVGGElement | undefined;
   let barsG: SVGGElement | undefined;
   let cleanup: (() => void) | undefined;
+  let tooltip: ReturnType<typeof createChartTooltip> | undefined;
+  // Quadtree over the pixel centers of each bar, rebuilt on every render
+  // so we can snap the tooltip to the nearest keypress under the pointer.
+  let barsTree: Quadtree<Keypress> | undefined;
 
   // --- Real-time insertion optimization caches ---
   // Last tick values used for grid lines — skip the remove/append cycle when
@@ -105,6 +124,14 @@
       .attr('width', (d) => Math.max(1, xScale(d.end) - xScale(d.start)))
       .attr('height', bandH)
       .attr('fill', (d) => colorFor(d.deviceId));
+
+    // Rebuild the bar-center quadtree for tooltip snapping. Using bar
+    // centers (not corners) keeps the tooltip snapping to the visually
+    // nearest keypress even when bars are densely packed.
+    barsTree = quadtree<Keypress>()
+      .x((d) => (xScale(d.start) + xScale(d.end)) / 2)
+      .y((d) => (yScale(d.key) ?? 0) + bandH / 2)
+      .addAll(keypresses);
 
     applyTheme();
   }
@@ -214,6 +241,47 @@
     yAxisG = rootSel.append('g').node()!;
     barsG = plotG.appendChild(document.createElementNS('http://www.w3.org/2000/svg', 'g'));
 
+    // Tooltip overlay: on pointermove, snap to the nearest bar and show
+    // deviceId, key, start, end, and duration. We listen on the <svg> so
+    // we capture events anywhere in the chart area.
+    tooltip = createChartTooltip(svgRef);
+    const onPointerMove = (event: PointerEvent) => {
+      const rect = svgRef.getBoundingClientRect();
+      // Convert SVG-local coordinates to plot-local by subtracting the
+      // margin offset.
+      const mx = event.clientX - rect.left - dims.margin.left;
+      const my = event.clientY - rect.top - dims.margin.top;
+      if (!barsTree) return;
+      const nearest = barsTree.find(mx, my);
+      if (!nearest) {
+        tooltip?.hide();
+        return;
+      }
+      const duration = Math.max(0, nearest.end - nearest.start);
+      // Anchor the tooltip to the bar center (in screen space), not the
+      // cursor, so it stays attached to the keypress it describes.
+      const bandH = yScale.bandwidth();
+      const barCx = (xScale(nearest.start) + xScale(nearest.end)) / 2;
+      const barCy = (yScale(nearest.key) ?? 0) + bandH / 2;
+      const tippyX = rect.left + dims.margin.left + barCx;
+      const tippyY = rect.top + dims.margin.top + barCy;
+      // Tippy accepts HTML content; render the keypress fields as a small
+      // definition-style list.
+      const content = [
+        `<div><b>device:</b> ${escapeHtml(nearest.deviceId)}</div>`,
+        `<div><b>key:</b> ${escapeHtml(nearest.key)}</div>`,
+        `<div><b>start:</b> ${nearest.start.toFixed(3)}s</div>`,
+        `<div><b>end:</b> ${nearest.end.toFixed(3)}s</div>`,
+        `<div><b>duration:</b> ${duration.toFixed(3)}s</div>`,
+      ].join('');
+      tooltip?.show(tippyX, tippyY, content);
+    };
+    const onPointerLeave = () => {
+      tooltip?.hide();
+    };
+    svgRef.addEventListener('pointermove', onPointerMove);
+    svgRef.addEventListener('pointerleave', onPointerLeave);
+
     const zb = zoom<SVGGElement, unknown>()
       .scaleExtent([1, 64])
       .on('zoom', (event) => {
@@ -228,6 +296,9 @@
 
     return () => {
       if (rafId) cancelAnimationFrame(rafId);
+      svgRef?.removeEventListener('pointermove', onPointerMove);
+      svgRef?.removeEventListener('pointerleave', onPointerLeave);
+      tooltip?.destroy();
       cleanup?.();
     };
   });
