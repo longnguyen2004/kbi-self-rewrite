@@ -3,8 +3,9 @@
   import { ModeWatcher, toggleMode } from 'mode-watcher';
   import { onDestroy } from 'svelte';
   import { SunIcon, MoonIcon } from '@lucide/svelte';
+  import DiscordLogo from './assets/discord_white.svg';
 
-  import { Button } from '$lib/components/ui/button';
+  import { Button, buttonVariants } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
   import * as Tabs from '$lib/components/ui/tabs';
@@ -146,15 +147,21 @@
         </ResultInfo>
       {/if}
 
-      <Button class="ml-auto" onclick={toggleMode} variant="outline" size="icon">
-        <SunIcon
-          class="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90"
-        />
-        <MoonIcon
-          class="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0"
-        />
-        <span class="sr-only">Toggle theme</span>
-      </Button>
+      <div class="ml-auto flex flex-row gap-2">
+        <a href="https://discord.gg/kX4cJQH5Zn" target="_blank" class={[buttonVariants(), "bg-[#5865F2]! text-white"]}>
+          <img class="h-full py-2" alt="Discord logo" src={DiscordLogo}>
+          Join our Discord server
+        </a>
+        <Button onclick={toggleMode} variant="outline" size="icon">
+          <SunIcon
+            class="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90"
+          />
+          <MoonIcon
+            class="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0"
+          />
+          <span class="sr-only">Toggle theme</span>
+        </Button>
+      </div>
     </div>
   </div>
   {#if result}
