@@ -11,10 +11,10 @@
   import { scaleLinear, scaleBand } from 'd3-scale';
   import { axisBottom, axisLeft } from 'd3-axis';
   import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from 'd3-zoom';
-  import { quadtree, type Quadtree } from 'd3-quadtree';
   import { getTranslateExtent, setupSvgChart, type ChartDimensions } from './svgChart';
   import { useChartTheme } from './chartTheme.svelte';
-  import { createChartTooltip } from './chartTooltip';
+  import ChartTooltip from './ChartTooltip.svelte';
+  import { QuadtreeSnap } from './quadtreeSnap';
   import type { Keypress } from '$lib/analyzer/input_timeline.svelte';
 
   const { timeline }: Props = $props();
@@ -38,27 +38,14 @@
     return c;
   }
 
-  function escapeHtml(s: string): string {
-    return s.replace(/[&<>"']/g, (ch) => {
-      switch (ch) {
-        case '&': return '&';
-        case '<': return '<';
-        case '>': return '>';
-        case '"': return '"';
-        case "'": return '&#39;';
-        default: return ch;
-      }
-    });
-  }
-
-  let svgRef: SVGSVGElement;
-  let dims: ChartDimensions = {
+  let svgRef: SVGSVGElement | undefined = $state();
+  let dims: ChartDimensions = $state({
     width: 0,
     height: 0,
     innerWidth: 0,
     innerHeight: 0,
     margin: { top: 10, right: 10, bottom: 30, left: 60 },
-  };
+  });
   const getTheme = useChartTheme();
 
   let xScale = scaleLinear().domain([0, 1]);
@@ -71,10 +58,13 @@
   let yAxisG: SVGGElement | undefined;
   let barsG: SVGGElement | undefined;
   let cleanup: (() => void) | undefined;
-  let tooltip: ReturnType<typeof createChartTooltip> | undefined;
   // Quadtree over the pixel centers of each bar, rebuilt on every render
   // so we can snap the tooltip to the nearest keypress under the pointer.
-  let barsTree: Quadtree<Keypress> | undefined;
+  // Shared helper deduplicates the nearest-neighbour logic across charts.
+  const snap = new QuadtreeSnap<Keypress>(
+    (d) => (xScale(d.start) + xScale(d.end)) / 2,
+    (d) => (yScale(d.key) ?? 0) + yScale.bandwidth() / 2,
+  );
 
   // --- Real-time insertion optimization caches ---
   // Last tick values used for grid lines — skip the remove/append cycle when
@@ -125,13 +115,10 @@
       .attr('height', bandH)
       .attr('fill', (d) => colorFor(d.deviceId));
 
-    // Rebuild the bar-center quadtree for tooltip snapping. Using bar
-    // centers (not corners) keeps the tooltip snapping to the visually
+    // Rebuild the bar-center snap quadtree for tooltip hit-testing. Using
+    // bar centers (not corners) keeps the tooltip snapping to the visually
     // nearest keypress even when bars are densely packed.
-    barsTree = quadtree<Keypress>()
-      .x((d) => (xScale(d.start) + xScale(d.end)) / 2)
-      .y((d) => (yScale(d.key) ?? 0) + bandH / 2)
-      .addAll(keypresses);
+    snap.set(keypresses);
 
     applyTheme();
   }
@@ -226,6 +213,7 @@
 
   onMount(() => {
     const svg = svgRef;
+    if (!svg) return;
     const { cleanup: chartCleanup, clipId } = setupSvgChart(svg, dims.margin, (newDims) => {
       dims = newDims;
       // Dimensions changed: grid line positions are now stale, force rebuild.
@@ -241,46 +229,9 @@
     yAxisG = rootSel.append('g').node()!;
     barsG = plotG.appendChild(document.createElementNS('http://www.w3.org/2000/svg', 'g'));
 
-    // Tooltip overlay: on pointermove, snap to the nearest bar and show
-    // deviceId, key, start, end, and duration. We listen on the <svg> so
-    // we capture events anywhere in the chart area.
-    tooltip = createChartTooltip(svgRef);
-    const onPointerMove = (event: PointerEvent) => {
-      const rect = svgRef.getBoundingClientRect();
-      // Convert SVG-local coordinates to plot-local by subtracting the
-      // margin offset.
-      const mx = event.clientX - rect.left - dims.margin.left;
-      const my = event.clientY - rect.top - dims.margin.top;
-      if (!barsTree) return;
-      const nearest = barsTree.find(mx, my);
-      if (!nearest) {
-        tooltip?.hide();
-        return;
-      }
-      const duration = Math.max(0, nearest.end - nearest.start);
-      // Anchor the tooltip to the bar center (in screen space), not the
-      // cursor, so it stays attached to the keypress it describes.
-      const bandH = yScale.bandwidth();
-      const barCx = (xScale(nearest.start) + xScale(nearest.end)) / 2;
-      const barCy = (yScale(nearest.key) ?? 0) + bandH / 2;
-      const tippyX = rect.left + dims.margin.left + barCx;
-      const tippyY = rect.top + dims.margin.top + barCy;
-      // Tippy accepts HTML content; render the keypress fields as a small
-      // definition-style list.
-      const content = [
-        `<div><b>device:</b> ${escapeHtml(nearest.deviceId)}</div>`,
-        `<div><b>key:</b> ${escapeHtml(nearest.key)}</div>`,
-        `<div><b>start:</b> ${nearest.start.toFixed(3)}s</div>`,
-        `<div><b>end:</b> ${nearest.end.toFixed(3)}s</div>`,
-        `<div><b>duration:</b> ${duration.toFixed(3)}s</div>`,
-      ].join('');
-      tooltip?.show(tippyX, tippyY, content);
-    };
-    const onPointerLeave = () => {
-      tooltip?.hide();
-    };
-    svgRef.addEventListener('pointermove', onPointerMove);
-    svgRef.addEventListener('pointerleave', onPointerLeave);
+    // Tooltip pointer handling (pointermove/leave + coord conversion +
+    // quadtree hit-test) is owned by the <ChartTooltip> component, which
+    // receives `snap` and a `toAnchor` mapping below in markup.
 
     const zb = zoom<SVGGElement, unknown>()
       .scaleExtent([1, 64])
@@ -296,9 +247,7 @@
 
     return () => {
       if (rafId) cancelAnimationFrame(rafId);
-      svgRef?.removeEventListener('pointermove', onPointerMove);
-      svgRef?.removeEventListener('pointerleave', onPointerLeave);
-      tooltip?.destroy();
+      snap.clear();
       cleanup?.();
     };
   });
@@ -344,3 +293,30 @@
 <div class="relative h-full min-h-0 w-full min-w-0">
   <svg bind:this={svgRef}></svg>
 </div>
+
+{#if svgRef}
+  <ChartTooltip
+    target={svgRef}
+    margin={dims.margin}
+    {snap}
+    toAnchor={(d, ox, oy) => {
+      const bandH = yScale.bandwidth();
+      const barCx = (xScale(d.start) + xScale(d.end)) / 2;
+      const barCy = (yScale(d.key) ?? 0) + bandH / 2;
+      return { x: ox + barCx, y: oy + barCy };
+    }}
+  >
+    {#snippet children(d)}
+      {#if d}
+        {@const duration = Math.max(0, d.end - d.start)}
+        <div class="flex flex-col gap-0.5 text-xs">
+          <div><b>device:</b> <code class="break-all">{d.deviceId}</code></div>
+          <div><b>key:</b> {d.key}</div>
+          <div><b>start:</b> {d.start.toFixed(3)}s</div>
+          <div><b>end:</b> {d.end.toFixed(3)}s</div>
+          <div><b>duration:</b> {duration.toFixed(3)}s</div>
+        </div>
+      {/if}
+    {/snippet}
+  </ChartTooltip>
+{/if}

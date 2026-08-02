@@ -16,15 +16,15 @@
   import { line } from 'd3-shape';
   import { axisBottom, axisLeft } from 'd3-axis';
   import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from 'd3-zoom';
-  import { quadtree, type Quadtree } from 'd3-quadtree';
   import { getTranslateExtent, setupSvgChart, defaultMargin, type ChartDimensions } from './svgChart';
   import { decimate } from './decimate';
   import { useChartTheme } from './chartTheme.svelte';
-  import { createChartTooltip } from './chartTooltip';
+  import ChartTooltip from './ChartTooltip.svelte';
+  import { QuadtreeSnap } from './quadtreeSnap';
 
   let { title, data, yMax }: Props = $props();
 
-  let svgRef: SVGSVGElement;
+  let svgRef: SVGSVGElement | undefined = $state();
   let dims: ChartDimensions = {
     width: 0,
     height: 0,
@@ -44,15 +44,16 @@
   let yAxisG: SVGGElement | undefined;
   let pathEl: SVGPathElement | undefined;
   let cleanup: (() => void) | undefined;
-  let tooltip: ReturnType<typeof createChartTooltip> | undefined;
+  // Decimated points currently drawn, in chart x-units. Reused as the
+  // quadtree source so the tooltip snaps to a visible sample.
   let currentPoints: { x: number; y: number }[] = [];
-  // Quadtree over the pixel coordinates of each decimated point, rebuilt on
-  // every render so the tooltip can snap to the nearest point under the
-  // pointer even after zoom/pan.
-  let pointsTree: Quadtree<{ x: number; y: number }> | undefined;
-  // SVG overlay elements for the crosshair + dot marker.
-  let crosshairEl: SVGLineElement | undefined;
-  let dotEl: SVGCircleElement | undefined;
+  // Quadtree over the *pixel* positions of currentPoints, rebuilt each
+  // render (after scales change). Shared helper deduplicates the
+  // nearest-neighbour logic across charts.
+  const snap = new QuadtreeSnap<{ x: number; y: number }>(
+    (d) => xScale(d.x),
+    (d) => yScale(d.y),
+  );
 
   // Cached line generator (scales are stable references, only their
   // domain/range mutate).
@@ -167,11 +168,9 @@
       .attr('stroke', 'rgb(65, 140, 240)')
       .attr('stroke-width', 1);
 
-    // Rebuild the pixel-space quadtree for tooltip hit-testing.
-    pointsTree = quadtree<{ x: number; y: number }>()
-      .x((d) => xScale(d.x))
-      .y((d) => yScale(d.y))
-      .addAll(currentPoints);
+    // Rebuild the snap quadtree in pixel space so the tooltip tracks the
+    // visible (decimated) samples after every pan/zoom/resize.
+    snap.set(currentPoints);
 
     applyTheme();
   }
@@ -194,7 +193,7 @@
   }
 
   onMount(() => {
-    const svg = svgRef;
+    const svg = svgRef!;
     const { cleanup: chartCleanup, clipId } = setupSvgChart(svg, defaultMargin, (newDims) => {
       dims = newDims;
       // Dimensions changed: grid line positions are now stale, force rebuild.
@@ -213,77 +212,9 @@
       document.createElementNS('http://www.w3.org/2000/svg', 'path'),
     );
 
-    // Crosshair + dot overlay (lives in plot-local coordinates, on top of
-    // the path). Hidden until the pointer enters the chart.
-    crosshairEl = plotG.appendChild(
-      document.createElementNS('http://www.w3.org/2000/svg', 'line'),
-    );
-    crosshairEl.setAttribute('class', 'tooltip-crosshair');
-    crosshairEl.setAttribute('stroke-width', '1');
-    crosshairEl.setAttribute('stroke-dasharray', '4,3');
-    crosshairEl.style.display = 'none';
-    dotEl = plotG.appendChild(
-      document.createElementNS('http://www.w3.org/2000/svg', 'circle'),
-    );
-    dotEl.setAttribute('class', 'tooltip-dot');
-    dotEl.setAttribute('r', '3.5');
-    dotEl.setAttribute('stroke-width', '1.5');
-    dotEl.style.display = 'none';
-
-    // Tooltip: tippy.js instance attached to the <svg>. We listen on the
-    // <svg> so we capture events anywhere in the chart area — the plot <g>
-    // only contains the path, so empty space inside it would not receive
-    // pointer events.
-    tooltip = createChartTooltip(svgRef);
-    const theme = getTheme();
-    const onPointerMove = (event: PointerEvent) => {
-      const rect = svgRef.getBoundingClientRect();
-      // Convert SVG-local coordinates to plot-local by subtracting the
-      // margin offset.
-      const mx = event.clientX - rect.left - defaultMargin.left;
-      const my = event.clientY - rect.top - defaultMargin.top;
-      if (!pointsTree) return;
-      const nearest = pointsTree.find(mx, my);
-      if (!nearest) {
-        tooltip?.hide();
-        return;
-      }
-      const cx = xScale(nearest.x);
-      const cy = yScale(nearest.y);
-      // Crosshair + dot in plot-local coords.
-      if (crosshairEl) {
-        crosshairEl.style.display = '';
-        crosshairEl.setAttribute('x1', String(cx));
-        crosshairEl.setAttribute('x2', String(cx));
-        crosshairEl.setAttribute('y1', '0');
-        crosshairEl.setAttribute('y2', String(dims.innerHeight));
-        crosshairEl.setAttribute('stroke', theme.text);
-        crosshairEl.setAttribute('opacity', '0.5');
-      }
-      if (dotEl) {
-        dotEl.style.display = '';
-        dotEl.setAttribute('cx', String(cx));
-        dotEl.setAttribute('cy', String(cy));
-        dotEl.setAttribute('fill', theme.background);
-        dotEl.setAttribute('stroke', theme.text);
-      }
-      // Tippy positions relative to the snapped data point (the dot), not
-      // the cursor, so the tooltip stays anchored to the data it describes.
-      const dotScreenX = rect.left + defaultMargin.left + cx;
-      const dotScreenY = rect.top + defaultMargin.top + cy;
-      tooltip?.show(
-        dotScreenX,
-        dotScreenY,
-        `${nearest.x.toFixed(3)}ms, ${nearest.y} events`,
-      );
-    };
-    const onPointerLeave = () => {
-      tooltip?.hide();
-      if (crosshairEl) crosshairEl.style.display = 'none';
-      if (dotEl) dotEl.style.display = 'none';
-    };
-    svgRef.addEventListener('pointermove', onPointerMove);
-    svgRef.addEventListener('pointerleave', onPointerLeave);
+    // Tooltip pointer handling (pointermove/leave + coord conversion +
+    // quadtree hit-test) is owned by the <ChartTooltip> component, which
+    // receives `snap` and a `toAnchor` mapping below in markup.
 
     const zb = zoom<SVGGElement, unknown>()
       .scaleExtent([1, 1000])
@@ -305,9 +236,7 @@
 
     return () => {
       if (rafId) cancelAnimationFrame(rafId);
-      svgRef?.removeEventListener('pointermove', onPointerMove);
-      svgRef?.removeEventListener('pointerleave', onPointerLeave);
-      tooltip?.destroy();
+      snap.clear();
       cleanup?.();
       zoomSync.remove(syncable);
     };
@@ -371,3 +300,21 @@
     <svg bind:this={svgRef}></svg>
   </div>
 </div>
+
+{#if svgRef}
+  <ChartTooltip
+    target={svgRef}
+    margin={defaultMargin}
+    {snap}
+    toAnchor={(d, ox, oy) => ({ x: ox + xScale(d.x), y: oy + yScale(d.y) })}
+  >
+    {#snippet children(d)}
+      {#if d}
+        <div class="flex flex-col gap-0.5 text-xs">
+          <div><b>x:</b> {d.x.toFixed(3)}ms</div>
+          <div><b>y:</b> {d.y} events</div>
+        </div>
+      {/if}
+    {/snippet}
+  </ChartTooltip>
+{/if}
