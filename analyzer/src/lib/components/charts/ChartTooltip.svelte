@@ -76,13 +76,57 @@
   let anchor: Anchor = $state(null);
   let datum: T | null = $state(null);
 
+  // Mutable ref holding the latest screen-space anchor, read by the stable
+  // `getReferenceClientRect` closure installed once at construction. This
+  // avoids re-calling `setProps({ getReferenceClientRect })` on every
+  // pointermove, which forces Popper to tear down and rebuild placement
+  // each time and is the primary cause of the WebKitGTK tooltip flicker
+  // (WebKitGTK's compositor paints the intermediate state that
+  // Chromium/Firefox coalesce away).
+  let currentAnchor: Anchor = null;
+
   onMount(() => {
     instance = tippy(target, {
       content: host,
       trigger: 'manual',
-      getReferenceClientRect: null,
+      // Stable closure: Popper reads the *current* anchor from the ref on
+      // every placement update, so we never need to swap this function out.
+      getReferenceClientRect: () => {
+        const a = currentAnchor;
+        if (a === null) {
+          // Returning a zero-size rect at the origin is fine — this is only
+          // consulted while the tooltip is hidden.
+          return {
+            width: 0,
+            height: 0,
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            x: 0,
+            y: 0,
+            toJSON: () => ({}),
+          } as DOMRect;
+        }
+        return {
+          width: 0,
+          height: 0,
+          top: a.y,
+          bottom: a.y,
+          left: a.x,
+          right: a.x,
+          x: a.x,
+          y: a.y,
+          toJSON: () => ({}),
+        } as DOMRect;
+      },
       placement,
       offset,
+      // No CSS show/hide transition: tippy's default `[data-state]` transition
+      // is what paints as a flicker on WebKitGTK when `show()` is re-invoked
+      // on every pointermove. Disabling animation keeps the popper's
+      // `data-state` stable so only the `transform` (position) changes.
+      animation: false,
       duration: 0,
       hideOnClick: false,
       interactive: false,
@@ -127,28 +171,29 @@
   });
 
   // React to anchor changes: show/hide + reposition.
+  //
+  // Key points to avoid the WebKitGTK flicker:
+  //  - `getReferenceClientRect` is a stable closure that reads
+  //    `currentAnchor`, so we update the ref here and ask Popper to
+  //    reposition via `popperInstance.update()` instead of calling
+  //    `setProps()` (which tears placement down).
+  //  - `show()` is only called on the hidden→shown transition. When the
+  //    popper is already visible we just reposition; calling `show()` again
+  //    re-runs tippy's show lifecycle (re-applies `data-state`, rebinds
+  //    listeners) and that intermediate state is painted on WebKitGTK.
   $effect(() => {
     if (!instance) return;
     if (anchor === null) {
+      currentAnchor = null;
       instance.hide();
       return;
     }
-    const { x, y } = anchor;
-    instance.setProps({
-      getReferenceClientRect: () =>
-        ({
-          width: 0,
-          height: 0,
-          top: y,
-          bottom: y,
-          left: x,
-          right: x,
-          x,
-          y,
-          toJSON: () => ({}),
-        }) as DOMRect,
-    });
-    instance.show();
+    currentAnchor = anchor;
+    if (instance.state.isVisible) {
+      instance.popperInstance?.update();
+    } else {
+      instance.show();
+    }
   });
 
   // Keep placement / offset in sync if they change.
