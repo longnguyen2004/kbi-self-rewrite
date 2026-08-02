@@ -116,9 +116,11 @@
       .attr('height', bandH)
       .attr('fill', (d) => colorFor(d.deviceId));
 
-    // Rebuild the bar-center snap quadtree for tooltip hit-testing. Using
-    // bar centers (not corners) keeps the tooltip snapping to the visually
-    // nearest keypress even when bars are densely packed.
+    // Stage the bar centers for the snap quadtree. The tree is built lazily
+    // on the first pointer move over the chart (see QuadtreeSnap), so this
+    // is cheap when the pointer is off-chart. Using bar centers (not
+    // corners) keeps the tooltip snapping to the visually nearest keypress
+    // even when bars are densely packed.
     snap.set(keypresses);
 
     applyTheme();

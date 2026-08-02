@@ -174,8 +174,9 @@
       .attr('stroke', 'rgb(65, 140, 240)')
       .attr('stroke-width', 1);
 
-    // Rebuild the snap quadtree in pixel space so the tooltip tracks the
-    // visible (decimated) samples after every pan/zoom/resize.
+    // Stage the decimated points for the snap quadtree. The tree is built
+    // lazily on the first pointer move over the chart (see QuadtreeSnap),
+    // so this is cheap when the pointer is off-chart.
     snap.set(currentPoints);
 
     applyTheme();
