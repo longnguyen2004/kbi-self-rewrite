@@ -140,7 +140,7 @@
       // origin and the plot margin.
       const mx = event.clientX - rect.left - margin.left;
       const my = event.clientY - rect.top - margin.top;
-      const nearest = snap.find(mx, my);
+      const nearest = snap.find(mx, my, 40);
       if (nearest === undefined) {
         anchor = null;
         datum = null;
