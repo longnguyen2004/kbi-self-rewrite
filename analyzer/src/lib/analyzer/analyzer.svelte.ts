@@ -159,7 +159,8 @@ export class Analyzer {
           this._consecutiveDiffFreq[index] = consecutive;
           this._allDiffFreq[index] = all;
           this._wrappedTimestampFreq[index] = wrapped;
-          if (consecutive > this._consecutiveDiffFreqMax) this._consecutiveDiffFreqMax = consecutive;
+          if (consecutive > this._consecutiveDiffFreqMax)
+            this._consecutiveDiffFreqMax = consecutive;
           if (all > this._allDiffFreqMax) this._allDiffFreqMax = all;
           if (wrapped > this._wrappedTimestampFreqMax) this._wrappedTimestampFreqMax = wrapped;
         }

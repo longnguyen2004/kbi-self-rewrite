@@ -33,8 +33,7 @@
   let f = new FiniteStateMachine<States, Events>('from-file', {
     'from-file': {
       _enter({ from, event }) {
-        if (event === "changeSource" || from === null)
-        {
+        if (event === 'changeSource' || from === null) {
           analyzer.reset();
           timeline.reset();
           dataSource = new FromFileDataSource();
@@ -45,14 +44,13 @@
     },
     'from-recorder': {
       _enter({ event }) {
-        if (event === "changeSource")
-        {
+        if (event === 'changeSource') {
           analyzer.reset();
           timeline.reset();
-          const recorderSource = dataSource = new FromRecorderDataSource();
-          recorderSource.on("input", (e) => {
+          const recorderSource = (dataSource = new FromRecorderDataSource());
+          recorderSource.on('input', (e) => {
             analyzer.add([e.data[1].timestamp]);
-            timeline.add([e.data])
+            timeline.add([e.data]);
           });
         }
         currentTab = 'from-recorder';
@@ -98,7 +96,7 @@
         <Tabs.List>
           <Tabs.Trigger value="from-file">From file</Tabs.Trigger>
           {#if isNeutralino()}
-          <Tabs.Trigger value="from-recorder">From recorder</Tabs.Trigger>
+            <Tabs.Trigger value="from-recorder">From recorder</Tabs.Trigger>
           {/if}
         </Tabs.List>
         <Tabs.Content class="flex flex-row gap-4" value="from-file">
@@ -124,23 +122,24 @@
               timestamps.sort((a, b) => a - b);
               analyzer.add(timestamps);
               timeline.add(
-                Object.entries(fileSource.result.inputs)
-                  .flatMap(([id, events]) => events.map(el => [id, el] as [string, typeof el]))
-              )
+                Object.entries(fileSource.result.inputs).flatMap(([id, events]) =>
+                  events.map((el) => [id, el] as [string, typeof el]),
+                ),
+              );
             }}
           />
         </Tabs.Content>
         {#if isNeutralino()}
-        <Tabs.Content class="flex flex-row gap-4" value="from-recorder">
-          <Button onclick={() => f.send('toggleRecording')}>
-            {f.current === 'recording' ? 'Stop Recording' : 'Start Recording'}
-          </Button>
-        </Tabs.Content>
+          <Tabs.Content class="flex flex-row gap-4" value="from-recorder">
+            <Button onclick={() => f.send('toggleRecording')}>
+              {f.current === 'recording' ? 'Stop Recording' : 'Start Recording'}
+            </Button>
+          </Tabs.Content>
         {/if}
       </Tabs.Root>
 
       {#if result}
-        <ResultInfo result={result}>
+        <ResultInfo {result}>
           {#snippet child({ props })}
             <Button {...props} variant="outline">Info</Button>
           {/snippet}

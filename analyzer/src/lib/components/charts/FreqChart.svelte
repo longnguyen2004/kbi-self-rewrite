@@ -16,7 +16,12 @@
   import { line } from 'd3-shape';
   import { axisBottom, axisLeft } from 'd3-axis';
   import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from 'd3-zoom';
-  import { getTranslateExtent, setupSvgChart, defaultMargin, type ChartDimensions } from './svgChart';
+  import {
+    getTranslateExtent,
+    setupSvgChart,
+    defaultMargin,
+    type ChartDimensions,
+  } from './svgChart';
   import { decimate } from './decimate';
   import { useChartTheme } from './chartTheme.svelte';
   import ChartTooltip from './ChartTooltip.svelte';
@@ -101,8 +106,7 @@
   }
 
   function applyTheme() {
-    if (!xAxisG || !yAxisG || !plotG)
-      return;
+    if (!xAxisG || !yAxisG || !plotG) return;
     const theme = getTheme();
     select(xAxisG).selectAll('line, path').attr('stroke', theme.axis);
     select(xAxisG).selectAll('text').attr('fill', theme.text);
@@ -110,7 +114,7 @@
     select(yAxisG).selectAll('line, path').attr('stroke', theme.axis);
     select(yAxisG).selectAll('text').attr('fill', theme.text);
 
-    select(plotG).attr('stroke', theme.grid)
+    select(plotG).attr('stroke', theme.grid);
   }
 
   function updateGridLines(ticks: number[]) {
@@ -153,7 +157,9 @@
       .tickFormat((d) => formatTick(Number(d)));
     select(xAxisG).call(xAxis).attr('transform', `translate(0,${dims.innerHeight})`);
 
-    const yAxis = axisLeft(yScale).ticks(5).tickFormat((d) => `${Number(d)}`);
+    const yAxis = axisLeft(yScale)
+      .ticks(5)
+      .tickFormat((d) => `${Number(d)}`);
     select(yAxisG).call(yAxis);
 
     updateGridLines(ticks);
@@ -205,9 +211,7 @@
     plotG.setAttribute('clip-path', `url(#${clipId})`);
     xAxisG = rootSel.append('g').node()!;
     yAxisG = rootSel.append('g').node()!;
-    pathEl = plotG.appendChild(
-      document.createElementNS('http://www.w3.org/2000/svg', 'path'),
-    );
+    pathEl = plotG.appendChild(document.createElementNS('http://www.w3.org/2000/svg', 'path'));
 
     // Tooltip pointer handling (pointermove/leave + coord conversion +
     // quadtree hit-test) is owned by the <ChartTooltip> component, which
@@ -241,9 +245,7 @@
 
   $effect(() => {
     if (zoomBehavior)
-      zoomBehavior
-        .extent(getTranslateExtent(dims))
-        .translateExtent(getTranslateExtent(dims))
+      zoomBehavior.extent(getTranslateExtent(dims)).translateExtent(getTranslateExtent(dims));
   });
 
   $effect(() => {

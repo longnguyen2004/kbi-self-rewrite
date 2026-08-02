@@ -1,3 +1,3 @@
 export function isNeutralino() {
-    return "NL_VERSION" in window;
+  return 'NL_VERSION' in window;
 }

@@ -37,11 +37,7 @@ export function setupSvgChart(
   // Clip path so data doesn't overflow the plot area.
   const clipId = `clip-${Math.random().toString(36).slice(2)}`;
   const defs = selection.append('defs');
-  defs.append('clipPath')
-    .attr('id', clipId)
-    .append('rect')
-    .attr('x', 0)
-    .attr('y', 0);
+  defs.append('clipPath').attr('id', clipId).append('rect').attr('x', 0).attr('y', 0);
 
   // Root group is translated by the margin. d3-zoom is attached to this
   // group (not the <svg>), so its zoom space is the root-local chart area
@@ -58,10 +54,7 @@ export function setupSvgChart(
     const height = Math.max(0, rect.height);
     const innerWidth = Math.max(0, width - margin.left - margin.right);
     const innerHeight = Math.max(0, height - margin.top - margin.bottom);
-    selection
-      .select(`#${clipId} rect`)
-      .attr('width', innerWidth)
-      .attr('height', innerHeight);
+    selection.select(`#${clipId} rect`).attr('width', innerWidth).attr('height', innerHeight);
     bg.attr('width', innerWidth).attr('height', innerHeight);
     onResize({ width, height, innerWidth, innerHeight, margin });
   };
@@ -75,8 +68,8 @@ export function setupSvgChart(
       ro.disconnect();
       selection.selectAll('*').remove();
     },
-    clipId
-  }
+    clipId,
+  };
 }
 
 export { select };

@@ -11,14 +11,16 @@
 
   type Props = {
     analyzer: Analyzer;
-    timeline: TimelineProvider
+    timeline: TimelineProvider;
   };
   const { analyzer, timeline }: Props = $props();
   let postprocessOpts: PostprocessOptions = $state({
     lowCut: true,
   });
 
-  const consecutiveDiffFreq = $derived(postprocessWithMax(analyzer.consecutiveDiffFreq, postprocessOpts));
+  const consecutiveDiffFreq = $derived(
+    postprocessWithMax(analyzer.consecutiveDiffFreq, postprocessOpts),
+  );
   const allDiffFreq = $derived(postprocessWithMax(analyzer.allDiffFreq, postprocessOpts));
   const wrappedTimestampFreq = $derived(
     postprocessWithMax(analyzer.wrappedTimestampFreq, postprocessOpts),
@@ -48,9 +50,17 @@
   </div>
 </div>
 <div class="diff-chart flex min-h-0 flex-3 flex-row gap-10">
-  <DiffChart title="Consecutive timestamp diffs" data={analyzer.consecutiveDiff} yMax={analyzer.consecutiveDiffMax} />
+  <DiffChart
+    title="Consecutive timestamp diffs"
+    data={analyzer.consecutiveDiff}
+    yMax={analyzer.consecutiveDiffMax}
+  />
   <DiffChart title="All timestamp diffs" data={analyzer.allDiff} yMax={analyzer.allDiffMax} />
-  <DiffChart title="Timestamp fractional parts" data={analyzer.wrappedTimestamp} yMax={analyzer.wrappedTimestampMax} />
+  <DiffChart
+    title="Timestamp fractional parts"
+    data={analyzer.wrappedTimestamp}
+    yMax={analyzer.wrappedTimestampMax}
+  />
 </div>
 <div class="freq-chart flex min-h-0 flex-3 flex-row gap-10">
   <FreqChart

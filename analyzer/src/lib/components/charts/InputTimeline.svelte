@@ -1,7 +1,7 @@
 <script lang="ts" module>
   import type { TimelineProvider } from '$lib/analyzer/input_timeline.svelte';
   export type Props = {
-    timeline: TimelineProvider
+    timeline: TimelineProvider;
   };
 </script>
 
@@ -104,7 +104,8 @@
     const bandH = yScale.bandwidth();
     const sel = select(barsG).selectAll<SVGRectElement, Keypress>('rect').data(keypresses);
     sel.exit().remove();
-    sel.enter()
+    sel
+      .enter()
       .append('rect')
       .attr('rx', 2)
       .attr('ry', 2)
@@ -194,8 +195,7 @@
   }
 
   function applyTheme() {
-    if (!xAxisG || !yAxisG || !plotG)
-      return;
+    if (!xAxisG || !yAxisG || !plotG) return;
     const theme = getTheme();
     select(xAxisG).selectAll('line, path').attr('stroke', theme.axis);
     select(xAxisG).selectAll('text').attr('fill', theme.text);
@@ -203,7 +203,7 @@
     select(yAxisG).selectAll('line, path').attr('stroke', theme.axis);
     select(yAxisG).selectAll('text').attr('fill', theme.text);
 
-    select(plotG).attr('stroke', theme.grid)
+    select(plotG).attr('stroke', theme.grid);
   }
 
   function applyTransform(transform: ZoomTransform) {
@@ -241,7 +241,7 @@
         const rescaled = t.rescaleX(newX);
         xScale.domain(rescaled.domain() as [number, number]);
         queueRender();
-      })
+      });
     zoomBehavior = zb;
     rootSel.call(zb);
 
@@ -254,9 +254,7 @@
 
   $effect(() => {
     if (zoomBehavior)
-      zoomBehavior
-        .extent(getTranslateExtent(dims))
-        .translateExtent(getTranslateExtent(dims))
+      zoomBehavior.extent(getTranslateExtent(dims)).translateExtent(getTranslateExtent(dims));
   });
 
   $effect(() => {
