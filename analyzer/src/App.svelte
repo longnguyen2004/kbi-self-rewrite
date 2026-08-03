@@ -10,8 +10,9 @@
   import { Label } from '$lib/components/ui/label';
   import * as Tabs from '$lib/components/ui/tabs';
 
-  import Analysis from './pages/Analysis.svelte';
+  import Analysis from '$lib/components/Analysis.svelte';
   import ResultInfo from '$lib/components/ResultInfo.svelte';
+  import FpsCounter from '$lib/components/FpsCounter.svelte';
 
   import { Analyzer } from '$lib/analyzer/analyzer.svelte.js';
   import { KeyEventToInputTimeline } from '$lib/analyzer/input_timeline.svelte';
@@ -147,7 +148,8 @@
         </ResultInfo>
       {/if}
 
-      <div class="ml-auto flex flex-row gap-2">
+      <div class="ml-auto flex flex-row gap-2 items-center">
+        <FpsCounter decimals={1} />
         <a href="https://discord.gg/kX4cJQH5Zn" target="_blank" class={[buttonVariants(), "bg-[#5865F2]! text-white"]}>
           <img class="h-full py-2" alt="Discord logo" src={DiscordLogo}>
           Join our Discord server
