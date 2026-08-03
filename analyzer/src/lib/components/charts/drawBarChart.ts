@@ -1,20 +1,18 @@
 import type { ChartDimensions } from './canvasChart';
 
 /**
- * Imperative canvas draw for a bar chart plot layer (InputTimeline).
+ * Imperative canvas draw for a bar chart data layer (InputTimeline).
  *
  * Draws in plot-local CSS pixels (the caller's 2D context is already
  * DPR-scaled by `setupCanvasChart`).
  *
- * Steps:
- *  1. Clear the backing store for the plot area.
- *  2. Draw vertical grid lines at each x tick (half-pixel-snapped).
- *  3. Draw horizontal grid lines at the center of each key's band.
- *  4. Fill each bar (rounded rect) with its device color.
+ * Grid lines are NOT drawn here — they live in the SVG overlay (`gridG`)
+ * so they are themed via `applyTheme()` (which runs on theme change) and
+ * stay pixel-aligned with the d3-axis ticks. This helper only clears the
+ * backing store and fills each bar (rounded rect) with its device color.
  *
  * `bars` carry `start`/`end` (chart x-units) and `key` (band name); the
  * `xScale`, `yScale(key)`, and `bandwidth` accessors map them to pixels.
- * `colorOf` returns the fill color for a bar.
  */
 export type BarDatum = {
   start: number;
@@ -27,46 +25,15 @@ export function drawBarChart(
   ctx: CanvasRenderingContext2D,
   dims: ChartDimensions,
   bars: BarDatum[],
-  gridXTicks: number[],
-  gridYKeys: string[],
   xScale: (x: number) => number,
   yScaleOf: (key: string) => number | undefined,
   bandwidth: number,
   opts: {
-    gridColor: string;
     radius?: number;
   },
 ): void {
   const { innerWidth: w, innerHeight: h } = dims;
   ctx.clearRect(0, 0, w, h);
-
-  // Vertical grid lines.
-  if (gridXTicks.length > 0) {
-    ctx.beginPath();
-    ctx.strokeStyle = opts.gridColor;
-    ctx.lineWidth = 1;
-    for (const tick of gridXTicks) {
-      const x = Math.round(xScale(tick)) + 0.5;
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, h);
-    }
-    ctx.stroke();
-  }
-
-  // Horizontal grid lines at band centers.
-  if (gridYKeys.length > 0) {
-    ctx.beginPath();
-    ctx.strokeStyle = opts.gridColor;
-    ctx.lineWidth = 1;
-    for (const key of gridYKeys) {
-      const y0 = yScaleOf(key);
-      if (y0 === undefined) continue;
-      const y = Math.round(y0 + bandwidth / 2) + 0.5;
-      ctx.moveTo(0, y);
-      ctx.lineTo(w, y);
-    }
-    ctx.stroke();
-  }
 
   // Bars.
   const r = opts.radius ?? 2;

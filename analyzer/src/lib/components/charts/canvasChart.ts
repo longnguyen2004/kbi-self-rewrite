@@ -29,9 +29,11 @@ export const defaultMargin = {
  *  - A `<canvas>` sized to the inner plot area, positioned absolutely at
  *    `(margin.left, margin.top)`, with a DPR-scaled backing store. It has
  *    `pointer-events: none` so it never intercepts gestures — it is purely
- *    a render target for the plot layer (line/bars + grid).
+ *    a render target for the data layer (line/bars).
  *  - A transparent `<svg>` overlay on top that still owns the d3-axis
- *    groups, a transparent `bg` rect (so d3-zoom captures pointer/wheel
+ *    groups, a clipped `gridG` for SVG grid lines (themed via
+ *    `applyTheme()`, so they update on theme change without a canvas
+ *    redraw), a transparent `bg` rect (so d3-zoom captures pointer/wheel
  *    events over empty plot area), and acts as the `ChartTooltip` pointer
  *    surface.
  *
@@ -59,6 +61,7 @@ export function setupCanvasChart(
   clipId: string;
   ctx: CanvasRenderingContext2D;
   rootSel: import('d3-selection').Selection<SVGGElement, unknown, null, undefined>;
+  gridG: SVGGElement;
   plotG: SVGGElement;
   xAxisG: SVGGElement;
   yAxisG: SVGGElement;
@@ -82,9 +85,14 @@ export function setupCanvasChart(
   // for d3-zoom even over empty areas of the plot.
   const bg = root.append('rect').attr('fill', 'none').attr('pointer-events', 'all');
 
+  // Grid group (clipped) — SVG grid lines live here so they are themed
+  // via `applyTheme()` (which runs on theme change) and stay pixel-aligned
+  // with the d3-axis ticks. The data layer (line/bars) draws on the canvas.
+  const gridG = root.append('g').node()!;
+  gridG.setAttribute('clip-path', `url(#${clipId})`);
+
   // Plot group (clipped) — kept for any SVG overlays a chart may want,
-  // though the data layer now draws on the canvas. Charts that previously
-  // appended their path/bars to `plotG` now draw on the canvas instead.
+  // though the data layer now draws on the canvas.
   const plotG = root.append('g').node()!;
   plotG.setAttribute('clip-path', `url(#${clipId})`);
 
@@ -133,6 +141,7 @@ export function setupCanvasChart(
     clipId,
     ctx,
     rootSel: root as import('d3-selection').Selection<SVGGElement, unknown, null, undefined>,
+    gridG,
     plotG,
     xAxisG,
     yAxisG,

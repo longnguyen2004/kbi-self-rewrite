@@ -48,6 +48,7 @@
   let rootSel: Selection<SVGGElement, unknown, null, undefined> | undefined;
   let xAxisG: SVGGElement | undefined;
   let yAxisG: SVGGElement | undefined;
+  let gridG: SVGGElement | undefined;
   let ctx: CanvasRenderingContext2D | undefined;
   let cleanup: (() => void) | undefined;
   // Decimated points currently drawn, in chart x-units. Reused as the
@@ -72,6 +73,10 @@
   // Last y-domain used for the y-axis join — skip when unchanged (y-domain
   // doesn't change on pan).
   let lastAxisYDomain: [number, number] | undefined;
+  // Last tick values used for the SVG grid lines — skip the remove/append
+  // cycle when unchanged; positions are still refreshed every render so
+  // pan/zoom stays aligned with the axis.
+  let lastGridTicks: number[] | undefined;
   // Cached axis component instances (scales are stable refs, only their
   // domain/range mutate).
   const xAxisGen = axisBottom(xScale);
@@ -111,13 +116,44 @@
   }
 
   function applyTheme() {
-    if (!xAxisG || !yAxisG) return;
+    if (!xAxisG || !yAxisG || !gridG) return;
     const theme = getTheme();
     select(xAxisG).selectAll('line, path').attr('stroke', theme.axis);
     select(xAxisG).selectAll('text').attr('fill', theme.text);
 
     select(yAxisG).selectAll('line, path').attr('stroke', theme.axis);
     select(yAxisG).selectAll('text').attr('fill', theme.text);
+
+    select(gridG).selectAll('line').attr('stroke', theme.grid);
+  }
+
+  function updateGridLines(ticks: number[]) {
+    if (!gridG) return;
+
+    const gridSel = select(gridG).selectAll<SVGLineElement, number>('.grid-x');
+    const sameTicks =
+      lastGridTicks !== undefined &&
+      lastGridTicks.length === ticks.length &&
+      lastGridTicks.every((tick, index) => tick === ticks[index]);
+
+    if (!sameTicks) {
+      gridSel.remove();
+      select(gridG)
+        .selectAll('.grid-x')
+        .data(ticks)
+        .enter()
+        .append('line')
+        .attr('class', 'grid-x')
+        .attr('y1', 0)
+        .attr('stroke-width', 1);
+      lastGridTicks = ticks;
+    }
+
+    select(gridG)
+      .selectAll<SVGLineElement, number>('.grid-x')
+      .attr('x1', (tick) => xScale(tick))
+      .attr('x2', (tick) => xScale(tick))
+      .attr('y2', dims.innerHeight);
   }
 
   function render() {
@@ -158,11 +194,11 @@
       lastAxisYDomain = yDom;
     }
 
+    updateGridLines(ticks);
+
     currentPoints = decimate(data, xDomain, xScale.domain() as [number, number], dims.innerWidth);
 
-    const theme = getTheme();
-    drawLineChart(ctx, dims, currentPoints, ticks, xScale, yScale, {
-      gridColor: theme.grid,
+    drawLineChart(ctx, dims, currentPoints, xScale, yScale, {
       lineColor: 'rgb(65, 140, 240)',
       lineWidth: 1,
     });
@@ -196,18 +232,26 @@
     const container = containerRef!;
     const svg = svgRef!;
     const canvas = canvasRef!;
-    const { cleanup: chartCleanup, ctx: context, rootSel: root, xAxisG: xag, yAxisG: yag } =
-      setupCanvasChart(container, svg, canvas, defaultMargin, (newDims) => {
-        dims = newDims;
-        // Dimensions changed: axis tick positions are now stale, force
-        // rebuild of both axis joins.
-        lastAxisXTicks = undefined;
-        lastAxisYDomain = undefined;
-        queueRender();
-      });
+    const {
+      cleanup: chartCleanup,
+      ctx: context,
+      rootSel: root,
+      gridG: gg,
+      xAxisG: xag,
+      yAxisG: yag,
+    } = setupCanvasChart(container, svg, canvas, defaultMargin, (newDims) => {
+      dims = newDims;
+      // Dimensions changed: axis tick + grid line positions are now stale,
+      // force rebuild of both axis joins and the grid.
+      lastAxisXTicks = undefined;
+      lastAxisYDomain = undefined;
+      lastGridTicks = undefined;
+      queueRender();
+    });
     cleanup = chartCleanup;
     ctx = context;
     rootSel = root;
+    gridG = gg;
     xAxisG = xag;
     yAxisG = yag;
 

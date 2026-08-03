@@ -58,6 +58,7 @@
   let rootSel: Selection<SVGGElement, unknown, null, undefined> | undefined;
   let xAxisG: SVGGElement | undefined;
   let yAxisG: SVGGElement | undefined;
+  let gridG: SVGGElement | undefined;
   let ctx: CanvasRenderingContext2D | undefined;
   let cleanup: (() => void) | undefined;
   // Quadtree over the pixel centers of each bar, rebuilt on every render
@@ -76,6 +77,13 @@
   // Last y-domain (key set) used for the y-axis join — only rebuild when
   // the key set actually changes.
   let lastAxisYDomain: string[] | undefined;
+  // Last tick values used for the vertical SVG grid lines — skip the
+  // remove/append cycle when unchanged; positions are still refreshed every
+  // render so pan/zoom stays aligned with the axis.
+  let lastGridTicks: number[] | undefined;
+  // Last key set used for the horizontal SVG grid lines — only rebuild when
+  // the key set actually changes.
+  let lastGridKeys: string[] | undefined;
   // Last key set (as a joined string) used to detect when the y-domain
   // actually changes — only then do we reset zoom; otherwise we preserve the
   // user's zoom/pan during real-time recording.
@@ -130,6 +138,9 @@
     const bandH = yScale.bandwidth();
     const keysArr = [...keys];
 
+    updateVerticalGridLines(gridTicks);
+    updateHorizontalGridLines(keysArr);
+
     // Build the bar draw list. We map each keypress to a BarDatum carrying
     // its device color so the canvas helper stays decoupled from the
     // device-color map.
@@ -144,9 +155,7 @@
       };
     }
 
-    const theme = getTheme();
-    drawBarChart(ctx, dims, bars, gridTicks, keysArr, xScale, (key) => yScale(key), bandH, {
-      gridColor: theme.grid,
+    drawBarChart(ctx, dims, bars, xScale, (key) => yScale(key), bandH, {
       radius: 2,
     });
 
@@ -173,13 +182,73 @@
   }
 
   function applyTheme() {
-    if (!xAxisG || !yAxisG) return;
+    if (!xAxisG || !yAxisG || !gridG) return;
     const theme = getTheme();
     select(xAxisG).selectAll('line, path').attr('stroke', theme.axis);
     select(xAxisG).selectAll('text').attr('fill', theme.text);
 
     select(yAxisG).selectAll('line, path').attr('stroke', theme.axis);
     select(yAxisG).selectAll('text').attr('fill', theme.text);
+
+    select(gridG).selectAll('line').attr('stroke', theme.grid);
+  }
+
+  function updateVerticalGridLines(gridTicks: number[]) {
+    if (!gridG) return;
+
+    const gridSel = select(gridG).selectAll<SVGLineElement, number>('.grid-x');
+    const sameTicks =
+      lastGridTicks !== undefined &&
+      lastGridTicks.length === gridTicks.length &&
+      lastGridTicks.every((tick, index) => tick === gridTicks[index]);
+
+    if (!sameTicks) {
+      gridSel.remove();
+      select(gridG)
+        .selectAll('.grid-x')
+        .data(gridTicks)
+        .enter()
+        .append('line')
+        .attr('class', 'grid-x')
+        .attr('y1', 0)
+        .attr('stroke-width', 1);
+      lastGridTicks = gridTicks;
+    }
+
+    select(gridG)
+      .selectAll<SVGLineElement, number>('.grid-x')
+      .attr('x1', (tick) => xScale(tick))
+      .attr('x2', (tick) => xScale(tick))
+      .attr('y2', dims.innerHeight);
+  }
+
+  function updateHorizontalGridLines(gridKeys: string[]) {
+    if (!gridG) return;
+
+    const gridSel = select(gridG).selectAll<SVGLineElement, string>('.grid-y');
+    const sameKeys =
+      lastGridKeys !== undefined &&
+      lastGridKeys.length === gridKeys.length &&
+      lastGridKeys.every((key, index) => key === gridKeys[index]);
+
+    if (!sameKeys) {
+      gridSel.remove();
+      select(gridG)
+        .selectAll('.grid-y')
+        .data(gridKeys)
+        .enter()
+        .append('line')
+        .attr('class', 'grid-y')
+        .attr('x1', 0)
+        .attr('stroke-width', 1);
+      lastGridKeys = gridKeys;
+    }
+
+    select(gridG)
+      .selectAll<SVGLineElement, string>('.grid-y')
+      .attr('x2', dims.innerWidth)
+      .attr('y1', (key) => (yScale(key) ?? 0) + yScale.bandwidth() / 2)
+      .attr('y2', (key) => (yScale(key) ?? 0) + yScale.bandwidth() / 2);
   }
 
   function applyTransform(transform: ZoomTransform) {
@@ -192,18 +261,27 @@
     const svg = svgRef;
     const canvas = canvasRef;
     if (!container || !svg || !canvas) return;
-    const { cleanup: chartCleanup, ctx: context, rootSel: root, xAxisG: xag, yAxisG: yag } =
-      setupCanvasChart(container, svg, canvas, dims.margin, (newDims) => {
-        dims = newDims;
-        // Dimensions changed: axis tick positions are now stale, force
-        // rebuild of both axis joins.
-        lastAxisXTicks = undefined;
-        lastAxisYDomain = undefined;
-        queueRender();
-      });
+    const {
+      cleanup: chartCleanup,
+      ctx: context,
+      rootSel: root,
+      gridG: gg,
+      xAxisG: xag,
+      yAxisG: yag,
+    } = setupCanvasChart(container, svg, canvas, dims.margin, (newDims) => {
+      dims = newDims;
+      // Dimensions changed: axis tick + grid line positions are now stale,
+      // force rebuild of both axis joins and the grid.
+      lastAxisXTicks = undefined;
+      lastAxisYDomain = undefined;
+      lastGridTicks = undefined;
+      lastGridKeys = undefined;
+      queueRender();
+    });
     cleanup = chartCleanup;
     ctx = context;
     rootSel = root;
+    gridG = gg;
     xAxisG = xag;
     yAxisG = yag;
 
@@ -246,8 +324,10 @@
 
     if (keysChanged) {
       yScale.domain(keys);
-      // Invalidate the y-axis join cache so the next render rebuilds it.
+      // Invalidate the y-axis join + horizontal grid caches so the next
+      // render rebuilds them.
       lastAxisYDomain = undefined;
+      lastGridKeys = undefined;
       // Keep the user's zoom/pan; just refresh the bars via a coalesced
       // render so multiple events per frame collapse into one.
       queueRender();
