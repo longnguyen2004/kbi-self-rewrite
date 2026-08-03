@@ -11,7 +11,8 @@
   import { scaleLinear, scaleBand } from 'd3-scale';
   import { axisBottom, axisLeft } from 'd3-axis';
   import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from 'd3-zoom';
-  import { getTranslateExtent, setupSvgChart, type ChartDimensions } from './svgChart';
+  import { getTranslateExtent, setupCanvasChart, type ChartDimensions } from './canvasChart';
+  import { drawBarChart, type BarDatum } from './drawBarChart';
   import { useChartTheme } from './chartTheme.svelte';
   import ChartTooltip from './ChartTooltip.svelte';
   import { QuadtreeSnap } from './quadtreeSnap';
@@ -38,7 +39,9 @@
     return c;
   }
 
+  let containerRef: HTMLDivElement | undefined = $state();
   let svgRef: SVGSVGElement | undefined = $state();
+  let canvasRef: HTMLCanvasElement | undefined = $state();
   let dims: ChartDimensions = $state({
     width: 0,
     height: 0,
@@ -53,10 +56,9 @@
   let xDomain: [number, number] = $derived([0, endTimestamp]);
   let zoomBehavior: ZoomBehavior<SVGGElement, unknown> | undefined;
   let rootSel: Selection<SVGGElement, unknown, null, undefined> | undefined;
-  let plotG: SVGGElement | undefined;
   let xAxisG: SVGGElement | undefined;
   let yAxisG: SVGGElement | undefined;
-  let barsG: SVGGElement | undefined;
+  let ctx: CanvasRenderingContext2D | undefined;
   let cleanup: (() => void) | undefined;
   // Quadtree over the pixel centers of each bar, rebuilt on every render
   // so we can snap the tooltip to the nearest keypress under the pointer.
@@ -67,54 +69,86 @@
   );
 
   // --- Real-time insertion optimization caches ---
-  // Last tick values used for grid lines — skip the remove/append cycle when
-  // unchanged (the common case during pan/zoom where the tick count is
-  // stable for a given width).
-  let lastGridTicks: number[] | undefined;
-  // Last y-key set used for horizontal grid lines — only rebuild when the
-  // key set actually changes.
-  let lastGridKeys: string[] | undefined;
+  // Last tick values used for the x-axis join — skip the remove/append
+  // cycle when unchanged (the common case during pan/zoom where the tick
+  // count is stable for a given width).
+  let lastAxisXTicks: number[] | undefined;
+  // Last y-domain (key set) used for the y-axis join — only rebuild when
+  // the key set actually changes.
+  let lastAxisYDomain: string[] | undefined;
   // Last key set (as a joined string) used to detect when the y-domain
   // actually changes — only then do we reset zoom; otherwise we preserve the
   // user's zoom/pan during real-time recording.
   let lastKeysSig = '';
+  // Cached axis component instances (scales are stable refs, only their
+  // domain/range mutate).
+  const xAxisGen = axisBottom(xScale);
+  const yAxisGen = axisLeft(yScale);
   // rAF coalescing: collapse multiple input events within the same animation
   // frame into a single render.
   let rafId = 0;
   let renderQueued = false;
 
   function render() {
-    if (!plotG || !xAxisG || !yAxisG || !barsG) return;
+    if (!xAxisG || !yAxisG || !ctx) return;
     xScale.range([0, dims.innerWidth]);
     yScale.range([0, dims.innerHeight]);
 
     const tickCount = Math.max(1, Math.floor(dims.innerWidth / 60));
     const gridTicks = xScale.ticks(tickCount);
-    const xAxis = axisBottom(xScale)
-      .tickValues(gridTicks)
-      .tickFormat((d) => `${Number(d)}s`);
-    select(xAxisG).call(xAxis).attr('transform', `translate(0,${dims.innerHeight})`);
 
-    const yAxis = axisLeft(yScale);
-    select(yAxisG).call(yAxis);
+    // X-axis: only run the d3-axis join (full tick remove/re-append) when
+    // the tick SET changes; otherwise reposition existing g.tick groups in
+    // place via a pure attribute write (no structural change → no layout
+    // reflow).
+    const sameXTicks =
+      lastAxisXTicks !== undefined &&
+      lastAxisXTicks.length === gridTicks.length &&
+      lastAxisXTicks.every((t, i) => t === gridTicks[i]);
+    xAxisGen.tickValues(gridTicks).tickFormat((d) => `${Number(d)}s`);
+    if (!sameXTicks) {
+      select(xAxisG).call(xAxisGen).attr('transform', `translate(0,${dims.innerHeight})`);
+      lastAxisXTicks = gridTicks;
+    } else {
+      select(xAxisG)
+        .selectAll<SVGGElement, number>('g.tick')
+        .attr('transform', (tv) => `translate(${xScale(tv)},0)`);
+      select(xAxisG).attr('transform', `translate(0,${dims.innerHeight})`);
+    }
 
-    updateVerticalGridLines(gridTicks);
-    updateHorizontalGridLines([...keys]);
+    // Y-axis: only run the join when the y-domain (key set) changes.
+    const yDom = yScale.domain();
+    const sameYDomain =
+      lastAxisYDomain !== undefined &&
+      lastAxisYDomain.length === yDom.length &&
+      lastAxisYDomain.every((k, i) => k === yDom[i]);
+    if (!sameYDomain) {
+      select(yAxisG).call(yAxisGen);
+      lastAxisYDomain = [...yDom];
+    }
 
     const bandH = yScale.bandwidth();
-    const sel = select(barsG).selectAll<SVGRectElement, Keypress>('rect').data(keypresses);
-    sel.exit().remove();
-    sel
-      .enter()
-      .append('rect')
-      .attr('rx', 2)
-      .attr('ry', 2)
-      .merge(sel)
-      .attr('x', (d) => xScale(d.start))
-      .attr('y', (d) => yScale(d.key) ?? 0)
-      .attr('width', (d) => Math.max(1, xScale(d.end) - xScale(d.start)))
-      .attr('height', bandH)
-      .attr('fill', (d) => colorFor(d.deviceId));
+    const keysArr = [...keys];
+
+    // Build the bar draw list. We map each keypress to a BarDatum carrying
+    // its device color so the canvas helper stays decoupled from the
+    // device-color map.
+    const bars: BarDatum[] = new Array(keypresses.length);
+    for (let i = 0; i < keypresses.length; i++) {
+      const k = keypresses[i];
+      bars[i] = {
+        start: k.start,
+        end: k.end,
+        key: k.key,
+        color: colorFor(k.deviceId),
+      };
+    }
+
+    const theme = getTheme();
+    drawBarChart(ctx, dims, bars, gridTicks, keysArr, xScale, (key) => yScale(key), bandH, {
+      gridColor: theme.grid,
+      radius: 2,
+    });
 
     // Stage the bar centers for the snap quadtree. The tree is built lazily
     // on the first pointer move over the chart (see QuadtreeSnap), so this
@@ -138,74 +172,14 @@
     });
   }
 
-  function updateVerticalGridLines(gridTicks: number[]) {
-    if (!plotG) return;
-
-    const gridSel = select(plotG).selectAll<SVGLineElement, number>('.grid-x');
-    const sameTicks =
-      lastGridTicks !== undefined &&
-      lastGridTicks.length === gridTicks.length &&
-      lastGridTicks.every((tick, index) => tick === gridTicks[index]);
-
-    if (!sameTicks) {
-      gridSel.remove();
-      select(plotG)
-        .selectAll('.grid-x')
-        .data(gridTicks)
-        .enter()
-        .append('line')
-        .attr('class', 'grid-x')
-        .attr('y1', 0)
-        .attr('stroke-width', 1);
-      lastGridTicks = gridTicks;
-    }
-
-    select(plotG)
-      .selectAll<SVGLineElement, number>('.grid-x')
-      .attr('x1', (tick) => xScale(tick))
-      .attr('x2', (tick) => xScale(tick))
-      .attr('y2', dims.innerHeight);
-  }
-
-  function updateHorizontalGridLines(gridKeys: string[]) {
-    if (!plotG) return;
-
-    const gridSel = select(plotG).selectAll<SVGLineElement, string>('.grid-y');
-    const sameKeys =
-      lastGridKeys !== undefined &&
-      lastGridKeys.length === gridKeys.length &&
-      lastGridKeys.every((key, index) => key === gridKeys[index]);
-
-    if (!sameKeys) {
-      gridSel.remove();
-      select(plotG)
-        .selectAll('.grid-y')
-        .data(gridKeys)
-        .enter()
-        .append('line')
-        .attr('class', 'grid-y')
-        .attr('x1', 0)
-        .attr('stroke-width', 1);
-      lastGridKeys = gridKeys;
-    }
-
-    select(plotG)
-      .selectAll<SVGLineElement, string>('.grid-y')
-      .attr('x2', dims.innerWidth)
-      .attr('y1', (key) => (yScale(key) ?? 0) + yScale.bandwidth() / 2)
-      .attr('y2', (key) => (yScale(key) ?? 0) + yScale.bandwidth() / 2);
-  }
-
   function applyTheme() {
-    if (!xAxisG || !yAxisG || !plotG) return;
+    if (!xAxisG || !yAxisG) return;
     const theme = getTheme();
     select(xAxisG).selectAll('line, path').attr('stroke', theme.axis);
     select(xAxisG).selectAll('text').attr('fill', theme.text);
 
     select(yAxisG).selectAll('line, path').attr('stroke', theme.axis);
     select(yAxisG).selectAll('text').attr('fill', theme.text);
-
-    select(plotG).attr('stroke', theme.grid);
   }
 
   function applyTransform(transform: ZoomTransform) {
@@ -214,22 +188,24 @@
   }
 
   onMount(() => {
+    const container = containerRef;
     const svg = svgRef;
-    if (!svg) return;
-    const { cleanup: chartCleanup, clipId } = setupSvgChart(svg, dims.margin, (newDims) => {
-      dims = newDims;
-      // Dimensions changed: grid line positions are now stale, force rebuild.
-      lastGridTicks = undefined;
-      queueRender();
-    });
+    const canvas = canvasRef;
+    if (!container || !svg || !canvas) return;
+    const { cleanup: chartCleanup, ctx: context, rootSel: root, xAxisG: xag, yAxisG: yag } =
+      setupCanvasChart(container, svg, canvas, dims.margin, (newDims) => {
+        dims = newDims;
+        // Dimensions changed: axis tick positions are now stale, force
+        // rebuild of both axis joins.
+        lastAxisXTicks = undefined;
+        lastAxisYDomain = undefined;
+        queueRender();
+      });
     cleanup = chartCleanup;
-    const svgSel = select(svg);
-    rootSel = svgSel.select<SVGGElement>('g');
-    plotG = rootSel.append('g').node()!;
-    plotG.setAttribute('clip-path', `url(#${clipId})`);
-    xAxisG = rootSel.append('g').node()!;
-    yAxisG = rootSel.append('g').node()!;
-    barsG = plotG.appendChild(document.createElementNS('http://www.w3.org/2000/svg', 'g'));
+    ctx = context;
+    rootSel = root;
+    xAxisG = xag;
+    yAxisG = yag;
 
     // Tooltip pointer handling (pointermove/leave + coord conversion +
     // quadtree hit-test) is owned by the <ChartTooltip> component, which
@@ -270,6 +246,8 @@
 
     if (keysChanged) {
       yScale.domain(keys);
+      // Invalidate the y-axis join cache so the next render rebuilds it.
+      lastAxisYDomain = undefined;
       // Keep the user's zoom/pan; just refresh the bars via a coalesced
       // render so multiple events per frame collapse into one.
       queueRender();
@@ -290,8 +268,9 @@
   });
 </script>
 
-<div class="relative h-full min-h-0 w-full min-w-0">
-  <svg bind:this={svgRef}></svg>
+<div bind:this={containerRef} class="relative h-full min-h-0 w-full min-w-0">
+  <canvas bind:this={canvasRef}></canvas>
+  <svg bind:this={svgRef} class="absolute inset-0"></svg>
 </div>
 
 {#if svgRef}

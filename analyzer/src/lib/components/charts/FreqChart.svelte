@@ -13,16 +13,16 @@
   import { onMount, untrack } from 'svelte';
   import { select, type Selection } from 'd3-selection';
   import { scaleLinear } from 'd3-scale';
-  import { line } from 'd3-shape';
   import { axisBottom, axisLeft } from 'd3-axis';
   import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from 'd3-zoom';
   import {
     getTranslateExtent,
-    setupSvgChart,
+    setupCanvasChart,
     defaultMargin,
     type ChartDimensions,
-  } from './svgChart';
+  } from './canvasChart';
   import { decimate } from './decimate';
+  import { drawLineChart } from './drawLineChart';
   import { useChartTheme } from './chartTheme.svelte';
   import ChartTooltip from './ChartTooltip.svelte';
   import { QuadtreeSnap } from './quadtreeSnap';
@@ -30,7 +30,9 @@
 
   let { title, data, yMax }: Props = $props();
 
+  let containerRef: HTMLDivElement | undefined = $state();
   let svgRef: SVGSVGElement | undefined = $state();
+  let canvasRef: HTMLCanvasElement | undefined = $state();
   let dims: ChartDimensions = {
     width: 0,
     height: 0,
@@ -45,10 +47,9 @@
   let xDomain: [number, number] = $derived([0, data.length - 1]);
   let zoomBehavior: ZoomBehavior<SVGGElement, unknown> | undefined;
   let rootSel: Selection<SVGGElement, unknown, null, undefined> | undefined;
-  let plotG: SVGGElement | undefined;
   let xAxisG: SVGGElement | undefined;
   let yAxisG: SVGGElement | undefined;
-  let pathEl: SVGPathElement | undefined;
+  let ctx: CanvasRenderingContext2D | undefined;
   let cleanup: (() => void) | undefined;
   // Decimated points currently drawn, in chart x-units. Reused as the
   // quadtree source so the tooltip snaps to a visible sample.
@@ -61,18 +62,21 @@
     (d) => yScale(d.y),
   );
 
-  // Cached line generator (scales are stable references, only their
-  // domain/range mutate).
-  const lineGen = line<{ x: number; y: number }>()
-    .x((d) => xScale(d.x))
-    .y((d) => yScale(d.y));
   // Incremental y-domain max: updated as new data arrives instead of a full
   // O(n) minmax scan on every insertion.
   let cachedYMax = 0;
   let cachedDataLen = -1;
-  // Last tick values used for grid lines — skip the remove/append cycle when
-  // unchanged.
-  let lastGridTicks: number[] | undefined;
+  // Last tick values used for the x-axis join — skip the remove/append
+  // cycle when unchanged (the common case during pan within a quantized
+  // step).
+  let lastAxisXTicks: number[] | undefined;
+  // Last y-domain used for the y-axis join — skip when unchanged (y-domain
+  // doesn't change on pan).
+  let lastAxisYDomain: [number, number] | undefined;
+  // Cached axis component instances (scales are stable refs, only their
+  // domain/range mutate).
+  const xAxisGen = axisBottom(xScale);
+  const yAxisGen = axisLeft(yScale);
   // rAF coalescing: collapse multiple data updates in the same frame into a
   // single render.
   let rafId = 0;
@@ -106,71 +110,61 @@
   }
 
   function applyTheme() {
-    if (!xAxisG || !yAxisG || !plotG) return;
+    if (!xAxisG || !yAxisG) return;
     const theme = getTheme();
     select(xAxisG).selectAll('line, path').attr('stroke', theme.axis);
     select(xAxisG).selectAll('text').attr('fill', theme.text);
 
     select(yAxisG).selectAll('line, path').attr('stroke', theme.axis);
     select(yAxisG).selectAll('text').attr('fill', theme.text);
-
-    select(plotG).attr('stroke', theme.grid);
-  }
-
-  function updateGridLines(ticks: number[]) {
-    if (!plotG) return;
-
-    const gridSel = select(plotG).selectAll<SVGLineElement, number>('.grid-x');
-    const sameTicks =
-      lastGridTicks !== undefined &&
-      lastGridTicks.length === ticks.length &&
-      lastGridTicks.every((tick, index) => tick === ticks[index]);
-
-    if (!sameTicks) {
-      gridSel.remove();
-      select(plotG)
-        .selectAll('.grid-x')
-        .data(ticks)
-        .enter()
-        .append('line')
-        .attr('class', 'grid-x')
-        .attr('y1', 0)
-        .attr('stroke-width', 1);
-      lastGridTicks = ticks;
-    }
-
-    select(plotG)
-      .selectAll<SVGLineElement, number>('.grid-x')
-      .attr('x1', (tick) => xScale(tick))
-      .attr('x2', (tick) => xScale(tick))
-      .attr('y2', dims.innerHeight);
   }
 
   function render() {
-    if (!plotG || !xAxisG || !yAxisG || !pathEl) return;
+    if (!xAxisG || !yAxisG || !ctx) return;
     xScale.range([0, dims.innerWidth]);
     yScale.range([dims.innerHeight, 0]);
 
     const ticks = quantizedTicks(xScale.domain()[0], xScale.domain()[1]);
-    const xAxis = axisBottom(xScale)
-      .tickValues(ticks)
-      .tickFormat((d) => formatTick(Number(d)));
-    select(xAxisG).call(xAxis).attr('transform', `translate(0,${dims.innerHeight})`);
 
-    const yAxis = axisLeft(yScale)
-      .ticks(5)
-      .tickFormat((d) => `${Number(d)}`);
-    select(yAxisG).call(yAxis);
+    // X-axis: only run the d3-axis join (full tick remove/re-append) when
+    // the tick SET changes; otherwise reposition existing g.tick groups in
+    // place via a pure attribute write (no structural change → no layout
+    // reflow).
+    const sameXTicks =
+      lastAxisXTicks !== undefined &&
+      lastAxisXTicks.length === ticks.length &&
+      lastAxisXTicks.every((t, i) => t === ticks[i]);
+    xAxisGen.tickValues(ticks).tickFormat((d) => formatTick(Number(d)));
+    if (!sameXTicks) {
+      select(xAxisG).call(xAxisGen).attr('transform', `translate(0,${dims.innerHeight})`);
+      lastAxisXTicks = ticks;
+    } else {
+      select(xAxisG)
+        .selectAll<SVGGElement, number>('g.tick')
+        .attr('transform', (tv) => `translate(${xScale(tv)},0)`);
+      select(xAxisG).attr('transform', `translate(0,${dims.innerHeight})`);
+    }
 
-    updateGridLines(ticks);
+    // Y-axis: only run the join when the y-domain changes.
+    const yDom = yScale.domain() as [number, number];
+    const sameYDomain =
+      lastAxisYDomain !== undefined &&
+      lastAxisYDomain[0] === yDom[0] &&
+      lastAxisYDomain[1] === yDom[1];
+    yAxisGen.ticks(5).tickFormat((d) => `${Number(d)}`);
+    if (!sameYDomain) {
+      select(yAxisG).call(yAxisGen);
+      lastAxisYDomain = yDom;
+    }
 
     currentPoints = decimate(data, xDomain, xScale.domain() as [number, number], dims.innerWidth);
-    select(pathEl)
-      .datum(currentPoints)
-      .attr('d', lineGen)
-      .attr('fill', 'none')
-      .attr('stroke', 'rgb(240, 120, 0)')
-      .attr('stroke-width', 1);
+
+    const theme = getTheme();
+    drawLineChart(ctx, dims, currentPoints, ticks, xScale, yScale, {
+      gridColor: theme.grid,
+      lineColor: 'rgb(240, 120, 0)',
+      lineWidth: 1,
+    });
 
     // Stage the decimated points for the snap quadtree. The tree is built
     // lazily on the first pointer move over the chart (see QuadtreeSnap),
@@ -198,21 +192,23 @@
   }
 
   onMount(() => {
+    const container = containerRef!;
     const svg = svgRef!;
-    const { cleanup: chartCleanup, clipId } = setupSvgChart(svg, defaultMargin, (newDims) => {
-      dims = newDims;
-      // Dimensions changed: grid line positions are now stale, force rebuild.
-      lastGridTicks = undefined;
-      queueRender();
-    });
+    const canvas = canvasRef!;
+    const { cleanup: chartCleanup, ctx: context, rootSel: root, xAxisG: xag, yAxisG: yag } =
+      setupCanvasChart(container, svg, canvas, defaultMargin, (newDims) => {
+        dims = newDims;
+        // Dimensions changed: axis tick positions are now stale, force
+        // rebuild of both axis joins.
+        lastAxisXTicks = undefined;
+        lastAxisYDomain = undefined;
+        queueRender();
+      });
     cleanup = chartCleanup;
-    const svgSel = select(svg);
-    rootSel = svgSel.select<SVGGElement>('g');
-    plotG = rootSel.append('g').node()!;
-    plotG.setAttribute('clip-path', `url(#${clipId})`);
-    xAxisG = rootSel.append('g').node()!;
-    yAxisG = rootSel.append('g').node()!;
-    pathEl = plotG.appendChild(document.createElementNS('http://www.w3.org/2000/svg', 'path'));
+    ctx = context;
+    rootSel = root;
+    xAxisG = xag;
+    yAxisG = yag;
 
     // Tooltip pointer handling (pointermove/leave + coord conversion +
     // quadtree hit-test) is owned by the <ChartTooltip> component, which
@@ -296,8 +292,9 @@
   {#if title}
     <h1 class="select-none">{title}</h1>
   {/if}
-  <div class="relative h-full w-full overflow-hidden">
-    <svg bind:this={svgRef}></svg>
+  <div bind:this={containerRef} class="relative h-full w-full overflow-hidden">
+    <canvas bind:this={canvasRef}></canvas>
+    <svg bind:this={svgRef} class="absolute inset-0"></svg>
   </div>
 </div>
 
