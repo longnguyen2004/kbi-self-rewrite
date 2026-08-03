@@ -141,24 +141,27 @@ export class Analyzer {
     (async () => {
       while (this._calculationQueued) {
         this._calculationQueued = false;
+        const maxFreq = this._binRate / 2;
+        const len = this._consecutiveDiffCount.length;
         const calc1 = this._consecutiveDiffFftCalculator.submit(this._consecutiveDiffCount);
         const calc2 = this._allDiffFftCalculator.submit(this._allDiffCount);
         const calc3 = this._wrappedTimestampFftCalculator.submit(this._wrappedTimestampCount);
         const [freq1, freq2, freq3] = await Promise.all([calc1, calc2, calc3]);
-        this._consecutiveDiffFreq = new Array(freq1.length / 2);
-        this._allDiffFreq = new Array(freq2.length / 2);
-        this._wrappedTimestampFreq = new Array(freq3.length / 2);
+        this._consecutiveDiffFreq = new Array(maxFreq + 1);
+        this._allDiffFreq = new Array(maxFreq + 1);
+        this._wrappedTimestampFreq = new Array(maxFreq + 1);
         this._consecutiveDiffFreqMax = 0;
         this._allDiffFreqMax = 0;
         this._wrappedTimestampFreqMax = 0;
         for (let i = 0; i < freq1.length; i += 2) {
-          const index = i / 2;
-          const consecutive = Math.hypot(freq1[i], freq1[i + 1]);
-          const all = Math.hypot(freq2[i], freq2[i + 1]);
-          const wrapped = Math.hypot(freq3[i], freq3[i + 1]);
-          this._consecutiveDiffFreq[index] = consecutive;
-          this._allDiffFreq[index] = all;
-          this._wrappedTimestampFreq[index] = wrapped;
+          const freq = i / 2;
+          const normFactor = (freq == 0 || freq == maxFreq ? 1 : 2) / len;
+          const consecutive = Math.hypot(freq1[i], freq1[i + 1]) * normFactor;
+          const all = Math.hypot(freq2[i], freq2[i + 1]) * normFactor;
+          const wrapped = Math.hypot(freq3[i], freq3[i + 1]) * normFactor;
+          this._consecutiveDiffFreq[freq] = consecutive;
+          this._allDiffFreq[freq] = all;
+          this._wrappedTimestampFreq[freq] = wrapped;
           if (consecutive > this._consecutiveDiffFreqMax)
             this._consecutiveDiffFreqMax = consecutive;
           if (all > this._allDiffFreqMax) this._allDiffFreqMax = all;
