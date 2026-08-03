@@ -16,11 +16,11 @@
   import { axisBottom, axisLeft } from 'd3-axis';
   import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from 'd3-zoom';
   import {
-    getTranslateExtent,
-    setupCanvasChart,
+    getExtent,
+    setupChart,
     defaultMargin,
     type ChartDimensions,
-  } from './canvasChart';
+  } from './chartCommon';
   import { decimate } from './decimate';
   import { drawLineChart } from './drawLineChart';
   import { useChartTheme } from './chartTheme.svelte';
@@ -50,7 +50,6 @@
   let yAxisG: SVGGElement | undefined;
   let gridG: SVGGElement | undefined;
   let ctx: CanvasRenderingContext2D | undefined;
-  let cleanup: (() => void) | undefined;
   // Decimated points currently drawn, in chart x-units. Reused as the
   // quadtree source so the tooltip snaps to a visible sample.
   let currentPoints: { x: number; y: number }[] = [];
@@ -232,14 +231,15 @@
     const container = containerRef!;
     const svg = svgRef!;
     const canvas = canvasRef!;
-    const {
-      cleanup: chartCleanup,
-      ctx: context,
-      rootSel: root,
-      gridG: gg,
-      xAxisG: xag,
-      yAxisG: yag,
-    } = setupCanvasChart(container, svg, canvas, defaultMargin, (newDims) => {
+    let cleanup;
+    ({
+      cleanup,
+      ctx,
+      rootSel,
+      gridG,
+      xAxisG,
+      yAxisG,
+    } = setupChart(container, svg, canvas, defaultMargin, (newDims) => {
       dims = newDims;
       // Dimensions changed: axis tick + grid line positions are now stale,
       // force rebuild of both axis joins and the grid.
@@ -247,13 +247,7 @@
       lastAxisYDomain = undefined;
       lastGridTicks = undefined;
       queueRender();
-    });
-    cleanup = chartCleanup;
-    ctx = context;
-    rootSel = root;
-    gridG = gg;
-    xAxisG = xag;
-    yAxisG = yag;
+    }));
 
     // Tooltip pointer handling (pointermove/leave + coord conversion +
     // quadtree hit-test) is owned by the <ChartTooltip> component, which
@@ -280,14 +274,14 @@
     return () => {
       if (rafId) cancelAnimationFrame(rafId);
       snap.clear();
-      cleanup?.();
+      cleanup();
       zoomSync.remove(syncable);
     };
   });
 
   $effect(() => {
     if (zoomBehavior)
-      zoomBehavior.extent(getTranslateExtent(dims)).translateExtent(getTranslateExtent(dims));
+      zoomBehavior.extent(getExtent(dims)).translateExtent(getExtent(dims));
   });
 
   $effect(() => {
@@ -307,21 +301,20 @@
           rootSel.call(zoomBehavior.transform, zoomIdentity.scale(k));
         }
       }
-      if (yMax !== undefined) {
-        cachedYMax = yMax;
-        yScale.domain([0, yMax]);
-      } else {
+      let newMax = yMax;
+      if (newMax === undefined)
+      {
         // Incremental y-max update: only scan if the previous max was
         // exceeded (cheap), otherwise the cached max is still valid.
-        let newMax = cachedYMax;
-        for (let i = 0; i < len; i++) {
+        newMax = data[0]
+        for (let i = 1; i < len; i++) {
           const v = data[i];
           if (v > newMax) newMax = v;
         }
-        if (newMax !== cachedYMax) {
-          cachedYMax = newMax;
-          yScale.domain([0, newMax]);
-        }
+      }
+      if (newMax !== cachedYMax) {
+        cachedYMax = newMax;
+        yScale.domain([0, newMax]);
       }
       // Coalesce: avoid a synchronous full render per insertion.
       queueRender();

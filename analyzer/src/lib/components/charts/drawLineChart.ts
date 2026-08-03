@@ -1,4 +1,4 @@
-import type { ChartDimensions } from './canvasChart';
+import type { ChartDimensions } from './chartCommon';
 
 /**
  * Imperative canvas draw for a line chart data layer.

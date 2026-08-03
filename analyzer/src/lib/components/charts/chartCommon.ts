@@ -1,4 +1,4 @@
-import { select } from 'd3-selection';
+import { select, type Selection } from 'd3-selection';
 
 export type ChartDimensions = {
   width: number;
@@ -8,7 +8,7 @@ export type ChartDimensions = {
   margin: { top: number; right: number; bottom: number; left: number };
 };
 
-export function getTranslateExtent(dims: ChartDimensions): [[number, number], [number, number]] {
+export function getExtent(dims: ChartDimensions): [[number, number], [number, number]] {
   return [
     [0, 0],
     [dims.innerWidth, dims.innerHeight],
@@ -50,7 +50,7 @@ export const defaultMargin = {
  * Returns the canvas element, the 2D context, the SVG root `<g>` selection,
  * the axis group nodes, the clip id, and a cleanup function.
  */
-export function setupCanvasChart(
+export function setupChart(
   container: HTMLDivElement,
   svg: SVGSVGElement,
   canvas: HTMLCanvasElement,
@@ -60,7 +60,7 @@ export function setupCanvasChart(
   cleanup: () => void;
   clipId: string;
   ctx: CanvasRenderingContext2D;
-  rootSel: import('d3-selection').Selection<SVGGElement, unknown, null, undefined>;
+  rootSel: Selection<SVGGElement, unknown, null, undefined>;
   gridG: SVGGElement;
   plotG: SVGGElement;
   xAxisG: SVGGElement;
@@ -140,12 +140,10 @@ export function setupCanvasChart(
     },
     clipId,
     ctx,
-    rootSel: root as import('d3-selection').Selection<SVGGElement, unknown, null, undefined>,
+    rootSel: root,
     gridG,
     plotG,
     xAxisG,
     yAxisG,
   };
 }
-
-export { select };

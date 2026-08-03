@@ -11,7 +11,7 @@
   import { scaleLinear, scaleBand } from 'd3-scale';
   import { axisBottom, axisLeft } from 'd3-axis';
   import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from 'd3-zoom';
-  import { getTranslateExtent, setupCanvasChart, type ChartDimensions } from './canvasChart';
+  import { getExtent, setupChart, type ChartDimensions } from './chartCommon';
   import { drawBarChart, type BarDatum } from './drawBarChart';
   import { useChartTheme } from './chartTheme.svelte';
   import ChartTooltip from './ChartTooltip.svelte';
@@ -60,7 +60,6 @@
   let yAxisG: SVGGElement | undefined;
   let gridG: SVGGElement | undefined;
   let ctx: CanvasRenderingContext2D | undefined;
-  let cleanup: (() => void) | undefined;
   // Quadtree over the pixel centers of each bar, rebuilt on every render
   // so we can snap the tooltip to the nearest keypress under the pointer.
   // Shared helper deduplicates the nearest-neighbour logic across charts.
@@ -132,7 +131,7 @@
       lastAxisYDomain.every((k, i) => k === yDom[i]);
     if (!sameYDomain) {
       select(yAxisG).call(yAxisGen);
-      lastAxisYDomain = [...yDom];
+      lastAxisYDomain = yDom;
     }
 
     const bandH = yScale.bandwidth();
@@ -261,14 +260,15 @@
     const svg = svgRef;
     const canvas = canvasRef;
     if (!container || !svg || !canvas) return;
-    const {
-      cleanup: chartCleanup,
-      ctx: context,
-      rootSel: root,
-      gridG: gg,
-      xAxisG: xag,
-      yAxisG: yag,
-    } = setupCanvasChart(container, svg, canvas, dims.margin, (newDims) => {
+    let cleanup;
+    ({
+      cleanup,
+      ctx,
+      rootSel,
+      gridG,
+      xAxisG,
+      yAxisG,
+    } = setupChart(container, svg, canvas, dims.margin, (newDims) => {
       dims = newDims;
       // Dimensions changed: axis tick + grid line positions are now stale,
       // force rebuild of both axis joins and the grid.
@@ -277,13 +277,7 @@
       lastGridTicks = undefined;
       lastGridKeys = undefined;
       queueRender();
-    });
-    cleanup = chartCleanup;
-    ctx = context;
-    rootSel = root;
-    gridG = gg;
-    xAxisG = xag;
-    yAxisG = yag;
+    }));
 
     // Tooltip pointer handling (pointermove/leave + coord conversion +
     // quadtree hit-test) is owned by the <ChartTooltip> component, which
@@ -304,13 +298,13 @@
     return () => {
       if (rafId) cancelAnimationFrame(rafId);
       snap.clear();
-      cleanup?.();
+      cleanup();
     };
   });
 
   $effect(() => {
     if (zoomBehavior)
-      zoomBehavior.extent(getTranslateExtent(dims)).translateExtent(getTranslateExtent(dims));
+      zoomBehavior.extent(getExtent(dims)).translateExtent(getExtent(dims));
   });
 
   $effect(() => {
