@@ -2,6 +2,7 @@
   import type { TimelineProvider } from '$lib/analyzer/input_timeline.svelte';
   export type Props = {
     timeline: TimelineProvider;
+    deviceIds: string[];
   };
 </script>
 
@@ -18,10 +19,9 @@
   import { QuadtreeSnap } from './quadtreeSnap';
   import type { Keypress } from '$lib/analyzer/input_timeline.svelte';
 
-  const { timeline }: Props = $props();
+  const { timeline, deviceIds }: Props = $props();
   const { keypresses, keys, endTimestamp } = $derived(timeline);
 
-  const deviceColors = new Map<string, string>();
   const palette = [
     'rgb(65, 140, 240)',
     'rgb(240, 120, 0)',
@@ -30,14 +30,9 @@
     'rgb(180, 100, 220)',
     'rgb(240, 200, 60)',
   ];
-  function colorFor(id: string): string {
-    let c = deviceColors.get(id);
-    if (!c) {
-      c = palette[deviceColors.size % palette.length];
-      deviceColors.set(id, c);
-    }
-    return c;
-  }
+  const deviceColors = $derived(Object.fromEntries(
+    deviceIds.map((el, i) => [el, palette[i % palette.length]])
+  ));
 
   let containerRef: HTMLDivElement | undefined = $state();
   let svgRef: SVGSVGElement | undefined = $state();
@@ -150,7 +145,7 @@
         start: k.start,
         end: k.end,
         key: k.key,
-        color: colorFor(k.deviceId),
+        color: deviceColors[k.deviceId],
       };
     }
 
@@ -261,23 +256,22 @@
     const canvas = canvasRef;
     if (!container || !svg || !canvas) return;
     let cleanup;
-    ({
-      cleanup,
-      ctx,
-      rootSel,
-      gridG,
-      xAxisG,
-      yAxisG,
-    } = setupChart(container, svg, canvas, dims.margin, (newDims) => {
-      dims = newDims;
-      // Dimensions changed: axis tick + grid line positions are now stale,
-      // force rebuild of both axis joins and the grid.
-      lastAxisXTicks = undefined;
-      lastAxisYDomain = undefined;
-      lastGridTicks = undefined;
-      lastGridKeys = undefined;
-      queueRender();
-    }));
+    ({ cleanup, ctx, rootSel, gridG, xAxisG, yAxisG } = setupChart(
+      container,
+      svg,
+      canvas,
+      dims.margin,
+      (newDims) => {
+        dims = newDims;
+        // Dimensions changed: axis tick + grid line positions are now stale,
+        // force rebuild of both axis joins and the grid.
+        lastAxisXTicks = undefined;
+        lastAxisYDomain = undefined;
+        lastGridTicks = undefined;
+        lastGridKeys = undefined;
+        queueRender();
+      },
+    ));
 
     // Tooltip pointer handling (pointermove/leave + coord conversion +
     // quadtree hit-test) is owned by the <ChartTooltip> component, which
@@ -303,8 +297,7 @@
   });
 
   $effect(() => {
-    if (zoomBehavior)
-      zoomBehavior.extent(getExtent(dims)).translateExtent(getExtent(dims));
+    if (zoomBehavior) zoomBehavior.extent(getExtent(dims)).translateExtent(getExtent(dims));
   });
 
   $effect(() => {

@@ -11,12 +11,14 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import type { Analyzer } from '$lib/analyzer/analyzer.svelte';
   import type { TimelineProvider } from '$lib/analyzer/input_timeline.svelte';
+  import type { Device } from '$lib/validator/validator';
 
   type Props = {
     analyzer: Analyzer;
     timeline: TimelineProvider;
+    devices: Record<string, Device>;
   };
-  const { analyzer, timeline }: Props = $props();
+  const { analyzer, timeline, devices }: Props = $props();
   let postprocessOpts: PostprocessOptions = $state({
     lowCut: true,
   });
@@ -95,5 +97,5 @@
   />
 </div>
 <div class="input-timeline min-h-0 flex-4">
-  <InputTimeline {timeline} />
+  <InputTimeline {timeline} deviceIds={Object.keys(devices)} />
 </div>

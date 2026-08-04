@@ -169,7 +169,7 @@
     </div>
   </div>
   {#if result}
-    <Analysis {analyzer} {timeline} />
+    <Analysis {analyzer} {timeline} devices={result.devices} />
   {/if}
 </main>
 
