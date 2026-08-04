@@ -9,7 +9,8 @@
   "enableNativeAPI": true,
   "enableExtensions": true,
   "nativeAllowList": [
-    "app.*", "extensions.*"
+    "app.*",
+    "extensions.*"
   ],
   "singlePageServe": true,
   "modes": {
@@ -29,18 +30,19 @@
     "resourcesPath": "/dist",
     "extensionsPath": "/extensions/",
     "frontendLibrary": {
-			"devUrl": "http://localhost:5173",
-			"projectPath": "/",
-			"initCommand": "npm install",
-			"devCommand": "npm run dev",
-			"buildCommand": "npm run build"
-		},
-    "distributionPath": "/dist-neu"
+      "devUrl": "http://localhost:5173",
+      "projectPath": "/",
+      "initCommand": "npm install",
+      "devCommand": "npm run dev",
+      "buildCommand": "npm run build"
+    },
+    "distributionPath": "/dist-neu",
+    "binaryVersion": "6.9.0"
   },
   "extensions": [
     {
       "id": "recorder",
-      "commandLinux": "${NL_PATH}/extensions/recorder-app_linux --mode neutralino"
+      "commandLinux": "${NL_PATH}/extensions/recorder-app_linux --mode neutralino --log-path \"${NL_PATH}/logs/log.txt\""
     }
   ]
 }
