@@ -48,6 +48,7 @@ std::istream& operator>>(std::istream& in, ProgramMode& mode) {
 
 int main(int argc, char const *argv[])
 {
+    std::string log_path;
     ProgramMode mode;
     po::options_description desc("Allowed options");
     desc.add_options()
@@ -56,6 +57,11 @@ int main(int argc, char const *argv[])
             "mode",
             po::value<ProgramMode>(&mode)->default_value(ProgramMode::CONSOLE, "console"),
             "Operating mode (console, websocket, neutralino)"
+        )
+        (
+            "log-path",
+            po::value<std::string>(&log_path)->default_value("log.txt"),
+            "Path for the log file"
         );
     po::variables_map vm;
 
@@ -73,7 +79,7 @@ int main(int argc, char const *argv[])
     }
 
     const auto injector = di::make_injector(
-        di::bind<spdlog::logger>.to([]() -> std::shared_ptr<spdlog::logger> {
+        di::bind<spdlog::logger>.to([&]() -> std::shared_ptr<spdlog::logger> {
             auto console_sink = std::make_shared<spdlog::sinks::stderr_color_sink_mt>();
             console_sink->set_level(spdlog::level::info);
 
@@ -84,7 +90,7 @@ int main(int argc, char const *argv[])
                 fchmod(fd, 0666);
             };
 #endif
-            auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>("log.txt", true, handlers);
+            auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(log_path, true, handlers);
             file_sink->set_level(spdlog::level::trace);
 
             std::shared_ptr<spdlog::sinks::sink> sinks[] = {console_sink, file_sink};
