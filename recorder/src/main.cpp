@@ -113,6 +113,7 @@ int main(int argc, char const *argv[])
         })
     );
     auto logger = injector.create<std::shared_ptr<spdlog::logger>>();
+    logger->info("Saving log to {}", log_path);
     try {
         auto& controller = injector.create<Controller&>();
         controller.Run();
