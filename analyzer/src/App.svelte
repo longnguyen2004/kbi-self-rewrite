@@ -4,6 +4,7 @@
   import { onDestroy } from 'svelte';
   import { SunIcon, MoonIcon } from '@lucide/svelte';
   import DiscordLogo from './assets/discord_white.svg';
+  import { setCurrentMode, type Mode } from './currentModeContext';
 
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
@@ -25,7 +26,7 @@
   let analyzer = new Analyzer();
   let timeline = new KeyEventToInputTimeline();
 
-  type States = 'from-file' | 'from-recorder' | 'recording';
+  type States = Mode;
   type Events = 'changeSource' | 'toggleRecording';
 
   let dataSource: DataSource | undefined = $state();
@@ -74,6 +75,7 @@
       toggleRecording: 'from-recorder',
     },
   });
+  setCurrentMode(() => f.current);
   onDestroy(() => analyzer.terminate());
 </script>
 

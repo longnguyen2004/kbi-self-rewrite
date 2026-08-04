@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { TriangleAlert } from '@lucide/svelte';
+  import { getCurrentMode } from '@/currentModeContext';
   import DiffChart from '$lib/components/charts/DiffChart.svelte';
   import FreqChart from '$lib/components/charts/FreqChart.svelte';
   import InputTimeline from '$lib/components/charts/InputTimeline.svelte';
@@ -6,6 +8,7 @@
   import { Checkbox } from '$lib/components/ui/checkbox';
   import { Label } from '$lib/components/ui/label';
   import * as Select from '$lib/components/ui/select';
+  import * as Tooltip from '$lib/components/ui/tooltip';
   import type { Analyzer } from '$lib/analyzer/analyzer.svelte';
   import type { TimelineProvider } from '$lib/analyzer/input_timeline.svelte';
 
@@ -43,6 +46,18 @@
         {/each}
       </Select.Content>
     </Select.Root>
+    {#if getCurrentMode()() === "recording" && analyzer.binRate > 16000}
+      <Tooltip.Provider delayDuration={0} disableCloseOnTriggerClick>
+        <Tooltip.Root>
+          <Tooltip.Trigger>
+            <TriangleAlert class="text-amber-500"/>
+          </Tooltip.Trigger>
+          <Tooltip.Content>
+            It is not recommended to go above 16000Hz bin rate during live analysis
+          </Tooltip.Content>
+        </Tooltip.Root>
+      </Tooltip.Provider>
+    {/if}
   </div>
   <div class="flex flex-row gap-2">
     <Label for="low-cut">Low Cut Filter</Label>
