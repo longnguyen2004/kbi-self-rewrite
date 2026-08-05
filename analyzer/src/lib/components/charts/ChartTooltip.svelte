@@ -94,32 +94,7 @@
       // every placement update, so we never need to swap this function out.
       getReferenceClientRect: () => {
         const a = currentAnchor;
-        if (a === null) {
-          // Returning a zero-size rect at the origin is fine — this is only
-          // consulted while the tooltip is hidden.
-          return {
-            width: 0,
-            height: 0,
-            top: 0,
-            bottom: 0,
-            left: 0,
-            right: 0,
-            x: 0,
-            y: 0,
-            toJSON: () => ({}),
-          } as DOMRect;
-        }
-        return {
-          width: 0,
-          height: 0,
-          top: a.y,
-          bottom: a.y,
-          left: a.x,
-          right: a.x,
-          x: a.x,
-          y: a.y,
-          toJSON: () => ({}),
-        } as DOMRect;
+        return new DOMRect(a?.x ?? 0, a?.y ?? 0, 0, 0);
       },
       placement,
       offset,
