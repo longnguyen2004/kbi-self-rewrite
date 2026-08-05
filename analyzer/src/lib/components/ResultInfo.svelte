@@ -152,9 +152,3 @@
     </Tabs.Root>
   </Dialog.Content>
 </Dialog.Root>
-
-<style>
-  ul {
-    list-style: disc;
-  }
-</style>

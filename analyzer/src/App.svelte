@@ -81,8 +81,8 @@
 
 <ModeWatcher />
 <main class="flex h-full w-full flex-col">
-  <div class="controls mb-4">
-    <div class="row">
+  <div class="flex flex-col mb-4">
+    <div class="flex flex-row gap-2 items-center">
       <Tabs.Root
         value={currentTab}
         onValueChange={(s) => {
@@ -95,7 +95,7 @@
               return;
           }
         }}
-        class="flex flex-row! gap-4"
+        class="flex flex-row! gap-2"
       >
         <Tabs.List>
           <Tabs.Trigger value="from-file">From file</Tabs.Trigger>
@@ -103,7 +103,7 @@
             <Tabs.Trigger value="from-recorder">From recorder</Tabs.Trigger>
           {/if}
         </Tabs.List>
-        <Tabs.Content class="flex flex-row gap-4" value="from-file">
+        <Tabs.Content class="flex flex-row gap-2" value="from-file">
           <Label for="kbi-file" class="whitespace-nowrap">KBI file</Label>
           <Input
             type="file"
@@ -134,7 +134,7 @@
           />
         </Tabs.Content>
         {#if isNeutralino()}
-          <Tabs.Content class="flex flex-row gap-4" value="from-recorder">
+          <Tabs.Content class="flex flex-row gap-2" value="from-recorder">
             <Button onclick={() => f.send('toggleRecording')}>
               {f.current === 'recording' ? 'Stop Recording' : 'Start Recording'}
             </Button>
@@ -176,18 +176,3 @@
     <Analysis {analyzer} {timeline} devices={result.devices} />
   {/if}
 </main>
-
-<style>
-  .controls {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-
-    .row {
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      gap: 1rem;
-    }
-  }
-</style>
