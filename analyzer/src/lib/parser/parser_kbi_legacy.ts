@@ -186,11 +186,11 @@ function parse_kbi_legacy_v3(state: ReaderState) {
     time: time.toString(),
     devices: Object.fromEntries(
       sources.map((el) => {
-        const vid_pos = el.device_id.indexOf("VID_") + 4;
-        const pid_pos = el.device_id.indexOf("PID_") + 4;
+        const vid_pos = el.device_id.indexOf('VID_') + 4;
+        const pid_pos = el.device_id.indexOf('PID_') + 4;
         const vid = parseInt(el.device_id.slice(vid_pos, vid_pos + 4), 16);
         const pid = parseInt(el.device_id.slice(pid_pos, pid_pos + 4), 16);
-        return [el.device_id, { name: el.name, vid, pid }]
+        return [el.device_id, { name: el.name, vid, pid }];
       }),
     ),
     inputs: Object.fromEntries(inputMap.entries()),

@@ -48,11 +48,11 @@
         {/each}
       </Select.Content>
     </Select.Root>
-    {#if getCurrentMode()() === "recording" && analyzer.binRate > 16000}
+    {#if getCurrentMode()() === 'recording' && analyzer.binRate > 16000}
       <Tooltip.Provider delayDuration={0} disableCloseOnTriggerClick>
         <Tooltip.Root>
           <Tooltip.Trigger>
-            <TriangleAlert class="text-amber-500"/>
+            <TriangleAlert class="text-amber-500" />
           </Tooltip.Trigger>
           <Tooltip.Content>
             It is not recommended to go above 16000Hz bin rate during live analysis

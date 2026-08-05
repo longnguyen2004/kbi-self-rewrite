@@ -30,9 +30,9 @@
     'rgb(180, 100, 220)',
     'rgb(240, 200, 60)',
   ];
-  const deviceColors = $derived(Object.fromEntries(
-    deviceIds.map((el, i) => [el, palette[i % palette.length]])
-  ));
+  const deviceColors = $derived(
+    Object.fromEntries(deviceIds.map((el, i) => [el, palette[i % palette.length]])),
+  );
 
   let containerRef: HTMLDivElement | undefined = $state();
   let svgRef: SVGSVGElement | undefined = $state();

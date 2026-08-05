@@ -15,12 +15,7 @@
   import { scaleLinear } from 'd3-scale';
   import { axisBottom, axisLeft } from 'd3-axis';
   import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from 'd3-zoom';
-  import {
-    getExtent,
-    setupChart,
-    defaultMargin,
-    type ChartDimensions,
-  } from './chartCommon';
+  import { getExtent, setupChart, defaultMargin, type ChartDimensions } from './chartCommon';
   import { decimate } from './decimate';
   import { drawLineChart } from './drawLineChart';
   import { useChartTheme } from './chartTheme.svelte';
@@ -232,22 +227,21 @@
     const svg = svgRef!;
     const canvas = canvasRef!;
     let cleanup;
-    ({
-      cleanup,
-      ctx,
-      rootSel,
-      gridG,
-      xAxisG,
-      yAxisG,
-    } = setupChart(container, svg, canvas, defaultMargin, (newDims) => {
-      dims = newDims;
-      // Dimensions changed: axis tick + grid line positions are now stale,
-      // force rebuild of both axis joins and the grid.
-      lastAxisXTicks = undefined;
-      lastAxisYDomain = undefined;
-      lastGridTicks = undefined;
-      queueRender();
-    }));
+    ({ cleanup, ctx, rootSel, gridG, xAxisG, yAxisG } = setupChart(
+      container,
+      svg,
+      canvas,
+      defaultMargin,
+      (newDims) => {
+        dims = newDims;
+        // Dimensions changed: axis tick + grid line positions are now stale,
+        // force rebuild of both axis joins and the grid.
+        lastAxisXTicks = undefined;
+        lastAxisYDomain = undefined;
+        lastGridTicks = undefined;
+        queueRender();
+      },
+    ));
 
     // Tooltip pointer handling (pointermove/leave + coord conversion +
     // quadtree hit-test) is owned by the <ChartTooltip> component, which
@@ -280,8 +274,7 @@
   });
 
   $effect(() => {
-    if (zoomBehavior)
-      zoomBehavior.extent(getExtent(dims)).translateExtent(getExtent(dims));
+    if (zoomBehavior) zoomBehavior.extent(getExtent(dims)).translateExtent(getExtent(dims));
   });
 
   $effect(() => {
@@ -302,11 +295,10 @@
         }
       }
       let newMax = yMax;
-      if (newMax === undefined)
-      {
+      if (newMax === undefined) {
         // Incremental y-max update: only scan if the previous max was
         // exceeded (cheap), otherwise the cached max is still valid.
-        newMax = data[0]
+        newMax = data[0];
         for (let i = 1; i < len; i++) {
           const v = data[i];
           if (v > newMax) newMax = v;

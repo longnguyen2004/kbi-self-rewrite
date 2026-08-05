@@ -21,7 +21,7 @@
   import tippy, { type Instance as TippyInstance } from 'tippy.js';
   import { onMount, onDestroy } from 'svelte';
   import { QuadtreeSnap } from './quadtreeSnap';
-  import "tippy.js/dist/tippy.css";
+  import 'tippy.js/dist/tippy.css';
 
   type Anchor = { x: number; y: number } | null;
 

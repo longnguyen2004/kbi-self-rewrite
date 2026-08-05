@@ -150,10 +150,14 @@
         </ResultInfo>
       {/if}
 
-      <div class="ml-auto flex flex-row gap-2 items-center">
+      <div class="ml-auto flex flex-row items-center gap-2">
         <FpsCounter decimals={1} />
-        <a href="https://discord.gg/kX4cJQH5Zn" target="_blank" class={[buttonVariants(), "bg-[#5865F2]! text-white"]}>
-          <img class="h-full py-2" alt="Discord logo" src={DiscordLogo}>
+        <a
+          href="https://discord.gg/kX4cJQH5Zn"
+          target="_blank"
+          class={[buttonVariants(), 'bg-[#5865F2]! text-white']}
+        >
+          <img class="h-full py-2" alt="Discord logo" src={DiscordLogo} />
           Join our Discord server
         </a>
         <Button onclick={toggleMode} variant="outline" size="icon">

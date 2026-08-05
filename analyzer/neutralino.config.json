@@ -8,10 +8,7 @@
   "enableServer": true,
   "enableNativeAPI": true,
   "enableExtensions": true,
-  "nativeAllowList": [
-    "app.*",
-    "extensions.*"
-  ],
+  "nativeAllowList": ["app.*", "extensions.*"],
   "singlePageServe": true,
   "modes": {
     "window": {
@@ -22,7 +19,8 @@
       "minHeight": 200,
       "injectGlobals": true,
       "icon": "/public/icon.png",
-      "enableInspector": true
+      "enableInspector": true,
+      "newWindowPolicy": "browser"
     }
   },
   "cli": {

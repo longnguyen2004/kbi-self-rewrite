@@ -20,7 +20,7 @@
       "$lib": ["./src/lib"],
       "$lib/*": ["./src/lib/*"],
       "@": ["./src"],
-      "@/*": ["./src/*"],
+      "@/*": ["./src/*"]
     },
     "types": ["vite/client"],
     "lib": ["WebWorker", "ES2017", "ES2019", "ES2022"]

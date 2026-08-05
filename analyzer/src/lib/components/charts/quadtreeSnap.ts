@@ -45,10 +45,7 @@ export class QuadtreeSnap<T> {
       this.tree = undefined;
       return;
     }
-    this.tree = quadtree<T>()
-      .x(this.xOf)
-      .y(this.yOf)
-      .addAll(this.data);
+    this.tree = quadtree<T>().x(this.xOf).y(this.yOf).addAll(this.data);
   }
 
   /** Returns the nearest datum to `(x, y)`, or `undefined` if the tree is
