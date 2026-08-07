@@ -67,6 +67,8 @@ export class Analyzer {
   private _allDiffFreqMax = 0;
   private _wrappedTimestampFreqMax = 0;
 
+  private _eventCount = $state(0);
+
   private _calculating = false;
   private _calculationQueued = false;
   private _consecutiveDiffFftCalculator = new FftCalculator();
@@ -132,6 +134,7 @@ export class Analyzer {
     this._wrappedTimestampCount = Array.from(this._wrappedTimestampCount);
     console.timeEnd('add timestamp');
     console.log(`added ${added} events`);
+    this._eventCount += added;
     this._queueRecalcFourier();
   }
   private _queueRecalcFourier() {
@@ -186,6 +189,7 @@ export class Analyzer {
     this._consecutiveDiffFreqMax = 0;
     this._allDiffFreqMax = 0;
     this._wrappedTimestampFreqMax = 0;
+    this._eventCount = 0;
   }
   terminate() {
     this._consecutiveDiffFftCalculator.terminate();
@@ -240,6 +244,9 @@ export class Analyzer {
   }
   get wrappedTimestampFreqMax() {
     return this._wrappedTimestampFreqMax;
+  }
+  get eventCount() {
+    return this._eventCount;
   }
   get calculating() {
     return this._calculating;

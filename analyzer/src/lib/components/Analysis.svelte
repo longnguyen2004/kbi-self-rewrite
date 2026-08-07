@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { scaleLinear } from 'd3-scale';
   import { TriangleAlert } from '@lucide/svelte';
   import { getCurrentMode } from '@/currentModeContext';
   import DiffChart from '$lib/components/charts/DiffChart.svelte';
@@ -30,6 +31,16 @@
   const wrappedTimestampFreq = $derived(
     postprocessWithMax(analyzer.wrappedTimestampFreq, postprocessOpts),
   );
+
+  const eventCountColor = scaleLinear<string>()
+    .domain([50, 200, 600, 1500])
+    .range([
+      "#ee0000",
+      "#ea7700",
+      "#dddd00",
+      "#00ee00"
+    ])
+    .clamp(true);
 </script>
 
 <div class="analysis-options mb-2 flex flex-row items-center gap-2">
@@ -65,6 +76,9 @@
     <Label for="low-cut">Low Cut Filter</Label>
     <Checkbox id="low-cut" bind:checked={postprocessOpts.lowCut} />
   </div>
+  <span class="ml-auto" style="color: {eventCountColor(analyzer.eventCount)}">
+    {analyzer.eventCount} input events
+  </span>
 </div>
 <div class="diff-chart flex min-h-0 flex-3 flex-row gap-10">
   <DiffChart
