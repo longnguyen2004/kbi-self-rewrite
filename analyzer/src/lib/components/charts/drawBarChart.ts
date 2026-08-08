@@ -1,3 +1,4 @@
+import type { ScaleBand, ScaleLinear } from 'd3-scale';
 import type { ChartDimensions } from './chartCommon';
 
 /**
@@ -12,7 +13,7 @@ import type { ChartDimensions } from './chartCommon';
  * backing store and fills each bar (rounded rect) with its device color.
  *
  * `bars` carry `start`/`end` (chart x-units) and `key` (band name); the
- * `xScale`, `yScale(key)`, and `bandwidth` accessors map them to pixels.
+ * `xScale`, `yScale`, and `bandwidth` accessors map them to pixels.
  */
 export type BarDatum = {
   start: number;
@@ -25,8 +26,8 @@ export function drawBarChart(
   ctx: CanvasRenderingContext2D,
   dims: ChartDimensions,
   bars: BarDatum[],
-  xScale: (x: number) => number,
-  yScaleOf: (key: string) => number | undefined,
+  xScale: ScaleLinear<number, number>,
+  yScale: ScaleBand<string>,
   bandwidth: number,
   opts: {
     radius?: number;
@@ -35,12 +36,26 @@ export function drawBarChart(
   const { innerWidth: w, innerHeight: h } = dims;
   ctx.clearRect(0, 0, w, h);
 
+  // Visible x-domain: skip bars that fall entirely outside the current
+  // viewport. `xScale.invert` maps the pixel range [0, w] back to chart
+  // x-units. Bars whose [start, end] interval does not intersect
+  // [xMin, xMax] are culled before any fill work.
+  let xMin = xScale.invert(0);
+  let xMax = xScale.invert(w);
+  if (xMin > xMax) {
+    const tmp = xMin;
+    xMin = xMax;
+    xMax = tmp;
+  }
+
   // Bars.
   const r = opts.radius ?? 2;
   for (let i = 0; i < bars.length; i++) {
     const b = bars[i];
+    // Cull bars outside the visible x-range (no interval intersection).
+    if (b.end < xMin || b.start > xMax) continue;
     const x = xScale(b.start);
-    const y = yScaleOf(b.key);
+    const y = yScale(b.key);
     if (y === undefined) continue;
     const width = Math.max(1, xScale(b.end) - xScale(b.start));
     const height = bandwidth;

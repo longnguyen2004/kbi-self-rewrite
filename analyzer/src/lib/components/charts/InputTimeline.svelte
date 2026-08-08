@@ -149,7 +149,7 @@
       };
     }
 
-    drawBarChart(ctx, dims, bars, xScale, (key) => yScale(key), bandH, {
+    drawBarChart(ctx, dims, bars, xScale, yScale, bandH, {
       radius: 2,
     });
 
