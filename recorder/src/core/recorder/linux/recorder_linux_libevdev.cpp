@@ -80,7 +80,7 @@ void evdev_close_p(libevdev** ptr)
 void recorder_linux_libevdev::_init_scan_devices()
 {
     auto default_construct = [](std::string_view path) {
-        return std::make_pair(path, internal_device{
+        return std::make_pair(std::string(path), internal_device{
             .syspath = std::string(path)
         });
     };
@@ -93,57 +93,69 @@ void recorder_linux_libevdev::_init_scan_devices()
             boost::make_transform_iterator(gl_pathv, default_construct),
             boost::make_transform_iterator(gl_pathv + gl_pathc, default_construct)
         );
+        globfree(&glob_result);
     }
+
     m_device_scan_thread = std::jthread([&](const std::stop_token& stop) {
         int notify_fd = inotify_init1(IN_NONBLOCK);
-        inotify_add_watch(notify_fd, "/dev/input/by-id", IN_CREATE | IN_DELETE);
+        if (notify_fd < 0) {
+            m_logger->error("inotify_init1 failed");
+            return;
+        }
+        if (inotify_add_watch(notify_fd, "/dev/input/by-id", IN_CREATE | IN_DELETE | IN_MOVED_TO | IN_MOVED_FROM) < 0) {
+            m_logger->error("inotify_add_watch failed for /dev/input/by-id");
+            close(notify_fd);
+            return;
+        }
         pollfd poll_struct{
             .fd = notify_fd,
             .events = POLLIN
         };
+        constexpr size_t buf_size = 4096;
+        std::array<char, buf_size> buf;
         while (!stop.stop_requested())
         {
             int result = poll(&poll_struct, 1, 100);
-            if (result == 0)
+            if (result <= 0)
                 continue;
-            constexpr int notify_event_count = 100;
-            std::array<inotify_event, notify_event_count> notify_events;
             while (true)
             {
-                auto len = read(
-                    notify_fd,
-                    reinterpret_cast<char*>(notify_events.data()),
-                    sizeof(inotify_event) * notify_events.size()
-                );
+                ssize_t len = read(notify_fd, buf.data(), buf.size());
                 if (len < 0)
                 {
                     if (errno != EAGAIN)
-                        throw std::runtime_error("An error occurred when checking for devices");
+                        m_logger->error("inotify read error: {}", strerror(errno));
                     break;
                 }
-                static_vector<std::string, notify_event_count> added, removed;                
-                for (auto i = notify_events.begin(); i != notify_events.begin() + len / sizeof(inotify_event); i++)
+                if (len == 0)
+                    break;
+                auto make_device = [](std::string_view path) {
+                    return std::make_pair(std::string(path), internal_device{
+                        .syspath = std::string(path)
+                    });
+                };
+                static_vector<std::string, 100> added, removed;
+                size_t offset = 0;
+                while (offset < static_cast<size_t>(len))
                 {
-                    std::string_view path(i->name);
-                    if (path.find("event") == std::string::npos)
-                        continue;
-                    if (i->mask & IN_CREATE)
+                    auto* ev = reinterpret_cast<struct inotify_event*>(buf.data() + offset);
+                    std::string_view name = ev->len ? std::string_view(ev->name, ev->len) : std::string_view{};
+                    // Trim trailing NUL if present
+                    if (!name.empty() && name.back() == '\0')
+                        name.remove_suffix(1);
+                    // Skip empty or hidden/temp names
+                    if (!name.empty() && name[0] != '.' && name.find("event") != std::string::npos)
                     {
-                        added.emplace_back(
-                            std::format("/dev/input/by-id/{}", path)
-                        );
+                        std::string full_path = std::format("/dev/input/by-id/{}", name);
+                        if (ev->mask & IN_CREATE || ev->mask & IN_MOVED_TO)
+                            added.emplace_back(std::move(full_path));
+                        else if (ev->mask & IN_DELETE || ev->mask & IN_MOVED_FROM)
+                            removed.emplace_back(std::move(full_path));
                     }
-                    else if (i->mask & IN_DELETE)
-                    {
-                        removed.emplace_back(
-                            std::format("/dev/input/by-id/{}", path)
-                        );
-                    }
+                    offset += sizeof(struct inotify_event) + ev->len;
                 }
-                m_evdev_devices.insert(
-                    boost::make_transform_iterator(added.begin(), default_construct),
-                    boost::make_transform_iterator(added.end(), default_construct)
-                );
+                for (auto& p : added)
+                    m_evdev_devices.insert(make_device(p));
                 m_evdev_devices.visit(removed.begin(), removed.end(),
                     [](EvdevDeviceMap::value_type& dev) {
                         dev.second.remove = true;
@@ -243,7 +255,7 @@ void recorder_linux_libevdev::_init_poll(bool keyboard, bool mouse, bool gamepad
             // check which device has inputs
             for (int i = 0; i < pollfds.size(); ++i)
             {
-                if (!(pollfds[i].revents | POLLIN))
+                if (!(pollfds[i].revents & POLLIN))
                     continue;
                 auto device = devices[i]->event_device;
                 auto& syspath = devices[i]->syspath;
