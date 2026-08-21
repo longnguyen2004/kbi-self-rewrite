@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include <sys/inotify.h>
 #include "evdev_to_keycode.h"
+#include <linux/input-event-codes.h>
 
 using namespace boost::container;
 using namespace boost::unordered;
@@ -28,23 +29,6 @@ using namespace std::literals;
 #ifndef input_event_usec
 #define input_event_usec time.tv_usec
 #endif
-
-
-bool is_keyboard(libevdev* device)
-{
-    return libevdev_has_event_code(device, EV_KEY, BTN_A);
-}
-
-bool is_mouse(libevdev* device)
-{
-    return libevdev_has_event_code(device, EV_KEY, BTN_LEFT);
-}
-
-bool is_gamepad(libevdev* device)
-{
-    // TODO: get a gamepad and implement this
-    return false;
-}
 
 libevdev* evdev_open(const char* path)
 {
@@ -232,7 +216,12 @@ void recorder_linux_libevdev::_init_poll(bool keyboard, bool mouse, bool gamepad
                     }
                     if (!gamepad)
                     {
-                        // TODO: fill in gamepad codes
+                        // Disable common gamepad button codes
+                        for (int i = BTN_GAMEPAD; i <= BTN_DPAD_RIGHT; ++i)
+                            libevdev_disable_event_code(event_device, EV_KEY, i);
+                        // Also disable trigger happy buttons
+                        for (int i = BTN_TRIGGER_HAPPY1; i <= BTN_TRIGGER_HAPPY32; ++i)
+                            libevdev_disable_event_code(event_device, EV_KEY, i);
                     }
                     libevdev_set_clock_id(event_device, CLOCK_MONOTONIC);
                     dev.event_device = event_device;
