@@ -81,8 +81,8 @@
 
 <ModeWatcher />
 <main class="flex h-full w-full flex-col">
-  <div class="flex flex-col mb-4">
-    <div class="flex flex-row gap-2 items-center">
+  <div class="mb-4 flex flex-col">
+    <div class="flex flex-row items-center gap-2">
       <Tabs.Root
         value={currentTab}
         onValueChange={(s) => {

@@ -34,12 +34,7 @@
 
   const eventCountColor = scaleLinear<string>()
     .domain([50, 200, 600, 1500])
-    .range([
-      "#ee0000",
-      "#ea7700",
-      "#dddd00",
-      "#00ee00"
-    ])
+    .range(['#ee0000', '#ea7700', '#dddd00', '#00ee00'])
     .clamp(true);
 </script>
 
