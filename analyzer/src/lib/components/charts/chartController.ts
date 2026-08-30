@@ -29,8 +29,6 @@ export type ChartControllerOptions = {
   yTicks?: number;
   /** When set, configures the y-axis with `.tickFormat(fn)`. */
   yTickFormat?: (v: number) => string;
-  /** When set, draws horizontal grid lines (band charts). */
-  horizontalGridKeys?: () => string[];
   /** Draws the data layer (line/bars) and stages tooltip snap points. */
   draw: (ctx: CanvasRenderingContext2D, dims: ChartDimensions) => void;
 };
@@ -67,7 +65,7 @@ export class ChartController<Y extends AxisDomain> {
   private lastAxisXTicks?: number[];
   private lastAxisYDomain?: Y[];
   private lastGridTicks?: number[];
-  private lastGridKeys?: string[];
+  private lastGridKeys?: Y[];
   private rafId = 0;
   private renderQueued = false;
 
@@ -166,8 +164,9 @@ export class ChartController<Y extends AxisDomain> {
     this.updateXAxis(ticks);
     this.updateYAxis();
     this.updateGridLines(ticks);
-    if (this.opts.horizontalGridKeys)
-      this.updateHorizontalGridLines(this.opts.horizontalGridKeys());
+    // Band scales (which expose `bandwidth`) draw a horizontal grid line per
+    // band, derived from the same domain the y-axis renders from.
+    if (this.yScale.bandwidth) this.updateHorizontalGridLines();
 
     this.opts.draw(this.ctx, this.dims);
     this.applyTheme();
@@ -204,9 +203,7 @@ export class ChartController<Y extends AxisDomain> {
         .attr('transform', (tv) => `translate(${this.xScale(tv)},0)`);
       select(this.xAxisG).attr('transform', `translate(0,${this.dims.innerHeight})`);
     } else {
-      select(this.xAxisG)
-        .call(this.xAxisGen)
-        .attr('transform', `translate(0,${this.dims.innerHeight})`);
+      select(this.xAxisG).call(this.xAxisGen).attr('transform', `translate(0,${this.dims.innerHeight})`);
       this.lastAxisXTicks = ticks;
     }
   }
@@ -243,8 +240,11 @@ export class ChartController<Y extends AxisDomain> {
       .attr('y2', this.dims.innerHeight);
   }
 
-  private updateHorizontalGridLines(keys: string[]) {
+  private updateHorizontalGridLines() {
     if (!this.gridG) return;
+    // Derive the grid keys from the y-scale domain — the same source the
+    // y-axis renders its ticks from, so the two stay in lockstep.
+    const keys = this.yScale.domain();
     if (!this.sameArray(this.lastGridKeys, keys)) {
       select(this.gridG).selectAll('.grid-y').remove();
       select(this.gridG)

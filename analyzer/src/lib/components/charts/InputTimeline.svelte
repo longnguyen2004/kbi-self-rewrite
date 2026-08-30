@@ -52,7 +52,6 @@
     getXDomain: () => xDomain,
     ticks: (domain, dims) => xScale.ticks(Math.max(1, Math.floor(dims.innerWidth / 60))),
     formatTick: (v) => `${v}s`,
-    horizontalGridKeys: () => [...keys],
     draw: (ctx, dims) => {
       const bandH = yScale.bandwidth();
       const bars = keypresses.map((k) => ({
