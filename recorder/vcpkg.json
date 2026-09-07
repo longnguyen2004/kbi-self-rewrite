@@ -27,10 +27,6 @@
       "name": "libevdev",
       "platform": "linux"
     },
-    {
-      "name": "libsystemd",
-      "platform": "linux"
-    },
     "simdutf",
     "spdlog",
     "uwebsockets",
