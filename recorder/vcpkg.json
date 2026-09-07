@@ -29,10 +29,10 @@
     },
     "simdutf",
     "spdlog",
-    "uwebsockets",
     {
       "name": "wil",
       "platform": "windows"
-    }
+    },
+    "boost-url"
   ]
 }

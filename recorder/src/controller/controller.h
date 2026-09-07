@@ -3,8 +3,9 @@
 #include <boost/json/fwd.hpp>
 #include <spdlog/fwd.h>
 #include <ixwebsocket/IXWebSocket.h>
-#include <uwebsockets/App.h>
+#include <ixwebsocket/IXWebSocketServer.h>
 #include <atomic>
+#include <mutex>
 #include <string_view>
 
 class Controller
@@ -33,11 +34,10 @@ public:
     virtual void Run();
 
 private:
-    struct SocketData
-    {
-    };
-    uWS::App m_app;
+    ix::WebSocketServer m_server;
     std::atomic<unsigned long> m_client_id = 0;
+    std::mutex m_ownerMutex;
+    ix::WebSocket* m_owner = nullptr;
 
     JsonTextSerializer m_serializer;
 };

@@ -27,11 +27,11 @@ find_package(boost_json CONFIG REQUIRED)
 find_package(boost_preprocessor CONFIG REQUIRED)
 find_package(boost_program_options CONFIG REQUIRED)
 find_package(boost_signals2 CONFIG REQUIRED)
+find_package(boost_url CONFIG REQUIRED)
 find_package(boost_uuid CONFIG REQUIRED)
 find_package(ixwebsocket CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(simdutf CONFIG REQUIRED)
-find_package(unofficial-uwebsockets CONFIG REQUIRED)
 
 target_link_libraries(recorder-lib
     PUBLIC Boost::signals2 Boost::unordered spdlog::spdlog
@@ -93,11 +93,11 @@ target_link_libraries(recorder-app PRIVATE
     Boost::json
     Boost::preprocessor
     Boost::program_options
+    Boost::url
     Boost::uuid
     ixwebsocket::ixwebsocket
     spdlog::spdlog
     simdutf::simdutf
-    unofficial::uwebsockets::uwebsockets
 )
 if (WIN32)
     target_link_libraries(recorder-app PRIVATE wbemuuid)
