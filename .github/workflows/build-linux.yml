@@ -28,16 +28,90 @@ jobs:
 
       - name: Install vcpkg
         uses: lukka/run-vcpkg@v11
-      
-      - name: Build
+
+      - name: Build recorder
         uses: lukka/run-cmake@v10
         with:
           cmakeListsTxtPath: '${{ github.workspace }}/recorder/CMakeLists.txt'
           configurePreset: 'vcpkg - Ninja - Release'
           buildPreset: 'CI - Release'
 
-      - name: Upload
+      - name: Upload recorder binary
         uses: actions/upload-artifact@v7
         with:
           name: recorder-app
           path: '${{ github.workspace }}/recorder/build/recorder-app'
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Install analyzer dependencies
+        working-directory: analyzer
+        run: pnpm install
+
+      - name: Update Neutralino binaries
+        working-directory: analyzer
+        run: pnpm exec neu update
+
+      - name: Build Neutralino app
+        working-directory: analyzer
+        run: pnpm exec neu build
+
+      - name: Download linuxdeploy
+        run: |
+          curl -L -o linuxdeploy https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy
+
+      - name: Download linuxdeploy AppImage type2 plugin
+        run: |
+          curl -L -o plugin https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-x86_64.AppImage
+          chmod +x plugin
+
+      - name: Assemble AppDir
+        run: |
+          APPDIR=AppDir
+          mkdir -p "$APPDIR/usr/bin"
+          mkdir -p "$APPDIR/usr/share/applications"
+          mkdir -p "$APPDIR/usr/share/icons/hicolor/256x256/apps"
+
+          cp analyzer/dist-neu/analyzer/analyzer-linux_x64 "$APPDIR/usr/bin/analyzer"
+          cp analyzer/dist-neu/analyzer/resources.neu "$APPDIR/usr/bin/resources.neu"
+          mkdir -p "$APPDIR/usr/bin/extensions"
+          cp recorder/build/recorder-app "$APPDIR/usr/bin/extensions/recorder-app_linux"
+          chmod +x "$APPDIR/usr/bin/extensions/recorder-app_linux"
+
+          cat > "$APPDIR/usr/share/applications/keyboard-inspector-analyzer.desktop" <<'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=Keyboard Inspector
+          Exec=analyzer
+          Icon=analyzer
+          Categories=Utility;Development;
+          Comment=Record and analyze keyboard input timing
+          EOF
+
+          cp analyzer/public/icon.png "$APPDIR/usr/share/icons/hicolor/256x256/apps/analyzer.png"
+          ln -s usr/share/applications/keyboard-inspector-analyzer.desktop "$APPDIR/keyboard-inspector-analyzer.desktop"
+
+      - name: Install AppImage dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y libgtk-3-0 libwebkit2gtk-4.1-0
+
+      - name: Build AppImage with bundled WebKit
+        run: |
+          export APPIMAGE_EXTRACT_AND_RUN=1
+          ./linuxdeploy --appdir AppDir --output appimage --library /lib/x86_64-linux-gnu/libwebkit2gtk-4.1.so.0
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v7
+        with:
+          name: Keyboard-Inspector-x86_64.AppImage
+          path: Keyboard_Inspector*.AppImage
