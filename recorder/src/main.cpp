@@ -9,6 +9,7 @@
 
 #include <cassert>
 #include <exception>
+#include <iostream>
 #include <istream>
 #include <iterator>
 #include <print>
