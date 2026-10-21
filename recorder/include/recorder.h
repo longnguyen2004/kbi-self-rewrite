@@ -2,6 +2,7 @@
 
 #include <device.h>
 #include <keycode.h>
+#include <system_info.h>
 #include <memory>
 #include <atomic>
 #include <cstdint>
@@ -71,6 +72,11 @@ public:
     std::chrono::steady_clock::duration Elapsed() const;
 
     RecorderBackend Backend() const;
+
+    // The information about the machine, collected when the recorder was
+    // created.
+    const SystemInfo& GetSystemInfo() const { return m_system_info; }
+
     const UsbDeviceMap& UsbDevices() const;
     const DeviceMap& Devices() const;
     const InputMap& Inputs() const;
@@ -83,6 +89,7 @@ private:
     std::unique_ptr<Impl> p_impl;
     std::shared_ptr<spdlog::logger> m_logger;
     RecorderBackend m_backend;
+    SystemInfo m_system_info;
     UsbDeviceMap m_usb_devices;
     DeviceMap m_devices;
     InputMap m_inputs;

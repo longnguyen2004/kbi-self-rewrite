@@ -1,5 +1,5 @@
 #pragma once
-#include "../system/info.h"
+#include <system_info.h>
 #include <recorder.h>
 #include <boost/json/fwd.hpp>
 #include <boost/preprocessor/seq/for_each.hpp>

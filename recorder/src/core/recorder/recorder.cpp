@@ -16,6 +16,8 @@ using namespace std::literals;
 Recorder::Recorder(RecorderBackend backend, std::shared_ptr<spdlog::logger> logger):
     m_logger(logger ? logger : spdlog::default_logger())
 {
+    m_system_info = ::GetSystemInfo();
+
 #ifdef _WIN32
     if (
         !p_impl && (

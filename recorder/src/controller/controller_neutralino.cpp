@@ -1,5 +1,5 @@
 #include "controller.h"
-#include "../system/info.h"
+#include <system_info.h>
 #include <boost/json.hpp>
 #include <boost/uuid.hpp>
 #include <chrono>
@@ -39,7 +39,7 @@ void NeutralinoController::_sendNeutralinoEvent(
 
 void NeutralinoController::Run()
 {
-    auto sys_info = GetSystemInfo();
+    const auto& sys_info = m_recorder.GetSystemInfo();
     JsonTextSerializer serializer;
     auto conn1 = m_recorder.OnUsbDevice().connect(
         [&](const std::string& id, const UsbDeviceInfo& device) {

@@ -1,7 +1,15 @@
+#include <system_info.h>
+
+#include <chrono>
+#include <cstdint>
+#include <fstream>
+#include <string>
+
+#if defined(_WIN32)
+
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 
-#include "info.h"
 #include <comdef.h>
 #include <windows.h>
 #include <Wbemidl.h>
@@ -10,8 +18,9 @@
 
 #include <exception>
 #include <format>
-#include <string>
 #include <simdutf.h>
+
+namespace {
 
 IWbemServices* connect_cim()
 {
@@ -31,12 +40,12 @@ IWbemServices* connect_cim()
         pLocator = wil::CoCreateInstance<IWbemLocator>(CLSID_WbemLocator, CLSCTX_INPROC_SERVER);
     if (!pServices)
         THROW_IF_FAILED(pLocator->ConnectServer(
-            bstr_t("ROOT\\CIMV2"), nullptr, nullptr, 0, 0, nullptr, nullptr, &pServices
+            bstr_t(L"ROOT\\CIMV2"), nullptr, nullptr, 0, 0, nullptr, nullptr, &pServices
         ));
     THROW_IF_FAILED(CoSetProxyBlanket(
         pServices.get(), RPC_C_AUTHN_WINNT, RPC_C_AUTHZ_NONE,
         nullptr, RPC_C_AUTHN_LEVEL_CALL, RPC_C_IMP_LEVEL_IMPERSONATE,
-        nullptr, EOAC_NONE
+        nullptr, EOAC_NONE, nullptr
     ));
     return pServices.get();
 }
@@ -47,7 +56,7 @@ std::string query_cim(std::wstring_view column, std::wstring_view table)
     auto query = std::format(L"SELECT {} FROM {}", column, table);
     wil::com_ptr_nothrow<IEnumWbemClassObject> pEnumerator = nullptr;
     THROW_IF_FAILED(cim->ExecQuery(
-        bstr_t("WQL"),
+        bstr_t(L"WQL"),
         bstr_t(query.c_str()),
         WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
         nullptr, &pEnumerator
@@ -93,18 +102,18 @@ const std::string& get_windows_edition()
 
 const std::string& get_cpu_name()
 {
-    static std::string edition;
-    if (edition.size())
-        return edition;
-    edition = "Unknown";
+    static std::string name;
+    if (name.size())
+        return name;
+    name = "Unknown";
     try
     {
-        edition = query_cim(L"Name", L"Win32_Processor");
+        name = query_cim(L"Name", L"Win32_Processor");
     }
     catch(std::exception)
     {
     }
-    return edition;
+    return name;
 }
 
 const std::string& get_arch()
@@ -167,7 +176,7 @@ const std::string& get_windows_version()
     NTSTATUS(WINAPI *RtlGetVersion)(LPOSVERSIONINFOEXW);
     OSVERSIONINFOEXW osInfo;
 
-    *(FARPROC*)&RtlGetVersion = GetProcAddress(GetModuleHandleA("ntdll"), "RtlGetVersion");
+    *(FARPROC*)&RtlGetVersion = GetProcAddress(GetModuleHandleA(L"ntdll"), "RtlGetVersion");
     if (RtlGetVersion != nullptr)
     {
         osInfo.dwOSVersionInfoSize = sizeof(osInfo);
@@ -182,6 +191,8 @@ const std::string& get_windows_version()
     }
     return os_version;
 }
+
+} // namespace
 
 SystemInfo GetSystemInfo()
 {
@@ -198,3 +209,96 @@ SystemInfo GetSystemInfo()
         .ClockFrequency = static_cast<double>(clockFreq.QuadPart)
     };
 }
+
+#elif defined(__linux__)
+
+#include <sys/utsname.h>
+
+namespace {
+
+std::string read_cpu_name()
+{
+    std::ifstream cpuinfo("/proc/cpuinfo");
+    if (!cpuinfo)
+        return {};
+    std::string line;
+    while (std::getline(cpuinfo, line))
+    {
+        if (line.rfind("model name", 0) == 0)
+        {
+            const auto colon = line.find(':');
+            if (colon == std::string::npos)
+                return {};
+            std::string value = line.substr(colon + 1);
+            const auto first = value.find_first_not_of(" \t");
+            return first == std::string::npos ? std::string() : value.substr(first);
+        }
+    }
+    return {};
+}
+
+} // namespace
+
+SystemInfo GetSystemInfo()
+{
+    // Kernel information
+    utsname buffer{};
+    uname(&buffer);
+
+    // Architecture
+#if defined(__i386__)
+    const char* arch = "i386";
+#elif defined(__amd64__)
+    const char* arch = "amd64";
+#else
+    const char* arch = "Unknown";
+#endif
+
+    // Distro information
+    std::string distro_name, distro_ver;
+    std::ifstream os_release("/etc/os-release");
+    if (os_release)
+    {
+        std::string line;
+        while (std::getline(os_release, line))
+        {
+            if (line.starts_with("NAME="))
+            {
+                distro_name = line.substr(5);
+                if (distro_name[0] == '"')
+                    distro_name = distro_name.substr(1, distro_name.size() - 2);
+            }
+            else if (line.starts_with("VERSION="))
+            {
+                distro_ver = line.substr(8);
+                if (distro_ver[0] == '"')
+                    distro_ver = distro_name.substr(1, distro_ver.size() - 2);
+            }
+        }
+    }
+
+    // Clock source
+    std::ifstream clocksource("/sys/devices/system/clocksource/clocksource0/current_clocksource");
+    std::string current_clocksource;
+    std::getline(clocksource, current_clocksource);
+
+    std::int64_t res = -1;
+    // (this doesn't work because clock_getres always return 1ns for high res clocks)
+    // timespec tp;
+    // if (clock_getres(CLOCK_MONOTONIC, &tp) == 0);
+    //     res = tp.tv_sec * 1000000000ULL + tp.tv_nsec;
+    return {
+        .Common = {
+            .OsName = buffer.sysname ? buffer.sysname : "Unknown",
+            .OsVersion = buffer.release ? buffer.release : "Unknown",
+            .Architecture = arch,
+            .CpuName = read_cpu_name()
+        },
+        .DistroName = distro_name,
+        .DistroVersion = distro_ver,
+        .ClockSource = current_clocksource,
+        .ClockFrequency = res == -1 ? 0 : 1e9 / res
+    };
+}
+
+#endif

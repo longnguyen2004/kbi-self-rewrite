@@ -1,6 +1,6 @@
 #include "serializer.h"
-#include "../system/helper_os.h"
-#include "../system/info.h"
+#include <datetime.h>
+#include <system_info.h>
 #include <concepts>
 #include <iterator>
 #include <boost/unordered/concurrent_flat_map.hpp>
@@ -91,7 +91,7 @@ void tag_invoke(const value_from_tag &, value &j, const SystemInfo& sysInfo)
 void tag_invoke(const value_from_tag &, value &j, const Recorder &recorder)
 {
     auto backend = recorder.Backend();
-    auto sysInfo = value_from(GetSystemInfo()).as_object();
+    auto sysInfo = value_from(recorder.GetSystemInfo()).as_object();
     // clang-format off
     sysInfo["backend"] =
         backend == RecorderBackend::WINDOWS_GAMEINPUT ? "gameinput" :
@@ -99,7 +99,7 @@ void tag_invoke(const value_from_tag &, value &j, const Recorder &recorder)
                                                         "unknown";
     j.emplace_object() = {
         {"info", sysInfo},
-        {"time", std::format("{:%FT%TZ}", recorder.StartTime())},
+        {"time", kbi::format_iso8601_utc(recorder.StartTime())},
         {"usb_devices", value_from(recorder.UsbDevices())},
         {"devices", value_from(recorder.Devices())},
         {"inputs", value_from(recorder.Inputs())}

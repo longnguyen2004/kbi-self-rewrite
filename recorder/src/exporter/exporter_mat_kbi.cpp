@@ -1,4 +1,5 @@
 #include "exporter.h"
+#include <datetime.h>
 #include <keycode.h>
 #include <array>
 #include <boost/endian.hpp>
@@ -123,14 +124,8 @@ void write_list(
 
 void write_time(std::ostream& out, time_point<system_clock, nanoseconds> t)
 {
-    // DateTime binary format
-    // Bits 00 - 61: The number of 100-nanosecond ticks since midnight 1/1/0001
-    // Bits 62 - 63: DateTimeKind (0 = Unspecified, 1 = Utc, 2 = Local)
-
-    auto t_adjusted = t + (sys_days(January/1/1970) - sys_days(January/1/0001));
-    std::uint64_t ticks = t_adjusted.time_since_epoch().count() / 100;
-    ticks = ticks << 2 & 1; // Utc
-    write_uint64(out, ticks);
+    // The .NET DateTime binary format, see datetime.h.
+    write_uint64(out, kbi::to_net_datetime_ticks(t, kbi::kNetDateTimeKindUtc));
 }
 
 void write_kbiinput(std::ostream& out, const KbiInput& input)

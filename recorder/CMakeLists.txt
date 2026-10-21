@@ -15,7 +15,9 @@ endif()
 
 add_library(recorder-lib STATIC
     src/core/recorder/recorder.cpp
+    src/core/datetime.cpp
     src/core/keycode/keycode_to_string.cpp
+    src/core/system_info.cpp
 )
 
 find_package(boost_container CONFIG REQUIRED)
@@ -44,7 +46,7 @@ if (WIN32)
     
     target_link_libraries(recorder-lib PRIVATE Microsoft::GameInput)
     target_link_libraries(recorder-lib PRIVATE WIL::WIL)
-    target_link_libraries(recorder-lib PRIVATE Hid SetupAPI cfgmgr32)
+    target_link_libraries(recorder-lib PRIVATE Hid SetupAPI cfgmgr32 wbemuuid)
 
     target_sources(recorder-lib PRIVATE
         src/core/recorder/win/vk_to_keycode.cpp
@@ -79,9 +81,6 @@ add_executable(recorder-app
     src/controller/controller_neutralino.cpp
     src/exporter/exporter.h
     src/exporter/exporter_mat_kbi.cpp
-    src/system/helper_os.cpp
-    $<$<BOOL:${LINUX}>:src/system/info_linux.cpp>
-    $<$<BOOL:${WIN32}>:src/system/info_win.cpp>
     src/serializer/serializer.cpp
     src/serializer/serializer_json.cpp
     src/main.cpp

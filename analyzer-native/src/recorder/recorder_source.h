@@ -1,0 +1,61 @@
+#pragma once
+
+#include "core/analyzer.h"
+#include "core/input_timeline.h"
+#include "core/result.h"
+
+#include <system_info.h>
+
+#include <memory>
+#include <mutex>
+#include <string>
+#include <vector>
+
+namespace kbi {
+
+// Wraps the recorder library, which is linked into the app instead of being
+// spawned as an external process.
+//
+// The recorder signals fire on its own polling threads, so the events are
+// queued and drained on the UI thread.
+class RecorderSource {
+public:
+    RecorderSource();
+    ~RecorderSource();
+
+    RecorderSource(const RecorderSource&) = delete;
+    RecorderSource& operator=(const RecorderSource&) = delete;
+
+    // Starts recording. On failure `error` receives a human readable reason.
+    bool start(std::string& error);
+    void stop();
+
+    [[nodiscard]] bool recording() const;
+    [[nodiscard]] std::string backend_name() const;
+
+    // The information about the machine, it comes from the recorder.
+    [[nodiscard]] const SystemInfo& system_info() const;
+
+    // Moves the events that arrived since the last call into `result` and
+    // feeds the analyzer and the input timeline.
+    void drain(Result& result, Analyzer& analyzer, InputTimeline& timeline);
+
+private:
+    enum class EventType { UsbDevice, Device, Input };
+
+    struct Event {
+        EventType type = EventType::Input;
+        std::string id;
+        UsbDevice usb_device;
+        Device device;
+        InputEvent input;
+    };
+
+    struct Impl;
+
+    std::unique_ptr<Impl> m_impl;
+    std::mutex m_mutex;
+    std::vector<Event> m_queue;
+};
+
+} // namespace kbi
