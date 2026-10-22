@@ -9,6 +9,22 @@ import sys
 import numpy as np
 
 
+def pffft_size(n):
+    """The transform size PFFFT uses for a signal of n samples."""
+    twos = 0
+    rest = n
+    while rest % 2 == 0:
+        rest //= 2
+        twos += 1
+    while rest % 3 == 0:
+        rest //= 3
+    while rest % 5 == 0:
+        rest //= 5
+    if rest == 1 and twos >= 5:
+        return n
+    return 1 << (n - 1).bit_length()
+
+
 class Analyzer:
     def __init__(self, bin_rate=16000):
         self.bin_rate = bin_rate
@@ -17,9 +33,11 @@ class Analyzer:
     def reset(self):
         self.timestamp_raw = []
         self.timestamp_binned = []
-        self.consecutive = np.zeros(self.bin_rate + 1)
-        self.all_diff = np.zeros(self.bin_rate + 1)
-        self.wrapped = np.zeros(self.bin_rate + 1)
+        # One entry per hertz of the spectrum, the length is also the size of
+        # the FFT.
+        self.consecutive = np.zeros(self.bin_rate)
+        self.all_diff = np.zeros(self.bin_rate)
+        self.wrapped = np.zeros(self.bin_rate)
 
     def add(self, timestamps):
         interval = 1000000 / self.bin_rate
@@ -33,7 +51,7 @@ class Analyzer:
                 last = self.timestamp_binned[-1]
                 if last:
                     consecutive = binned - last
-                    if consecutive <= 1000000:
+                    if consecutive < 1000000:
                         index = int(round(consecutive / interval))
                         self.consecutive[index] += 1
 
@@ -42,22 +60,27 @@ class Analyzer:
                     for i in range(start, len(binned_list)):
                         long_diff = binned - binned_list[i]
                         index = int(round(long_diff / interval))
+                        # The diffs of exactly one second are outside of the
+                        # histogram.
+                        if index >= len(self.all_diff):
+                            continue
                         self.all_diff[index] += 1
 
                     wrapped = binned % 1000000
                     index = int(round(wrapped / interval))
-                    self.wrapped[index] += 1
+                    if index < len(self.wrapped):
+                        self.wrapped[index] += 1
 
             self.timestamp_binned.append(binned)
 
     def freqs(self):
         """The magnitude spectrum of the histograms.
 
-        The transform size is the next power of two, the histograms are zero
-        padded to it (the same as the native analyzer does).
+        The transform size is the length of the histograms, unless PFFFT does
+        not support it (the same as the native analyzer does).
         """
         n = len(self.consecutive)
-        size = max(1 << (n - 1).bit_length(), 32)
+        size = pffft_size(n)
         results = []
         for counts in (self.consecutive, self.all_diff, self.wrapped):
             padded = np.pad(counts, (0, size - n))

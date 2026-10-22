@@ -66,7 +66,7 @@ void test_fft() {
         const auto spectrum = kbi::fft::real_dft(input);
         const std::size_t m = spectrum.transform_size;
         check(m == std::bit_ceil(std::max<std::size_t>(n, 32)),
-              std::format("the transform is padded to a power of two for n={}", n));
+              std::format("the transform size is valid for n={}", n));
         check(spectrum.values.size() == (m / 2 + 1) * 2,
               std::format("the spectrum has one bin per frequency for n={}", n));
 
@@ -101,6 +101,17 @@ void test_fft() {
         }
     }
     check(peak == 100, std::format("a 100Hz tone peaks at bin 100 (got {})", peak));
+
+    // The transform is not padded when PFFFT supports the size, the bin rate
+    // is 125 * 2^n.
+    const std::vector<double> bin_rate(16000, 1.0);
+    check(kbi::fft::real_dft(bin_rate).transform_size == 16000,
+          "the transform of a bin rate sized signal is not padded");
+
+    // A size that PFFFT does not support is rounded up to a power of two.
+    const std::vector<double> small(1000, 1.0);
+    check(kbi::fft::real_dft(small).transform_size == 1024,
+          "an unsupported size is rounded up");
     check(std::abs(peak_value - static_cast<double>(m) / 2.0) < 1.0,
           "the magnitude of the tone is m/2");
 }
@@ -125,6 +136,65 @@ void test_analyzer() {
     check(analyzer.consecutive_diff()[index] == 199.0,
           "consecutive diff histogram counts the 10ms gaps");
     check(analyzer.consecutive_diff_max() == 199.0, "consecutive diff max");
+
+    // A 10ms event train is a 100Hz rhythm, the spectrum has to peak at
+    // 100Hz. The transform runs at the bin rate, so the frequency of a bin is
+    // its index in hertz.
+    {
+        std::shared_ptr<const kbi::FreqSnapshot> snapshot;
+        for (int i = 0; i < 1000 && !snapshot; ++i) {
+            snapshot = analyzer.freq_snapshot();
+            if (!snapshot)
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        check(snapshot != nullptr, "the frequency snapshot is ready");
+        if (snapshot) {
+            // The differences to all the previous events form a comb with a
+            // period of 10ms, its spectrum peaks at 100Hz.
+            std::size_t peak = 0;
+            double peak_value = 0.0;
+            // Skip the direct current component.
+            for (std::size_t k = 1; k < snapshot->all_diff.size(); ++k) {
+                if (snapshot->all_diff[k] > peak_value) {
+                    peak_value = snapshot->all_diff[k];
+                    peak = k;
+                }
+            }
+            check(peak == 100, std::format("the 100Hz rhythm peaks at 100Hz (got {})", peak));
+        }
+    }
+
+    // The spectrum covers every frequency from 0 to bin_rate / 2 Hz, which is
+    // bin_rate / 2 + 1 entries. The transform runs at the bin rate, so the
+    // frequency of a bin is its index in hertz.
+    for (const int rate : {1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000}) {
+        kbi::Analyzer rate_analyzer;
+        rate_analyzer.set_bin_rate(rate);
+        std::vector<double> stamps;
+        for (int i = 0; i < 100; ++i)
+            stamps.push_back(static_cast<double>(i) * 1000000.0 / rate);
+        rate_analyzer.add(stamps);
+
+        std::shared_ptr<const kbi::FreqSnapshot> snapshot;
+        for (int i = 0; i < 1000 && !snapshot; ++i) {
+            snapshot = rate_analyzer.freq_snapshot();
+            if (!snapshot)
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        check(snapshot != nullptr,
+              std::format("the frequency snapshot of a {}Hz bin rate is ready", rate));
+        if (snapshot) {
+            // PFFFT needs a transform size that is a multiple of 32, the two
+            // small bin rates are rounded up to the next power of two and
+            // their spectrum has a few entries above the axis.
+            const std::size_t transform_size =
+                rate % 32 == 0 ? static_cast<std::size_t>(rate)
+                               : std::bit_ceil(static_cast<unsigned>(rate));
+            check(snapshot->consecutive_diff.size() == transform_size / 2 + 1,
+                  std::format("a {}Hz bin rate has {} frequency entries", rate,
+                              transform_size / 2 + 1));
+        }
+    }
 
     // Non monotonic timestamps are ignored.
     analyzer.add({1000});

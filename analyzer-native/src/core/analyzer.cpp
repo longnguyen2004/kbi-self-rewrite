@@ -78,9 +78,11 @@ void Analyzer::reset() {
     ++m_generation;
     m_timestamp_raw.clear();
     m_timestamp_binned.clear();
-    m_consecutive_diff_count.assign(static_cast<std::size_t>(m_bin_rate) + 1, 0.0);
-    m_all_diff_count.assign(static_cast<std::size_t>(m_bin_rate) + 1, 0.0);
-    m_wrapped_timestamp_count.assign(static_cast<std::size_t>(m_bin_rate) + 1, 0.0);
+    // The histograms have one entry per hertz of the spectrum, their length is
+    // the bin rate. It is also the size of the FFT, which PFFFT supports.
+    m_consecutive_diff_count.assign(static_cast<std::size_t>(m_bin_rate), 0.0);
+    m_all_diff_count.assign(static_cast<std::size_t>(m_bin_rate), 0.0);
+    m_wrapped_timestamp_count.assign(static_cast<std::size_t>(m_bin_rate), 0.0);
     m_consecutive_diff_count_max = 0.0;
     m_all_diff_count_max = 0.0;
     m_wrapped_timestamp_count_max = 0.0;
@@ -130,7 +132,7 @@ void Analyzer::add(const std::vector<double>& timestamps) {
             if (last != 0.0) {
                 // Consecutive diff: gap to the previous event.
                 const double consecutive_diff = binned - last;
-                if (consecutive_diff <= 1000000.0) {
+                if (consecutive_diff < 1000000.0) {
                     const auto index = static_cast<std::size_t>(
                         std::llround(consecutive_diff / interval));
                     if (index < m_consecutive_diff_count.size()) {
