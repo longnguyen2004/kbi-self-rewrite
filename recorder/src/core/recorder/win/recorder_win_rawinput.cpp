@@ -11,9 +11,13 @@
 
 using namespace std::chrono;
 
-static const wchar_t* CLASS_NAME = L"ListenerWindow";
+namespace {
 
-LRESULT CALLBACK WndProc(
+const wchar_t* const className = L"ListenerWindow";
+
+} // namespace
+
+LRESULT CALLBACK wndProc(
     HWND hwnd,
     UINT uMsg,
     WPARAM wParam,
@@ -27,9 +31,14 @@ LRESULT CALLBACK WndProc(
         return 0;
 
     case WM_INPUT: {
-        auto recorderInstance = reinterpret_cast<recorder_win_rawinput*>(
+        // The instance is stored in the user data of the window, which
+        // Win32 only offers as an integer.
+        // NOLINTNEXTLINE(performance-no-int-to-ptr)
+        auto* recorderInstance = reinterpret_cast<RecorderWinRawinput*>(
             GetWindowLongPtrW(hwnd, 0));
-        recorderInstance->_processRawInput(
+        recorderInstance->processRawInput(
+            // The WM_INPUT message carries the HRAWINPUT in lParam.
+            // NOLINTNEXTLINE(performance-no-int-to-ptr)
             reinterpret_cast<HRAWINPUT>(lParam));
     }
     default:
@@ -37,9 +46,10 @@ LRESULT CALLBACK WndProc(
     }
 }
 
-std::pair<std::uint16_t, std::uint16_t> vid_pid_from_pnp(std::string_view s)
+std::pair<std::uint16_t, std::uint16_t> vidPidFromPnp(std::string_view s)
 {
-    std::uint16_t vid = 0, pid = 0;
+    std::uint16_t vid = 0;
+    std::uint16_t pid = 0;
     if (auto pos = s.find("VID_"); pos != std::string::npos)
         std::from_chars(s.data() + pos + 4, s.data() + pos + 8, vid, 16);
     if (auto pos = s.find("PID_"); pos != std::string::npos)
@@ -47,18 +57,18 @@ std::pair<std::uint16_t, std::uint16_t> vid_pid_from_pnp(std::string_view s)
     return { vid, pid };
 }
 
-recorder_win_rawinput::recorder_win_rawinput(std::shared_ptr<spdlog::logger> logger)
-    : Recorder::Impl(logger)
+RecorderWinRawinput::RecorderWinRawinput(std::shared_ptr<spdlog::logger> logger)
+    : Recorder::Impl(std::move(logger))
 {
 }
 
-void recorder_win_rawinput::_processRawInput(HRAWINPUT rawInput)
+void RecorderWinRawinput::processRawInput(HRAWINPUT rawInput)
 {
     auto now = steady_clock::now();
     UINT dwSize;
     GetRawInputData(rawInput, RID_INPUT, nullptr, &dwSize, sizeof(RAWINPUTHEADER));
     std::vector<BYTE> data(dwSize);
-    if (GetRawInputData(rawInput, RID_INPUT, data.data(), &dwSize, sizeof(RAWINPUTHEADER)) != dwSize)
+    if (std::cmp_not_equal(GetRawInputData(rawInput, RID_INPUT, data.data(), &dwSize, sizeof(RAWINPUTHEADER)), dwSize))
         return;
 
     auto* raw = reinterpret_cast<RAWINPUT*>(data.data());
@@ -67,7 +77,7 @@ void recorder_win_rawinput::_processRawInput(HRAWINPUT rawInput)
     std::wstring devicePath(strSize, 0);
     GetRawInputDeviceInfoW(raw->header.hDevice, RIDI_DEVICENAME, devicePath.data(), &strSize);
     if (raw->header.dwType == RIM_TYPEKEYBOARD) {
-        auto devicePathStr = wstring_to_string(devicePath);
+        auto devicePathStr = wstringToString(devicePath);
         auto pnp = devicePathStr.substr(
             4, /* Remove \\?\ */
             devicePathStr.find("#{") - 4 /* Remove GUID at end */
@@ -77,35 +87,37 @@ void recorder_win_rawinput::_processRawInput(HRAWINPUT rawInput)
                 c = '\\';
         }
         RAWKEYBOARD& keyboard = raw->data.keyboard;
-        bool released = keyboard.Flags & RI_KEY_BREAK;
+        bool released = (keyboard.Flags & RI_KEY_BREAK) != 0;
         if (keyboard.MakeCode == KEYBOARD_OVERRUN_MAKE_CODE || keyboard.VKey >= UCHAR_MAX)
             return;
-        auto [vid, pid] = vid_pid_from_pnp(pnp);
-        this->OnInput()(pnp, vid, pid, Input { .Timestamp = static_cast<std::uint64_t>(duration_cast<microseconds>(now - m_start_ref).count()), .Pressed = !released, .Code = vk_to_keycode(keyboard.VKey) });
+        auto [vid, pid] = vidPidFromPnp(pnp);
+        this->onInput()(pnp, vid, pid, Input { .timestamp = static_cast<std::uint64_t>(duration_cast<microseconds>(now - m_startRef).count()), .pressed = !released, .code = vkToKeycode(keyboard.VKey) });
     }
 }
 
-void recorder_win_rawinput::Start(bool keyboard, bool mouse, bool gamepad)
+void RecorderWinRawinput::start(bool keyboard, bool mouse, bool gamepad)
 {
-    m_window_thread = std::jthread([=, this](const std::stop_token& stop) {
+    m_windowThread = std::jthread([=, this](const std::stop_token& stop) {
         SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
         SetThreadAffinityMask(GetCurrentThread(), 1);
-        WNDCLASSW wnd_class = {
-            .lpfnWndProc = WndProc,
+        WNDCLASSW wndClass = {
+            .lpfnWndProc = wndProc,
             .cbWndExtra = 8,
             .hInstance = GetModuleHandleW(nullptr),
-            .lpszClassName = CLASS_NAME,
+            .lpszClassName = className,
         };
-        RegisterClassW(&wnd_class);
+        RegisterClassW(&wndClass);
         m_hwnd = CreateWindowExW(
             0,
-            CLASS_NAME,
+            className,
             nullptr,
             0,
             CW_USEDEFAULT,
             CW_USEDEFAULT,
             CW_USEDEFAULT,
             CW_USEDEFAULT,
+            // HWND_MESSAGE is a macro that casts -1 to a window handle.
+            // NOLINTNEXTLINE(performance-no-int-to-ptr)
             HWND_MESSAGE,
             nullptr,
             GetModuleHandleW(nullptr),
@@ -115,20 +127,20 @@ void recorder_win_rawinput::Start(bool keyboard, bool mouse, bool gamepad)
         if (keyboard) {
             rawInputDevices.push_back({ .usUsagePage = 0x01,
                 .usUsage = 0x06,
-                .dwFlags = (DWORD)(RIDEV_NOLEGACY | RIDEV_INPUTSINK | RIDEV_NOHOTKEYS),
+                .dwFlags = static_cast<DWORD>(RIDEV_NOLEGACY | RIDEV_INPUTSINK | RIDEV_NOHOTKEYS),
                 .hwndTarget = m_hwnd });
             std::cout << keyboard << '\n';
         }
         if (mouse) {
             rawInputDevices.push_back({ .usUsagePage = 0x01,
                 .usUsage = 0x02,
-                .dwFlags = (DWORD)(RIDEV_NOLEGACY | RIDEV_INPUTSINK),
+                .dwFlags = static_cast<DWORD>(RIDEV_NOLEGACY | RIDEV_INPUTSINK),
                 .hwndTarget = m_hwnd });
         }
         if (gamepad) {
             rawInputDevices.push_back({ .usUsagePage = 0x01,
                 .usUsage = 0x04,
-                .dwFlags = (DWORD)(RIDEV_INPUTSINK),
+                .dwFlags = static_cast<DWORD>(RIDEV_INPUTSINK),
                 .hwndTarget = m_hwnd });
         }
         if (!RegisterRawInputDevices(
@@ -146,32 +158,32 @@ void recorder_win_rawinput::Start(bool keyboard, bool mouse, bool gamepad)
             }
         }
     });
-    m_start_ref = steady_clock::now();
+    m_startRef = steady_clock::now();
 }
 
-void recorder_win_rawinput::Stop()
+void RecorderWinRawinput::stop()
 {
-    m_window_thread.request_stop();
-    if (m_window_thread.joinable())
-        m_window_thread.join();
-    if (m_hwnd) {
+    m_windowThread.request_stop();
+    if (m_windowThread.joinable())
+        m_windowThread.join();
+    if (m_hwnd != nullptr) {
         DestroyWindow(m_hwnd);
         m_hwnd = nullptr;
     }
-    UnregisterClassW(CLASS_NAME, GetModuleHandleW(nullptr));
+    UnregisterClassW(className, GetModuleHandleW(nullptr));
 }
 
-std::string recorder_win_rawinput::GetDeviceName(std::string_view pnp) const
+std::string RecorderWinRawinput::getDeviceName(std::string_view pnp) const
 {
-    return device_name_from_pnp(pnp);
+    return deviceNameFromPnp(pnp);
 }
 
-std::optional<std::string> recorder_win_rawinput::GetUsbDeviceId(std::string_view id) const
+std::optional<std::string> RecorderWinRawinput::getUsbDeviceId(std::string_view id) const
 {
-    return find_usb_device(id);
+    return findUsbDevice(id);
 }
 
-std::optional<UsbDeviceInfo> recorder_win_rawinput::GetUsbDeviceInfo(std::string_view id) const
+std::optional<UsbDeviceInfo> RecorderWinRawinput::getUsbDeviceInfo(std::string_view id) const
 {
-    return get_usb_device_info(id);
+    return usbDeviceInfoFromPath(id);
 }

@@ -2,7 +2,7 @@
 #include <array>
 #include <windows.h>
 
-static constexpr auto vk_to_keycode_arr = []() {
+static constexpr auto vkToKeycodeArr = [] {
     std::array<Keycode, 256> arr { Keycode::None };
 
     arr[VK_BACK] = Keycode::Backspace;
@@ -122,10 +122,10 @@ static constexpr auto vk_to_keycode_arr = []() {
     return arr;
 }();
 
-Keycode vk_to_keycode(int vk)
+Keycode vkToKeycode(int vk)
 {
-    if (vk < 0 || vk >= vk_to_keycode_arr.size()) {
+    if (vk < 0 || vk >= vkToKeycodeArr.size()) {
         return Keycode::None;
     }
-    return vk_to_keycode_arr[vk];
+    return vkToKeycodeArr[vk];
 }

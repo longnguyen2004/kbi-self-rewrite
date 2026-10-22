@@ -23,7 +23,7 @@ Recorder::Recorder(RecorderBackend backend, const std::shared_ptr<spdlog::logger
         !p_impl && (backend == RecorderBackend::AUTO || backend == RecorderBackend::WINDOWS_GAMEINPUT)) {
         try {
             m_logger->info("Trying to initialize GameInput backend");
-            p_impl = std::make_unique<recorder_win_gameinput>(logger);
+            p_impl = std::make_unique<RecorderWinGameinput>(logger);
             m_backend = RecorderBackend::WINDOWS_GAMEINPUT;
             m_logger->info("Initialized GameInput backend");
         } catch (const std::exception& e) {
@@ -34,7 +34,7 @@ Recorder::Recorder(RecorderBackend backend, const std::shared_ptr<spdlog::logger
         !p_impl && (backend == RecorderBackend::AUTO || backend == RecorderBackend::WINDOWS_RAWINPUT)) {
         try {
             m_logger->info("Trying to initialize Raw Input backend");
-            p_impl = std::make_unique<recorder_win_rawinput>(logger);
+            p_impl = std::make_unique<RecorderWinRawinput>(logger);
             m_backend = RecorderBackend::WINDOWS_RAWINPUT;
             m_logger->info("Initialized Raw Input backend");
         } catch (const std::exception& e) {
