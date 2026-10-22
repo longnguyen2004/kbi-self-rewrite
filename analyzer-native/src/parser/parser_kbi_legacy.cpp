@@ -255,7 +255,7 @@ std::optional<Result> parseKbiLegacyV3(Reader& r)
             device.vid = static_cast<std::uint16_t>(parseHex4(source.deviceId, vidPos));
         if (pidPos != std::string::npos)
             device.pid = static_cast<std::uint16_t>(parseHex4(source.deviceId, pidPos));
-        result.devices[source.deviceId] = device;
+        result.addDevice(source.deviceId, device);
     }
 
     for (const LegacyEvent& event : events) {

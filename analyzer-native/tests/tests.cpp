@@ -530,6 +530,28 @@ void testDatetime()
         "times before the unix epoch are converted correctly (" + Kbi::formatIso8601Utc(before) + ")");
 }
 
+void testResultDevices()
+{
+    std::println("result devices");
+    Kbi::Result result;
+    check(result.devices.empty(), "a new result has no devices");
+
+    // The devices keep the order they were discovered in, the colors of the
+    // input timeline are assigned in that order.
+    result.addDevice("second", Kbi::Device { .name = "B" });
+    result.addDevice("first", Kbi::Device { .name = "A" });
+    check(result.devices.size() == 2, "the devices are added");
+    check(result.devices[0].first == "second" && result.devices[1].first == "first",
+        "the devices keep the order they were discovered in");
+
+    // Adding a known device updates it.
+    result.addDevice("second", Kbi::Device { .name = "B2" });
+    check(result.devices.size() == 2, "a known device is not added twice");
+    check(result.findDevice("second") != nullptr && result.findDevice("second")->name == "B2",
+        "a known device is updated");
+    check(result.findDevice("missing") == nullptr, "an unknown device is not found");
+}
+
 void testLegacyParser(const std::string& path)
 {
     std::println("legacy kbi parser");
@@ -539,12 +561,13 @@ void testLegacyParser(const std::string& path)
         return;
     check(result->inputs.size() == 2, "both sources are present");
     check(result->devices.size() == 2, "the device list is parsed");
-    check(result->devices.at("HID_VID_3149&PID_5041&MI_00").name == "MonsGeek Keyboard",
-        "the device name is parsed");
-    check(result->devices.at("HID_VID_3149&PID_5041&MI_00").vid == 0x3149,
-        "the vendor id is scraped from the device id");
-    check(result->devices.at("HID_VID_3149&PID_5041&MI_00").pid == 0x5041,
-        "the product id is scraped from the device id");
+    const Kbi::Device* keyboardDevice = result->findDevice("HID_VID_3149&PID_5041&MI_00");
+    check(keyboardDevice != nullptr, "the keyboard device is parsed");
+    if (keyboardDevice != nullptr) {
+        check(keyboardDevice->name == "MonsGeek Keyboard", "the device name is parsed");
+        check(keyboardDevice->vid == 0x3149, "the vendor id is scraped from the device id");
+        check(keyboardDevice->pid == 0x5041, "the product id is scraped from the device id");
+    }
     check(result->totalInputCount() == 8, "all events are parsed");
     check(result->time == "2025-07-22T22:34:43.000Z",
         "the recording time is converted correctly (" + result->time + ")");
@@ -631,6 +654,7 @@ int main(int argc, char** argv)
     testTimeline();
     testBase64();
     testDatetime();
+    testResultDevices();
     testUsbPollingRate();
     testChartInteraction();
     testPointSnapper();

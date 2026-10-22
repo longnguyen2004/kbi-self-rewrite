@@ -58,8 +58,32 @@ struct Result {
     RecordingInfo info;
     std::string time;
     std::map<std::string, UsbDevice> usbDevices;
-    std::map<std::string, Device> devices;
+    // The devices in the order they were discovered, the colors of the input
+    // timeline are assigned in that order.
+    std::vector<std::pair<std::string, Device>> devices;
     std::map<std::string, std::vector<InputEvent>> inputs;
+
+    // Adds a device, or updates it when it is already known.
+    void addDevice(std::string id, Device device)
+    {
+        for (auto& [knownId, known] : devices) {
+            if (knownId == id) {
+                known = std::move(device);
+                return;
+            }
+        }
+        devices.emplace_back(std::move(id), std::move(device));
+    }
+
+    // The device with the given id, or nullptr when it is unknown.
+    [[nodiscard]] const Device* findDevice(const std::string& id) const
+    {
+        for (const auto& [knownId, known] : devices) {
+            if (knownId == id)
+                return &known;
+        }
+        return nullptr;
+    }
 
     [[nodiscard]] std::size_t totalInputCount() const
     {

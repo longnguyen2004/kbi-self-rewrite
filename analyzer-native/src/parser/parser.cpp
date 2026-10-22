@@ -129,7 +129,7 @@ void parseDevices(const json::object& object, Result& result)
         if (const auto* const usb = entry.find("usb_device");
             usb != entry.end() && usb->value().is_string())
             device.usbDevice = std::string(usb->value().as_string());
-        result.devices[id] = std::move(device);
+        result.addDevice(id, std::move(device));
     }
 }
 

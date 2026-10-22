@@ -171,9 +171,15 @@ void App::setMode(Mode mode)
 {
     if (m_mode == mode)
         return;
-    if (m_mode == Mode::Recording)
+    const bool wasRecording = m_mode == Mode::Recording;
+    if (wasRecording)
         stopRecording();
     m_mode = mode;
+    // Switching between the sources starts from scratch, the result of the
+    // previous one does not belong to them. A recording that is stopped keeps
+    // its data around, so that it can still be looked at.
+    if (!wasRecording || mode != Mode::FromRecorder)
+        resetAnalysis();
     if (mode == Mode::FromFile)
         m_status = "Open a recording to analyse it";
     else if (mode == Mode::FromRecorder)
@@ -345,8 +351,13 @@ void App::drawStatus()
 
 void App::draw()
 {
-    if (m_mode == Mode::Recording)
+    if (m_mode == Mode::Recording) {
         m_recorder.drain(m_result, m_analyzer, m_timeline);
+        // The recorder discovers the devices while recording, their colors
+        // are assigned in the order they appear.
+        if (m_result.devices.size() != m_deviceIds.size())
+            updateDeviceIds();
+    }
 
     const ImGuiIO& io = ImGui::GetIO();
     ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));

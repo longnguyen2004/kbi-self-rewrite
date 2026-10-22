@@ -150,7 +150,7 @@ void RecorderSource::drain(Result& result, Analyzer& analyzer, InputTimeline& ti
             result.usbDevices[event.id] = event.usbDevice;
             break;
         case EventType::Device:
-            result.devices[event.id] = event.device;
+            result.addDevice(event.id, event.device);
             break;
         case EventType::Input:
             result.inputs[event.id].push_back(event.input);
