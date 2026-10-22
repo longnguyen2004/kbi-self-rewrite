@@ -6,6 +6,10 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# IntelliSense reads compile_commands.json to pick up the real compile flags
+# (notably -std=c++23). It is only generated for Makefile/Ninja generators.
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 if (MSVC)
     add_compile_options(/Zc:__cplusplus /utf-8)
 endif()
