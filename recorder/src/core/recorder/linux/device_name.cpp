@@ -131,7 +131,7 @@ std::optional<std::string> findUsbDevice(std::string_view path)
     return current;
 }
 
-std::optional<UsbDeviceInfo> getUsbDeviceInfo(std::string_view path)
+std::optional<UsbDeviceInfo> usbDeviceInfoFromPath(std::string_view path)
 {
     UsbDeviceInfo devInfo;
 

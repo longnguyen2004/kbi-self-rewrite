@@ -296,5 +296,5 @@ std::optional<std::string> RecorderLinuxLibevdev::getUsbDeviceId(std::string_vie
 
 std::optional<UsbDeviceInfo> RecorderLinuxLibevdev::getUsbDeviceInfo(std::string_view id) const
 {
-    return getUsbDeviceInfo(id);
+    return usbDeviceInfoFromPath(id);
 }
