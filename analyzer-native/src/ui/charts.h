@@ -9,34 +9,34 @@
 #include <string>
 #include <vector>
 
-namespace kbi::ui {
+namespace Kbi::Ui {
 
 // Zoom state shared by a group of charts that are synchronized along the x
 // axis (the three diff charts, and the three frequency charts).
 struct ChartSync {
-    double x_min = 0.0;
-    double x_max = 1.0;
-    double extent_min = 0.0;
-    double extent_max = 0.0;
-    std::size_t data_length = 0;
+    double xMin = 0.0;
+    double xMax = 1.0;
+    double extentMin = 0.0;
+    double extentMax = 0.0;
+    std::size_t dataLength = 0;
     bool initialized = false;
     // Whether the view follows the end of a growing recording.
-    bool follow_end = false;
+    bool followEnd = false;
 };
 
 // The user interaction of a chart, in a form that does not depend on ImGui.
 struct ChartInteraction {
     bool dragging = false;
-    float drag_delta_x = 0.0f; // pixels
-    float wheel = 0.0f;        // scroll steps
-    double mouse_x = 0.0;      // mouse position in data units
-    bool double_clicked = false;
-    float plot_width = 0.0f;   // pixels
+    float dragDeltaX = 0.0f; // pixels
+    float wheel = 0.0f; // scroll steps
+    double mouseX = 0.0; // mouse position in data units
+    bool doubleClicked = false;
+    float plotWidth = 0.0f; // pixels
 };
 
 // Applies an interaction to the visible range of a chart. The range is
 // clamped to the extent of the data.
-void update_range(ChartSync& sync, const ChartInteraction& interaction);
+void updateRange(ChartSync& sync, const ChartInteraction& interaction);
 
 // What the tooltip of a chart shows.
 enum class TooltipStyle {
@@ -61,49 +61,49 @@ class ChartRenderer {
 public:
     // Time domain histogram of the timestamp differences.
     // The x axis is in milliseconds, the y axis is the number of events.
-    void draw_diff_chart(const char* id,
-                         const char* title,
-                         const std::vector<double>& data,
-                         double y_max,
-                         ChartSync& sync);
+    void drawDiffChart(const char* id,
+        const char* title,
+        const std::vector<double>& data,
+        double yMax,
+        ChartSync& sync);
 
     // Frequency domain magnitude of the histograms. The x axis is in Hz.
-    void draw_freq_chart(const char* id,
-                         const char* title,
-                         const std::vector<double>& data,
-                         double y_max,
-                         double max_frequency,
-                         ChartSync& sync);
+    void drawFreqChart(const char* id,
+        const char* title,
+        const std::vector<double>& data,
+        double yMax,
+        double maxFrequency,
+        ChartSync& sync);
 
     // Gantt style chart of the keypress intervals.
-    void draw_input_timeline(const char* id,
-                             const InputTimeline& timeline,
-                             const std::vector<std::string>& device_ids);
+    void drawInputTimeline(const char* id,
+        const InputTimeline& timeline,
+        const std::vector<std::string>& deviceIds);
 
-    void set_chart_height(float height) { m_chart_height = height; }
+    void setChartHeight(float height) { m_chartHeight = height; }
 
     // Resets the zoom state of every chart.
-    void reset_zoom();
+    void resetZoom();
 
     // Sets the visible range of the input timeline.
-    void set_timeline_range(double x_min, double x_max);
+    void setTimelineRange(double xMin, double xMax);
 
 private:
-    void draw_line_chart(const char* id,
-                         const char* title,
-                         const std::vector<double>& data,
-                         double y_max,
-                         ChartSync& sync,
-                         const ImVec4& color,
-                         const char* x_label,
-                         const char* y_label,
-                         double initial_span,
-                         TickStyle tick_style,
-                         TooltipStyle tooltip_style);
+    void drawLineChart(const char* id,
+        const char* title,
+        const std::vector<double>& data,
+        double yMax,
+        ChartSync& sync,
+        const ImVec4& color,
+        const char* xLabel,
+        const char* yLabel,
+        double initialSpan,
+        TickStyle tickStyle,
+        TooltipStyle tooltipStyle);
 
-    float m_chart_height = 220.0f;
-    ChartSync m_timeline_sync;
+    float m_chartHeight = 220.0f;
+    ChartSync m_timelineSync;
     PointSnapper m_snapper;
 };
 
-} // namespace kbi::ui
+} // namespace Kbi::ui

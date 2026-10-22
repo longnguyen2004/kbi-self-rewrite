@@ -3,14 +3,15 @@
 #include <algorithm>
 #include <cmath>
 
-namespace kbi {
+namespace Kbi {
 
-PostprocessResult postprocess_with_max(const std::vector<double>& arr,
-                                       const PostprocessOptions& options) {
+PostprocessResult postprocessWithMax(const std::vector<double>& arr,
+    const PostprocessOptions& options)
+{
     PostprocessResult result;
     result.data = arr;
 
-    if (options.low_cut) {
+    if (options.lowCut) {
         const std::size_t limit = std::min<std::size_t>(70, result.data.size());
         for (std::size_t i = 0; i < limit; ++i) {
             const double x = static_cast<double>(i);
@@ -24,4 +25,4 @@ PostprocessResult postprocess_with_max(const std::vector<double>& arr,
     return result;
 }
 
-} // namespace kbi
+} // namespace Kbi

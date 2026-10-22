@@ -97,13 +97,18 @@ src/
 
 ## Notes on the port
 
-* The histograms are computed by the same algorithm as the web app. The FFT is
-  done by [PFFFT](https://bitbucket.org/jpommier/pffft/), which only supports
-  transform sizes of the form `2^a * 3^b * 5^c`, so the histograms are zero
-  padded to the next power of two. The spectrum therefore has a slightly finer
-  resolution than the one of the web app, but the peaks stay at the same
-  frequencies. The transform runs on a worker thread so that the UI never
-  blocks.
+* The histograms are computed by the same algorithm as the web app. Each
+  histogram entry covers `1e6 / bin_rate` microseconds, so the histograms are
+  sampled at the bin rate and have one entry per hertz of the spectrum. The
+  FFT is done by [PFFFT](https://bitbucket.org/jpommier/pffft/), which
+  supports transform sizes of the form `2^a * 3^b * 5^c`: the length of the
+  histograms is the bin rate (`125 * 2^n`), which PFFFT accepts directly, so
+  no zero padding is needed and the frequency of a bin is its index in
+  hertz. The spectrum covers every frequency from 0 to `bin_rate / 2` Hz,
+  which is `bin_rate / 2 + 1` entries. The two small bin rates (1000 and
+  2000 Hz) are rounded up to the next power of two, because PFFFT needs a
+  size that is a multiple of 32. The transform runs on a worker thread so
+  that the UI never blocks.
 * The difference charts use milliseconds for the x axis. The web app labels
   the bin index as "ms", which only matches the bin index at a bin rate of
   1000 Hz.
@@ -114,3 +119,5 @@ src/
   the charts of a row can share their zoom state.
 * The legacy `.kbi` format stores fractional seconds, so the timestamps are
   kept as floating point microseconds, like the web app does.
+* The histograms cover the timestamp differences below one second, the ones of
+  exactly one second fall outside of them.

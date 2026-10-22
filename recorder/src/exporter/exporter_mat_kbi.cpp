@@ -10,50 +10,47 @@
 #include <numeric>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 
 using namespace boost::endian;
 using namespace std::chrono;
 
-static const std::array<char, 4> KBI_HEADER = {'K', 'B', 'I', 0};
-static const std::string CREATOR = "kbi_cpp_recorder";
+static const std::array<char, 4> kbiHeader = { 'K', 'B', 'I', 0 };
+static constexpr std::string_view creator = "kbi_cpp_recorder";
 
-struct KbiInput
-{
-    std::string Key;
-    std::int64_t Source;
+struct KbiInput {
+    std::string key;
+    std::int64_t source;
 };
 
 namespace std {
-    template <>
-    struct hash<KbiInput>
+template<>
+struct hash<KbiInput> {
+    std::size_t operator()(const KbiInput& input) const
     {
-        std::size_t operator()(const KbiInput& input) const
-        {
-            return std::hash<std::string>()(input.Key) ^ std::hash<std::int64_t>()(input.Source);
-        }
-    };
+        return std::hash<std::string>()(input.key) ^ std::hash<std::int64_t>()(input.source);
+    }
+};
 }
 
 bool operator==(const KbiInput& a, const KbiInput& b)
 {
-    return a.Key == b.Key && a.Source == b.Source;
+    return a.key == b.key && a.source == b.source;
 }
 
-struct KbiEvent
-{
-    double Time;
-    bool Pressed;
-    KbiInput Input;
+struct KbiEvent {
+    double time;
+    bool pressed;
+    KbiInput input;
 };
 
-struct KbiInputInfo
-{
-    std::int32_t Color;
-    bool Visible;
+struct KbiInputInfo {
+    std::int32_t color;
+    bool visible;
 };
 
-void write_uleb128(std::ostream& out, std::uint64_t x)
+void writeUleb128(std::ostream& out, std::uint64_t x)
 {
     do {
         char byte = x & 0x7F;
@@ -61,184 +58,177 @@ void write_uleb128(std::ostream& out, std::uint64_t x)
         if (x != 0)
             byte |= 0x80;
         out.put(byte);
-    }
-    while (x != 0);
+    } while (x != 0);
 }
 
-void write_bool(std::ostream& out, bool x)
+void writeBool(std::ostream& out, bool x)
 {
     out.put(x ? 1 : 0);
 }
 
-void write_int32(std::ostream& out, std::int32_t x)
+void writeInt32(std::ostream& out, std::int32_t x)
 {
     std::array<char, 4> buffer;
     store_little_s32(reinterpret_cast<unsigned char*>(buffer.data()), x);
     out.write(buffer.data(), buffer.size());
 }
 
-void write_uint32(std::ostream& out, std::uint32_t x)
+void writeUint32(std::ostream& out, std::uint32_t x)
 {
     std::array<char, 4> buffer;
     store_little_u32(reinterpret_cast<unsigned char*>(buffer.data()), x);
     out.write(buffer.data(), buffer.size());
 }
 
-void write_int64(std::ostream& out, std::int64_t x)
+void writeInt64(std::ostream& out, std::int64_t x)
 {
     std::array<char, 8> buffer;
     store_little_s64(reinterpret_cast<unsigned char*>(buffer.data()), x);
     out.write(buffer.data(), buffer.size());
 }
 
-void write_uint64(std::ostream& out, std::uint64_t x)
+void writeUint64(std::ostream& out, std::uint64_t x)
 {
     std::array<char, 8> buffer;
     store_little_u64(reinterpret_cast<unsigned char*>(buffer.data()), x);
     out.write(buffer.data(), buffer.size());
 }
 
-void write_double(std::ostream& out, double x)
+void writeDouble(std::ostream& out, double x)
 {
-    auto x_bits = std::bit_cast<std::uint64_t>(x);
-    write_uint64(out, x_bits);
+    auto xBits = std::bit_cast<std::uint64_t>(x);
+    writeUint64(out, xBits);
 }
 
-void write_string(std::ostream& out, std::string_view str)
+void writeString(std::ostream& out, std::string_view str)
 {
-    write_uleb128(out, str.size());
+    writeUleb128(out, str.size());
     out.write(str.data(), str.size());
 }
 
-template <typename Iterator> requires std::forward_iterator<Iterator>
-void write_list(
+template<typename Iterator>
+    requires std::forward_iterator<Iterator>
+void writeList(
     std::ostream& out, Iterator start, Iterator end,
-    std::function<void(std::ostream&, const typename std::iterator_traits<Iterator>::value_type&)> serializer
-)
+    const std::function<void(std::ostream&, const typename std::iterator_traits<Iterator>::value_type&)>& serializer)
 {
     auto count = std::distance(start, end);
-    write_int32(out, count);
+    writeInt32(out, count);
     for (auto it = start; it != end; it++)
         serializer(out, *it);
 }
 
-void write_time(std::ostream& out, time_point<system_clock, nanoseconds> t)
+void writeTime(std::ostream& out, time_point<system_clock, nanoseconds> t)
 {
     // The .NET DateTime binary format, see datetime.h.
-    write_uint64(out, kbi::to_net_datetime_ticks(t, kbi::kNetDateTimeKindUtc));
+    writeUint64(out, Kbi::toNetDatetimeTicks(t, Kbi::kNetDateTimeKindUtc));
 }
 
-void write_kbiinput(std::ostream& out, const KbiInput& input)
+void writeKbiinput(std::ostream& out, const KbiInput& input)
 {
-    write_string(out, input.Key);
-    write_int64(out, input.Source);
+    writeString(out, input.key);
+    writeInt64(out, input.source);
 }
 
-void Exporter_MatKbi::Export(std::ostream& out)
+void ExporterMatKbi::exportTo(std::ostream& out)
 {
     using DeviceMap = Recorder::DeviceMap;
     using InputMap = Recorder::InputMap;
     // Write header
-    out.write(KBI_HEADER.data(), KBI_HEADER.size());
+    out.write(kbiHeader.data(), kbiHeader.size());
 
     // Write file version. Hardcode as 3 for now
-    write_uint32(out, 3);
+    writeUint32(out, 3);
 
     // Write creator
-    switch (m_recorder.Backend())
-    {
-        case RecorderBackend::WINDOWS_GAMEINPUT:
-            write_string(out, CREATOR + " (Backend: Windows GameInput)");
-            break;
+    switch (m_recorder.backend()) {
+    case RecorderBackend::WindowsGameinput:
+        writeString(out, std::string(creator) + " (Backend: Windows GameInput)");
+        break;
 
-        case RecorderBackend::LINUX_EVDEV:
-            write_string(out, CREATOR + " (Backend: Linux evdev)");
-            break;
+    case RecorderBackend::LinuxEvdev:
+        writeString(out, std::string(creator) + " (Backend: Linux evdev)");
+        break;
 
-        default:
-            write_string(out, CREATOR + " (Backend: Unknown)");
-            break;
+    default:
+        writeString(out, std::string(creator) + " (Backend: Unknown)");
+        break;
     }
 
     // Write title
-    write_string(out, "Testing testing");
+    writeString(out, "Testing testing");
 
     // Write recorded time
-    write_time(out, m_recorder.StartTime());
+    writeTime(out, m_recorder.startTime());
 
     // Write elapsed time
-    write_double(out, static_cast<duration<double>>(m_recorder.Elapsed()).count());
+    writeDouble(out, static_cast<duration<double>>(m_recorder.elapsed()).count());
 
-    auto& devices = m_recorder.Devices();
-    auto& inputs = m_recorder.Inputs();
+    const auto& devices = m_recorder.devices();
+    const auto& inputs = m_recorder.inputs();
 
     // Build a map to map IDs to an arbitrary index
     // KBI uses indices to associate events with their corresponding devices
-    std::unordered_map<std::string, std::int64_t> index_map;
+    std::unordered_map<std::string, std::int64_t> indexMap;
     std::int64_t i = 0;
     devices.cvisit_all([&](const DeviceMap::value_type& device) {
-        index_map[device.first] = i++;
+        indexMap[device.first] = i++;
     });
 
     // Create events and input info lists
-    std::list<KbiEvent> kbi_events;
-    std::unordered_map<KbiInput, KbiInputInfo> kbi_input_info;
+    std::list<KbiEvent> kbiEvents;
+    std::unordered_map<KbiInput, KbiInputInfo> kbiInputInfo;
 
     inputs.visit_all([&](const InputMap::value_type& device) {
-        auto& [id, events] = device;
-        for (auto& event: events)
-        {
-            KbiInput input{std::string{keycode_to_string(event.Code)}, index_map[id]};
-            kbi_events.emplace_back(
-                event.Timestamp / 1000000.0,
-                event.Pressed,
-                input
-            );
-            kbi_input_info.try_emplace(
+        const auto& [id, events] = device;
+        for (const auto& event : events) {
+            KbiInput input { .key = std::string { keycodeToString(event.code) }, .source = indexMap[id] };
+            kbiEvents.emplace_back(
+                event.timestamp / 1000000.0,
+                event.pressed,
+                input);
+            kbiInputInfo.try_emplace(
                 input,
                 0xFFA9A9A9, true // Default color and visibility
             );
         }
     });
-    write_list(
-        out, kbi_events.begin(), kbi_events.end(),
+    writeList(
+        out, kbiEvents.begin(), kbiEvents.end(),
         [](std::ostream& out, const KbiEvent& event) {
-            write_double(out, event.Time);
-            write_bool(out, event.Pressed);
-            write_kbiinput(out, event.Input);
-        }
-    );
+            writeDouble(out, event.time);
+            writeBool(out, event.pressed);
+            writeKbiinput(out, event.input);
+        });
 
     // Write sources
-    std::list<DeviceMap::value_type> devices_list;
+    std::list<DeviceMap::value_type> devicesList;
     devices.cvisit_all([&](const DeviceMap::value_type& device) {
-        devices_list.push_back(device);
+        devicesList.push_back(device);
     });
-    write_list(
-        out, devices_list.begin(), devices_list.end(),
+    writeList(
+        out, devicesList.begin(), devicesList.end(),
         [&](std::ostream& out, const std::pair<std::string, Device>& device) {
-            write_int64(out, index_map[device.first]);
+            writeInt64(out, indexMap[device.first]);
             inputs.cvisit(device.first, [&](const InputMap::value_type& input) {
-                write_int32(out, input.second.size());
+                writeInt32(out, input.second.size());
             });
-            write_string(out, device.second.Name);
-            write_string(out, device.first);
-        }
-    );
+            writeString(out, device.second.name);
+            writeString(out, device.first);
+        });
 
     // Write analysis parameters
-    write_int32(out, 16000); // Bin rate, default to 16000 for now
-    write_int32(out, 0); // HPS elimination
-    write_bool(out, true); // Low cut
+    writeInt32(out, 16000); // Bin rate, default to 16000 for now
+    writeInt32(out, 0); // HPS elimination
+    writeBool(out, true); // Low cut
 
     // Write input info
-    write_list(
-        out, kbi_input_info.begin(), kbi_input_info.end(),
+    writeList(
+        out, kbiInputInfo.begin(), kbiInputInfo.end(),
         [](std::ostream& out, const std::pair<KbiInput, KbiInputInfo>& pair) {
             const auto& [input, info] = pair;
-            write_kbiinput(out, input);
-            write_int32(out, info.Color);
-            write_bool(out, info.Visible);
-        }
-    );
+            writeKbiinput(out, input);
+            writeInt32(out, info.color);
+            writeBool(out, info.visible);
+        });
 }

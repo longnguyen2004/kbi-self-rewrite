@@ -9,7 +9,7 @@
 #include <new>
 #include <vector>
 
-namespace kbi::fft {
+namespace Kbi::Fft {
 namespace {
 
 // The setup of PFFFT owns the twiddle factors, it has to be destroyed.
@@ -20,29 +20,31 @@ struct PffftSetupDeleter {
 using PffftSetup = std::unique_ptr<PFFFT_Setup, PffftSetupDeleter>;
 
 // The buffers of PFFFT have to be aligned, 16 bytes on x86 and powerpc.
-template <typename T>
+template<typename T>
 struct PffftAllocator {
     using value_type = T;
 
     PffftAllocator() = default;
 
-    template <typename U>
-    PffftAllocator(const PffftAllocator<U>&) {}
+    template<typename U>
+    explicit PffftAllocator(const PffftAllocator<U>& /*unused*/) { }
 
-    [[nodiscard]] T* allocate(std::size_t count) {
+    [[nodiscard]] T* allocate(std::size_t count)
+    {
         void* memory = pffft_aligned_malloc(count * sizeof(T));
-        if (!memory)
+        if (memory == nullptr)
             throw std::bad_alloc();
         return static_cast<T*>(memory);
     }
 
-    void deallocate(T* memory, std::size_t) noexcept { pffft_aligned_free(memory); }
+    void deallocate(T* memory, std::size_t /*unused*/) noexcept { pffft_aligned_free(memory); }
 
-    bool operator==(const PffftAllocator&) const { return true; }
+    bool operator==(const PffftAllocator& /*unused*/) const { return true; }
 };
 
 // PFFFT supports transform sizes of the form 2^a * 3^b * 5^c with a >= 5.
-bool is_supported_size(std::size_t size) {
+bool isSupportedSize(std::size_t size)
+{
     int twos = 0;
     while (size % 2 == 0) {
         size /= 2;
@@ -58,8 +60,9 @@ bool is_supported_size(std::size_t size) {
 // The size of the transform. The histograms have one entry per hertz of the
 // spectrum, their length is the bin rate (125 * 2^n), which PFFFT supports
 // directly. Only the small bin rates need to be rounded up.
-std::size_t transform_size_for(std::size_t length) {
-    if (is_supported_size(length))
+std::size_t transformSizeFor(std::size_t length)
+{
+    if (isSupportedSize(length))
         return length;
     // The next power of two is always supported.
     return std::bit_ceil(std::max<std::size_t>(length, 32));
@@ -67,14 +70,15 @@ std::size_t transform_size_for(std::size_t length) {
 
 } // namespace
 
-RealSpectrum real_dft(const std::vector<double>& in) {
+RealSpectrum realDft(const std::vector<double>& in)
+{
     RealSpectrum result;
 
     const std::size_t n = in.size();
     if (n == 0)
         return result;
 
-    const std::size_t m = transform_size_for(n);
+    const std::size_t m = transformSizeFor(n);
 
     PffftSetup setup(pffft_new_setup(static_cast<int>(m), PFFFT_REAL));
     if (!setup)
@@ -94,7 +98,7 @@ RealSpectrum real_dft(const std::vector<double>& in) {
     // For a real transform PFFFT packs the (real) Nyquist component into the
     // imaginary part of the first entry, it is moved to its own entry here.
     const std::size_t bins = m / 2 + 1;
-    result.transform_size = m;
+    result.transformSize = m;
     result.values.resize(bins * 2);
     result.values[0] = output[0];
     result.values[1] = 0.0;
@@ -108,4 +112,4 @@ RealSpectrum real_dft(const std::vector<double>& in) {
     return result;
 }
 
-} // namespace kbi::fft
+} // namespace Kbi::Fft

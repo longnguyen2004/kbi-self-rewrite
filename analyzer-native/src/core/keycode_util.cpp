@@ -4,116 +4,118 @@
 
 #include <array>
 #include <unordered_map>
+#include <utility>
 
-namespace kbi {
+namespace Kbi {
 namespace {
 
 // Windows virtual-key codes, inlined from WinUser.h.
 enum : int {
-    VK_BACK = 0x08,
-    VK_TAB = 0x09,
-    VK_RETURN = 0x0d,
-    VK_PAUSE = 0x13,
-    VK_CAPITAL = 0x14,
-    VK_ESCAPE = 0x1b,
-    VK_SPACE = 0x20,
-    VK_PRIOR = 0x21,
-    VK_NEXT = 0x22,
-    VK_END = 0x23,
-    VK_HOME = 0x24,
-    VK_LEFT = 0x25,
-    VK_UP = 0x26,
-    VK_RIGHT = 0x27,
-    VK_DOWN = 0x28,
-    VK_SNAPSHOT = 0x2c,
-    VK_INSERT = 0x2d,
-    VK_DELETE = 0x2e,
-    VK_LWIN = 0x5b,
-    VK_RWIN = 0x5c,
-    VK_APPS = 0x5d,
-    VK_NUMPAD0 = 0x60,
-    VK_NUMPAD1 = 0x61,
-    VK_NUMPAD2 = 0x62,
-    VK_NUMPAD3 = 0x63,
-    VK_NUMPAD4 = 0x64,
-    VK_NUMPAD5 = 0x65,
-    VK_NUMPAD6 = 0x66,
-    VK_NUMPAD7 = 0x67,
-    VK_NUMPAD8 = 0x68,
-    VK_NUMPAD9 = 0x69,
-    VK_MULTIPLY = 0x6a,
-    VK_ADD = 0x6b,
-    VK_SEPARATOR = 0x6c,
-    VK_SUBTRACT = 0x6d,
-    VK_DECIMAL = 0x6e,
-    VK_DIVIDE = 0x6f,
-    VK_F1 = 0x70,
-    VK_F2 = 0x71,
-    VK_F3 = 0x72,
-    VK_F4 = 0x73,
-    VK_F5 = 0x74,
-    VK_F6 = 0x75,
-    VK_F7 = 0x76,
-    VK_F8 = 0x77,
-    VK_F9 = 0x78,
-    VK_F10 = 0x79,
-    VK_F11 = 0x7a,
-    VK_F12 = 0x7b,
-    VK_F13 = 0x7c,
-    VK_F14 = 0x7d,
-    VK_F15 = 0x7e,
-    VK_F16 = 0x7f,
-    VK_F17 = 0x80,
-    VK_F18 = 0x81,
-    VK_F19 = 0x82,
-    VK_F20 = 0x83,
-    VK_F21 = 0x84,
-    VK_F22 = 0x85,
-    VK_F23 = 0x86,
-    VK_F24 = 0x87,
-    VK_NUMLOCK = 0x90,
-    VK_SCROLL = 0x91,
-    VK_LSHIFT = 0xa0,
-    VK_RSHIFT = 0xa1,
-    VK_LCONTROL = 0xa2,
-    VK_RCONTROL = 0xa3,
-    VK_LMENU = 0xa4,
-    VK_RMENU = 0xa5,
-    VK_OEM_1 = 0xba,
-    VK_OEM_PLUS = 0xbb,
-    VK_OEM_COMMA = 0xbc,
-    VK_OEM_MINUS = 0xbd,
-    VK_OEM_PERIOD = 0xbe,
-    VK_OEM_2 = 0xbf,
-    VK_OEM_3 = 0xc0,
-    VK_OEM_4 = 0xdb,
-    VK_OEM_5 = 0xdc,
-    VK_OEM_6 = 0xdd,
-    VK_OEM_7 = 0xde,
+    VkBack = 0x08,
+    VkTab = 0x09,
+    VkReturn = 0x0d,
+    VkPause = 0x13,
+    VkCapital = 0x14,
+    VkEscape = 0x1b,
+    VkSpace = 0x20,
+    VkPrior = 0x21,
+    VkNext = 0x22,
+    VkEnd = 0x23,
+    VkHome = 0x24,
+    VkLeft = 0x25,
+    VkUp = 0x26,
+    VkRight = 0x27,
+    VkDown = 0x28,
+    VkSnapshot = 0x2c,
+    VkInsert = 0x2d,
+    VkDelete = 0x2e,
+    VkLwin = 0x5b,
+    VkRwin = 0x5c,
+    VkApps = 0x5d,
+    VkNumpaD0 = 0x60,
+    VkNumpaD1 = 0x61,
+    VkNumpaD2 = 0x62,
+    VkNumpaD3 = 0x63,
+    VkNumpaD4 = 0x64,
+    VkNumpaD5 = 0x65,
+    VkNumpaD6 = 0x66,
+    VkNumpaD7 = 0x67,
+    VkNumpaD8 = 0x68,
+    VkNumpaD9 = 0x69,
+    VkMultiply = 0x6a,
+    VkAdd = 0x6b,
+    VkSeparator = 0x6c,
+    VkSubtract = 0x6d,
+    VkDecimal = 0x6e,
+    VkDivide = 0x6f,
+    VkF1 = 0x70,
+    VkF2 = 0x71,
+    VkF3 = 0x72,
+    VkF4 = 0x73,
+    VkF5 = 0x74,
+    VkF6 = 0x75,
+    VkF7 = 0x76,
+    VkF8 = 0x77,
+    VkF9 = 0x78,
+    VkF10 = 0x79,
+    VkF11 = 0x7a,
+    VkF12 = 0x7b,
+    VkF13 = 0x7c,
+    VkF14 = 0x7d,
+    VkF15 = 0x7e,
+    VkF16 = 0x7f,
+    VkF17 = 0x80,
+    VkF18 = 0x81,
+    VkF19 = 0x82,
+    VkF20 = 0x83,
+    VkF21 = 0x84,
+    VkF22 = 0x85,
+    VkF23 = 0x86,
+    VkF24 = 0x87,
+    VkNumlock = 0x90,
+    VkScroll = 0x91,
+    VkLshift = 0xa0,
+    VkRshift = 0xa1,
+    VkLcontrol = 0xa2,
+    VkRcontrol = 0xa3,
+    VkLmenu = 0xa4,
+    VkRmenu = 0xa5,
+    VkOem1 = 0xba,
+    VkOemPlus = 0xbb,
+    VkOemComma = 0xbc,
+    VkOemMinus = 0xbd,
+    VkOemPeriod = 0xbe,
+    VkOem2 = 0xbf,
+    VkOem3 = 0xc0,
+    VkOem4 = 0xdb,
+    VkOem5 = 0xdc,
+    VkOem6 = 0xdd,
+    VkOem7 = 0xde,
 };
 
-std::array<int, 256> build_vk_table() {
-    std::array<int, 256> table{};
+std::array<int, 256> buildVkTable()
+{
+    std::array<int, 256> table {};
     table.fill(static_cast<int>(Keycode::None));
 
-    table[VK_BACK] = static_cast<int>(Keycode::Backspace);
-    table[VK_TAB] = static_cast<int>(Keycode::Tab);
-    table[VK_RETURN] = static_cast<int>(Keycode::Enter);
-    table[VK_PAUSE] = static_cast<int>(Keycode::Pause);
-    table[VK_CAPITAL] = static_cast<int>(Keycode::CapsLock);
-    table[VK_ESCAPE] = static_cast<int>(Keycode::Escape);
-    table[VK_SPACE] = static_cast<int>(Keycode::Space);
-    table[VK_PRIOR] = static_cast<int>(Keycode::PageUp);
-    table[VK_NEXT] = static_cast<int>(Keycode::PageDown);
-    table[VK_END] = static_cast<int>(Keycode::End);
-    table[VK_HOME] = static_cast<int>(Keycode::Home);
-    table[VK_LEFT] = static_cast<int>(Keycode::LeftArrow);
-    table[VK_UP] = static_cast<int>(Keycode::UpArrow);
-    table[VK_RIGHT] = static_cast<int>(Keycode::RightArrow);
-    table[VK_DOWN] = static_cast<int>(Keycode::DownArrow);
-    table[VK_SNAPSHOT] = static_cast<int>(Keycode::PrintScreen);
-    table[VK_INSERT] = static_cast<int>(Keycode::Insert);
-    table[VK_DELETE] = static_cast<int>(Keycode::Delete);
+    table[VkBack] = static_cast<int>(Keycode::Backspace);
+    table[VkTab] = static_cast<int>(Keycode::Tab);
+    table[VkReturn] = static_cast<int>(Keycode::Enter);
+    table[VkPause] = static_cast<int>(Keycode::Pause);
+    table[VkCapital] = static_cast<int>(Keycode::CapsLock);
+    table[VkEscape] = static_cast<int>(Keycode::Escape);
+    table[VkSpace] = static_cast<int>(Keycode::Space);
+    table[VkPrior] = static_cast<int>(Keycode::PageUp);
+    table[VkNext] = static_cast<int>(Keycode::PageDown);
+    table[VkEnd] = static_cast<int>(Keycode::End);
+    table[VkHome] = static_cast<int>(Keycode::Home);
+    table[VkLeft] = static_cast<int>(Keycode::LeftArrow);
+    table[VkUp] = static_cast<int>(Keycode::UpArrow);
+    table[VkRight] = static_cast<int>(Keycode::RightArrow);
+    table[VkDown] = static_cast<int>(Keycode::DownArrow);
+    table[VkSnapshot] = static_cast<int>(Keycode::PrintScreen);
+    table[VkInsert] = static_cast<int>(Keycode::Insert);
+    table[VkDelete] = static_cast<int>(Keycode::Delete);
 
     table[0x30] = static_cast<int>(Keycode::Num0);
     table[0x31] = static_cast<int>(Keycode::Num1);
@@ -153,167 +155,254 @@ std::array<int, 256> build_vk_table() {
     table[0x59] = static_cast<int>(Keycode::Y);
     table[0x5a] = static_cast<int>(Keycode::Z);
 
-    table[VK_LWIN] = static_cast<int>(Keycode::LeftGUI);
-    table[VK_RWIN] = static_cast<int>(Keycode::RightGUI);
-    table[VK_APPS] = static_cast<int>(Keycode::Application);
+    table[VkLwin] = static_cast<int>(Keycode::LeftGUI);
+    table[VkRwin] = static_cast<int>(Keycode::RightGUI);
+    table[VkApps] = static_cast<int>(Keycode::Application);
 
-    table[VK_NUMPAD0] = static_cast<int>(Keycode::Keypad0);
-    table[VK_NUMPAD1] = static_cast<int>(Keycode::Keypad1);
-    table[VK_NUMPAD2] = static_cast<int>(Keycode::Keypad2);
-    table[VK_NUMPAD3] = static_cast<int>(Keycode::Keypad3);
-    table[VK_NUMPAD4] = static_cast<int>(Keycode::Keypad4);
-    table[VK_NUMPAD5] = static_cast<int>(Keycode::Keypad5);
-    table[VK_NUMPAD6] = static_cast<int>(Keycode::Keypad6);
-    table[VK_NUMPAD7] = static_cast<int>(Keycode::Keypad7);
-    table[VK_NUMPAD8] = static_cast<int>(Keycode::Keypad8);
-    table[VK_NUMPAD9] = static_cast<int>(Keycode::Keypad9);
-    table[VK_MULTIPLY] = static_cast<int>(Keycode::KeypadAsterisk);
-    table[VK_ADD] = static_cast<int>(Keycode::KeypadPlus);
-    table[VK_SEPARATOR] = static_cast<int>(Keycode::KeypadComma);
-    table[VK_SUBTRACT] = static_cast<int>(Keycode::KeypadMinus);
-    table[VK_DECIMAL] = static_cast<int>(Keycode::KeypadPeriod);
-    table[VK_DIVIDE] = static_cast<int>(Keycode::KeypadSlash);
+    table[VkNumpaD0] = static_cast<int>(Keycode::Keypad0);
+    table[VkNumpaD1] = static_cast<int>(Keycode::Keypad1);
+    table[VkNumpaD2] = static_cast<int>(Keycode::Keypad2);
+    table[VkNumpaD3] = static_cast<int>(Keycode::Keypad3);
+    table[VkNumpaD4] = static_cast<int>(Keycode::Keypad4);
+    table[VkNumpaD5] = static_cast<int>(Keycode::Keypad5);
+    table[VkNumpaD6] = static_cast<int>(Keycode::Keypad6);
+    table[VkNumpaD7] = static_cast<int>(Keycode::Keypad7);
+    table[VkNumpaD8] = static_cast<int>(Keycode::Keypad8);
+    table[VkNumpaD9] = static_cast<int>(Keycode::Keypad9);
+    table[VkMultiply] = static_cast<int>(Keycode::KeypadAsterisk);
+    table[VkAdd] = static_cast<int>(Keycode::KeypadPlus);
+    table[VkSeparator] = static_cast<int>(Keycode::KeypadComma);
+    table[VkSubtract] = static_cast<int>(Keycode::KeypadMinus);
+    table[VkDecimal] = static_cast<int>(Keycode::KeypadPeriod);
+    table[VkDivide] = static_cast<int>(Keycode::KeypadSlash);
 
-    table[VK_F1] = static_cast<int>(Keycode::F1);
-    table[VK_F2] = static_cast<int>(Keycode::F2);
-    table[VK_F3] = static_cast<int>(Keycode::F3);
-    table[VK_F4] = static_cast<int>(Keycode::F4);
-    table[VK_F5] = static_cast<int>(Keycode::F5);
-    table[VK_F6] = static_cast<int>(Keycode::F6);
-    table[VK_F7] = static_cast<int>(Keycode::F7);
-    table[VK_F8] = static_cast<int>(Keycode::F8);
-    table[VK_F9] = static_cast<int>(Keycode::F9);
-    table[VK_F10] = static_cast<int>(Keycode::F10);
-    table[VK_F11] = static_cast<int>(Keycode::F11);
-    table[VK_F12] = static_cast<int>(Keycode::F12);
-    table[VK_F13] = static_cast<int>(Keycode::F13);
-    table[VK_F14] = static_cast<int>(Keycode::F14);
-    table[VK_F15] = static_cast<int>(Keycode::F15);
-    table[VK_F16] = static_cast<int>(Keycode::F16);
-    table[VK_F17] = static_cast<int>(Keycode::F17);
-    table[VK_F18] = static_cast<int>(Keycode::F18);
-    table[VK_F19] = static_cast<int>(Keycode::F19);
-    table[VK_F20] = static_cast<int>(Keycode::F20);
-    table[VK_F21] = static_cast<int>(Keycode::F21);
-    table[VK_F22] = static_cast<int>(Keycode::F22);
-    table[VK_F23] = static_cast<int>(Keycode::F23);
-    table[VK_F24] = static_cast<int>(Keycode::F24);
+    table[VkF1] = static_cast<int>(Keycode::F1);
+    table[VkF2] = static_cast<int>(Keycode::F2);
+    table[VkF3] = static_cast<int>(Keycode::F3);
+    table[VkF4] = static_cast<int>(Keycode::F4);
+    table[VkF5] = static_cast<int>(Keycode::F5);
+    table[VkF6] = static_cast<int>(Keycode::F6);
+    table[VkF7] = static_cast<int>(Keycode::F7);
+    table[VkF8] = static_cast<int>(Keycode::F8);
+    table[VkF9] = static_cast<int>(Keycode::F9);
+    table[VkF10] = static_cast<int>(Keycode::F10);
+    table[VkF11] = static_cast<int>(Keycode::F11);
+    table[VkF12] = static_cast<int>(Keycode::F12);
+    table[VkF13] = static_cast<int>(Keycode::F13);
+    table[VkF14] = static_cast<int>(Keycode::F14);
+    table[VkF15] = static_cast<int>(Keycode::F15);
+    table[VkF16] = static_cast<int>(Keycode::F16);
+    table[VkF17] = static_cast<int>(Keycode::F17);
+    table[VkF18] = static_cast<int>(Keycode::F18);
+    table[VkF19] = static_cast<int>(Keycode::F19);
+    table[VkF20] = static_cast<int>(Keycode::F20);
+    table[VkF21] = static_cast<int>(Keycode::F21);
+    table[VkF22] = static_cast<int>(Keycode::F22);
+    table[VkF23] = static_cast<int>(Keycode::F23);
+    table[VkF24] = static_cast<int>(Keycode::F24);
 
-    table[VK_NUMLOCK] = static_cast<int>(Keycode::NumLock);
-    table[VK_SCROLL] = static_cast<int>(Keycode::ScrollLock);
+    table[VkNumlock] = static_cast<int>(Keycode::NumLock);
+    table[VkScroll] = static_cast<int>(Keycode::ScrollLock);
 
-    table[VK_LSHIFT] = static_cast<int>(Keycode::LeftShift);
-    table[VK_RSHIFT] = static_cast<int>(Keycode::RightShift);
-    table[VK_LCONTROL] = static_cast<int>(Keycode::LeftControl);
-    table[VK_RCONTROL] = static_cast<int>(Keycode::RightControl);
-    table[VK_LMENU] = static_cast<int>(Keycode::LeftAlt);
-    table[VK_RMENU] = static_cast<int>(Keycode::RightAlt);
+    table[VkLshift] = static_cast<int>(Keycode::LeftShift);
+    table[VkRshift] = static_cast<int>(Keycode::RightShift);
+    table[VkLcontrol] = static_cast<int>(Keycode::LeftControl);
+    table[VkRcontrol] = static_cast<int>(Keycode::RightControl);
+    table[VkLmenu] = static_cast<int>(Keycode::LeftAlt);
+    table[VkRmenu] = static_cast<int>(Keycode::RightAlt);
 
-    table[VK_OEM_1] = static_cast<int>(Keycode::Semicolon);
-    table[VK_OEM_PLUS] = static_cast<int>(Keycode::Equal);
-    table[VK_OEM_COMMA] = static_cast<int>(Keycode::Comma);
-    table[VK_OEM_MINUS] = static_cast<int>(Keycode::Minus);
-    table[VK_OEM_PERIOD] = static_cast<int>(Keycode::Period);
-    table[VK_OEM_2] = static_cast<int>(Keycode::Slash);
-    table[VK_OEM_3] = static_cast<int>(Keycode::Grave);
-    table[VK_OEM_4] = static_cast<int>(Keycode::LeftBracket);
-    table[VK_OEM_5] = static_cast<int>(Keycode::Backslash);
-    table[VK_OEM_6] = static_cast<int>(Keycode::RightBracket);
-    table[VK_OEM_7] = static_cast<int>(Keycode::Apostrophe);
+    table[VkOem1] = static_cast<int>(Keycode::Semicolon);
+    table[VkOemPlus] = static_cast<int>(Keycode::Equal);
+    table[VkOemComma] = static_cast<int>(Keycode::Comma);
+    table[VkOemMinus] = static_cast<int>(Keycode::Minus);
+    table[VkOemPeriod] = static_cast<int>(Keycode::Period);
+    table[VkOem2] = static_cast<int>(Keycode::Slash);
+    table[VkOem3] = static_cast<int>(Keycode::Grave);
+    table[VkOem4] = static_cast<int>(Keycode::LeftBracket);
+    table[VkOem5] = static_cast<int>(Keycode::Backslash);
+    table[VkOem6] = static_cast<int>(Keycode::RightBracket);
+    table[VkOem7] = static_cast<int>(Keycode::Apostrophe);
 
     return table;
 }
 
-const std::array<int, 256>& vk_table() {
-    static const std::array<int, 256> table = build_vk_table();
+const std::array<int, 256>& vkTable()
+{
+    static const std::array<int, 256> table = buildVkTable();
     return table;
 }
 
-const std::unordered_map<std::string_view, int>& key_name_table() {
+const std::unordered_map<std::string_view, int>& keyNameTable()
+{
     static const std::unordered_map<std::string_view, int> table = {
         // Letters
-        {"A", 0x41}, {"B", 0x42}, {"C", 0x43}, {"D", 0x44}, {"E", 0x45},
-        {"F", 0x46}, {"G", 0x47}, {"H", 0x48}, {"I", 0x49}, {"J", 0x4a},
-        {"K", 0x4b}, {"L", 0x4c}, {"M", 0x4d}, {"N", 0x4e}, {"O", 0x4f},
-        {"P", 0x50}, {"Q", 0x51}, {"R", 0x52}, {"S", 0x53}, {"T", 0x54},
-        {"U", 0x55}, {"V", 0x56}, {"W", 0x57}, {"X", 0x58}, {"Y", 0x59},
-        {"Z", 0x5a},
+        { "A", 0x41 },
+        { "B", 0x42 },
+        { "C", 0x43 },
+        { "D", 0x44 },
+        { "E", 0x45 },
+        { "F", 0x46 },
+        { "G", 0x47 },
+        { "H", 0x48 },
+        { "I", 0x49 },
+        { "J", 0x4a },
+        { "K", 0x4b },
+        { "L", 0x4c },
+        { "M", 0x4d },
+        { "N", 0x4e },
+        { "O", 0x4f },
+        { "P", 0x50 },
+        { "Q", 0x51 },
+        { "R", 0x52 },
+        { "S", 0x53 },
+        { "T", 0x54 },
+        { "U", 0x55 },
+        { "V", 0x56 },
+        { "W", 0x57 },
+        { "X", 0x58 },
+        { "Y", 0x59 },
+        { "Z", 0x5a },
         // Numbers
-        {"D0", 0x30}, {"D1", 0x31}, {"D2", 0x32}, {"D3", 0x33}, {"D4", 0x34},
-        {"D5", 0x35}, {"D6", 0x36}, {"D7", 0x37}, {"D8", 0x38}, {"D9", 0x39},
+        { "D0", 0x30 },
+        { "D1", 0x31 },
+        { "D2", 0x32 },
+        { "D3", 0x33 },
+        { "D4", 0x34 },
+        { "D5", 0x35 },
+        { "D6", 0x36 },
+        { "D7", 0x37 },
+        { "D8", 0x38 },
+        { "D9", 0x39 },
         // Function keys
-        {"F1", VK_F1}, {"F2", VK_F2}, {"F3", VK_F3}, {"F4", VK_F4},
-        {"F5", VK_F5}, {"F6", VK_F6}, {"F7", VK_F7}, {"F8", VK_F8},
-        {"F9", VK_F9}, {"F10", VK_F10}, {"F11", VK_F11}, {"F12", VK_F12},
-        {"F13", VK_F13}, {"F14", VK_F14}, {"F15", VK_F15}, {"F16", VK_F16},
-        {"F17", VK_F17}, {"F18", VK_F18}, {"F19", VK_F19}, {"F20", VK_F20},
-        {"F21", VK_F21}, {"F22", VK_F22}, {"F23", VK_F23}, {"F24", VK_F24},
+        { "F1", VkF1 },
+        { "F2", VkF2 },
+        { "F3", VkF3 },
+        { "F4", VkF4 },
+        { "F5", VkF5 },
+        { "F6", VkF6 },
+        { "F7", VkF7 },
+        { "F8", VkF8 },
+        { "F9", VkF9 },
+        { "F10", VkF10 },
+        { "F11", VkF11 },
+        { "F12", VkF12 },
+        { "F13", VkF13 },
+        { "F14", VkF14 },
+        { "F15", VkF15 },
+        { "F16", VkF16 },
+        { "F17", VkF17 },
+        { "F18", VkF18 },
+        { "F19", VkF19 },
+        { "F20", VkF20 },
+        { "F21", VkF21 },
+        { "F22", VkF22 },
+        { "F23", VkF23 },
+        { "F24", VkF24 },
         // Control keys
-        {"Back", VK_BACK}, {"Tab", VK_TAB}, {"Enter", VK_RETURN},
-        {"Return", VK_RETURN}, {"Pause", VK_PAUSE}, {"Capital", VK_CAPITAL},
-        {"CapsLock", VK_CAPITAL}, {"Escape", VK_ESCAPE}, {"Space", VK_SPACE},
-        {"PageUp", VK_PRIOR}, {"PageDown", VK_NEXT}, {"End", VK_END},
-        {"Home", VK_HOME}, {"Left", VK_LEFT}, {"Up", VK_UP}, {"Right", VK_RIGHT},
-        {"Down", VK_DOWN}, {"PrintScreen", VK_SNAPSHOT}, {"Snapshot", VK_SNAPSHOT},
-        {"Insert", VK_INSERT}, {"Delete", VK_DELETE}, {"LWin", VK_LWIN},
-        {"RWin", VK_RWIN}, {"Apps", VK_APPS}, {"NumLock", VK_NUMLOCK},
-        {"Scroll", VK_SCROLL},
+        { "Back", VkBack },
+        { "Tab", VkTab },
+        { "Enter", VkReturn },
+        { "Return", VkReturn },
+        { "Pause", VkPause },
+        { "Capital", VkCapital },
+        { "CapsLock", VkCapital },
+        { "Escape", VkEscape },
+        { "Space", VkSpace },
+        { "PageUp", VkPrior },
+        { "PageDown", VkNext },
+        { "End", VkEnd },
+        { "Home", VkHome },
+        { "Left", VkLeft },
+        { "Up", VkUp },
+        { "Right", VkRight },
+        { "Down", VkDown },
+        { "PrintScreen", VkSnapshot },
+        { "Snapshot", VkSnapshot },
+        { "Insert", VkInsert },
+        { "Delete", VkDelete },
+        { "LWin", VkLwin },
+        { "RWin", VkRwin },
+        { "Apps", VkApps },
+        { "NumLock", VkNumlock },
+        { "Scroll", VkScroll },
         // Numpad
-        {"NumPad0", VK_NUMPAD0}, {"NumPad1", VK_NUMPAD1}, {"NumPad2", VK_NUMPAD2},
-        {"NumPad3", VK_NUMPAD3}, {"NumPad4", VK_NUMPAD4}, {"NumPad5", VK_NUMPAD5},
-        {"NumPad6", VK_NUMPAD6}, {"NumPad7", VK_NUMPAD7}, {"NumPad8", VK_NUMPAD8},
-        {"NumPad9", VK_NUMPAD9}, {"Multiply", VK_MULTIPLY}, {"Add", VK_ADD},
-        {"Separator", VK_SEPARATOR}, {"Subtract", VK_SUBTRACT},
-        {"Decimal", VK_DECIMAL}, {"Divide", VK_DIVIDE},
+        { "NumPad0", VkNumpaD0 },
+        { "NumPad1", VkNumpaD1 },
+        { "NumPad2", VkNumpaD2 },
+        { "NumPad3", VkNumpaD3 },
+        { "NumPad4", VkNumpaD4 },
+        { "NumPad5", VkNumpaD5 },
+        { "NumPad6", VkNumpaD6 },
+        { "NumPad7", VkNumpaD7 },
+        { "NumPad8", VkNumpaD8 },
+        { "NumPad9", VkNumpaD9 },
+        { "Multiply", VkMultiply },
+        { "Add", VkAdd },
+        { "Separator", VkSeparator },
+        { "Subtract", VkSubtract },
+        { "Decimal", VkDecimal },
+        { "Divide", VkDivide },
         // Modifiers
-        {"LShiftKey", VK_LSHIFT}, {"RShiftKey", VK_RSHIFT},
-        {"LControlKey", VK_LCONTROL}, {"RControlKey", VK_RCONTROL},
-        {"LMenu", VK_LMENU}, {"RMenu", VK_RMENU},
+        { "LShiftKey", VkLshift },
+        { "RShiftKey", VkRshift },
+        { "LControlKey", VkLcontrol },
+        { "RControlKey", VkRcontrol },
+        { "LMenu", VkLmenu },
+        { "RMenu", VkRmenu },
         // OEM keys
-        {"OemSemicolon", VK_OEM_1}, {"Oem1", VK_OEM_1},
-        {"Oemplus", VK_OEM_PLUS}, {"Oemcomma", VK_OEM_COMMA},
-        {"OemMinus", VK_OEM_MINUS}, {"OemPeriod", VK_OEM_PERIOD},
-        {"OemQuestion", VK_OEM_2}, {"Oem2", VK_OEM_2},
-        {"Oemtilde", VK_OEM_3}, {"Oem3", VK_OEM_3},
-        {"OemOpenBrackets", VK_OEM_4}, {"Oem4", VK_OEM_4},
-        {"OemPipe", VK_OEM_5}, {"Oem5", VK_OEM_5},
-        {"OemCloseBrackets", VK_OEM_6}, {"Oem6", VK_OEM_6},
-        {"OemQuotes", VK_OEM_7}, {"Oem7", VK_OEM_7},
+        { "OemSemicolon", VkOem1 },
+        { "Oem1", VkOem1 },
+        { "Oemplus", VkOemPlus },
+        { "Oemcomma", VkOemComma },
+        { "OemMinus", VkOemMinus },
+        { "OemPeriod", VkOemPeriod },
+        { "OemQuestion", VkOem2 },
+        { "Oem2", VkOem2 },
+        { "Oemtilde", VkOem3 },
+        { "Oem3", VkOem3 },
+        { "OemOpenBrackets", VkOem4 },
+        { "Oem4", VkOem4 },
+        { "OemPipe", VkOem5 },
+        { "Oem5", VkOem5 },
+        { "OemCloseBrackets", VkOem6 },
+        { "Oem6", VkOem6 },
+        { "OemQuotes", VkOem7 },
+        { "Oem7", VkOem7 },
     };
     return table;
 }
 
 } // namespace
 
-std::string_view keycode_name(int code) {
+std::string_view keycodeName(int code)
+{
     if (code < 0)
         return "Unknown";
-    if (code >= static_cast<int>(Keycode::Button1) &&
-        code <= static_cast<int>(Keycode::HatW))
-        return keycode_to_string(static_cast<Keycode>(code));
-    if (code >= static_cast<int>(Keycode::LeftClick) &&
-        code <= static_cast<int>(Keycode::MouseForward))
-        return keycode_to_string(static_cast<Keycode>(code));
-    if (code >= static_cast<int>(Keycode::LeftControl) &&
-        code <= static_cast<int>(Keycode::RightGUI))
-        return keycode_to_string(static_cast<Keycode>(code));
+    if (code >= static_cast<int>(Keycode::Button1) && code <= static_cast<int>(Keycode::HatW))
+        return keycodeToString(static_cast<Keycode>(code));
+    if (code >= static_cast<int>(Keycode::LeftClick) && code <= static_cast<int>(Keycode::MouseForward))
+        return keycodeToString(static_cast<Keycode>(code));
+    if (code >= static_cast<int>(Keycode::LeftControl) && code <= static_cast<int>(Keycode::RightGUI))
+        return keycodeToString(static_cast<Keycode>(code));
     if (code >= 0 && code <= static_cast<int>(Keycode::ExSel))
-        return keycode_to_string(static_cast<Keycode>(code));
+        return keycodeToString(static_cast<Keycode>(code));
     return "Unknown";
 }
 
-int vk_to_keycode(int vk) {
-    if (vk < 0 || vk >= static_cast<int>(vk_table().size()))
+int vkToKeycode(int vk)
+{
+    if (vk < 0 || std::cmp_greater_equal(vk, vkTable().size()))
         return static_cast<int>(Keycode::None);
-    return vk_table()[static_cast<std::size_t>(vk)];
+    return vkTable()[static_cast<std::size_t>(vk)];
 }
 
-int key_name_to_vk(std::string_view name) {
-    const auto& table = key_name_table();
+int keyNameToVk(std::string_view name)
+{
+    const auto& table = keyNameTable();
     const auto it = table.find(name);
     if (it == table.end())
         return -1;
     return it->second;
 }
 
-} // namespace kbi
+} // namespace Kbi

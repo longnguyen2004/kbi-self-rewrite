@@ -1,20 +1,20 @@
 #include "device_name.h"
 #include "wstring.h"
+#include <cfgmgr32.h>
+#include <devguid.h>
+#include <devpkey.h>
+#include <hidsdi.h>
+#include <initguid.h>
+#include <setupapi.h>
+#include <usbioctl.h>
+#include <usbiodef.h>
+#include <wdmguid.h>
 #include <wil/resource.h>
 #include <wil/result.h>
 #include <windows.h>
-#include <hidsdi.h>
-#include <setupapi.h>
-#include <cfgmgr32.h>
-#include <initguid.h>
-#include <devguid.h>
-#include <devpkey.h>
-#include <usbiodef.h>
-#include <usbioctl.h>
-#include <wdmguid.h>
 
-#include <boost/algorithm/string.hpp>
 #include <algorithm>
+#include <boost/algorithm/string.hpp>
 #include <charconv>
 #include <optional>
 #include <vector>
@@ -28,8 +28,7 @@ std::string hid_product_string_from_device_path(std::wstring_view wid)
         nullptr,
         OPEN_EXISTING,
         0,
-        nullptr
-    ));
+        nullptr));
     if (devHandle.get() == INVALID_HANDLE_VALUE)
         return "Unknown";
 
@@ -58,7 +57,7 @@ std::string hid_product_string_from_pnp(std::wstring_view wid)
     if (!devInfoSet)
         return "Unknown";
 
-    SP_DEVICE_INTERFACE_DATA deviceInterfaceData{0};
+    SP_DEVICE_INTERFACE_DATA deviceInterfaceData { 0 };
     deviceInterfaceData.cbSize = sizeof(SP_DEVICE_INTERFACE_DATA);
 
     if (SetupDiEnumDeviceInterfaces(devInfoSet, nullptr, &hidGuid, 0, &deviceInterfaceData) == FALSE)
@@ -66,16 +65,17 @@ std::string hid_product_string_from_pnp(std::wstring_view wid)
 
     DWORD requiredSize;
     if (SetupDiGetDeviceInterfaceDetailW(
-        devInfoSet, &deviceInterfaceData, nullptr, 0, &requiredSize, nullptr
-    ) == FALSE && GetLastError() != ERROR_INSUFFICIENT_BUFFER)
+            devInfoSet, &deviceInterfaceData, nullptr, 0, &requiredSize, nullptr)
+            == FALSE
+        && GetLastError() != ERROR_INSUFFICIENT_BUFFER)
         return "Unknown";
 
     std::vector<unsigned char> detailData(requiredSize);
     auto detailDataPtr = reinterpret_cast<PSP_DEVICE_INTERFACE_DETAIL_DATA_W>(detailData.data());
     detailDataPtr->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA_W);
     if (SetupDiGetDeviceInterfaceDetailW(
-        devInfoSet, &deviceInterfaceData, detailDataPtr, requiredSize, nullptr, nullptr
-    ) == FALSE)
+            devInfoSet, &deviceInterfaceData, detailDataPtr, requiredSize, nullptr, nullptr)
+        == FALSE)
         return "Unknown";
 
     return hid_product_string_from_device_path(detailDataPtr->DevicePath);
@@ -108,15 +108,15 @@ std::optional<std::string> find_usb_device(std::wstring_view wid)
     GUID busTypeGuid;
     ULONG size = sizeof(busTypeGuid);
     if (CM_Get_DevNode_PropertyW(
-        current, &DEVPKEY_Device_BusTypeGuid, &propType, reinterpret_cast<PBYTE>(&busTypeGuid), &size, 0
-    ) != CR_SUCCESS || propType != DEVPROP_TYPE_GUID)
+            current, &DEVPKEY_Device_BusTypeGuid, &propType, reinterpret_cast<PBYTE>(&busTypeGuid), &size, 0)
+            != CR_SUCCESS
+        || propType != DEVPROP_TYPE_GUID)
         return {};
     if (!IsEqualGUID(busTypeGuid, GUID_BUS_TYPE_USB))
         return {};
 
     // This is a USB device, walk up the tree to find the hub
-    while (true)
-    {
+    while (true) {
         if (CM_Get_Parent(&parent, current, 0) != CR_SUCCESS)
             return {};
         DEVPROPTYPE propType;
@@ -126,15 +126,16 @@ std::optional<std::string> find_usb_device(std::wstring_view wid)
             return {};
         std::wstring service(size / 2, 0);
         if (CM_Get_DevNode_PropertyW(
-            parent, &DEVPKEY_Device_Service, &propType, reinterpret_cast<PBYTE>(service.data()), &size, 0
-        ) != CR_SUCCESS || propType != DEVPROP_TYPE_STRING)
+                parent, &DEVPKEY_Device_Service, &propType, reinterpret_cast<PBYTE>(service.data()), &size, 0)
+                != CR_SUCCESS
+            || propType != DEVPROP_TYPE_STRING)
             return {};
         if (boost::ifind_first(service, L"usbhub"))
             // Found the hub, parent will be the hub, current will the be (composite) device
             break;
         current = parent;
     }
-    
+
     // Get the USB device ID
     ULONG deviceIdSize = 0;
     if (CM_Get_Device_ID_Size(&deviceIdSize, current, 0) != CR_SUCCESS)
@@ -168,16 +169,16 @@ std::optional<UsbDeviceInfo> get_usb_device_info(std::wstring_view wid)
         return {};
     std::wstring locationInfo(size / 2, 0);
     if (CM_Get_DevNode_PropertyW(
-        current, &DEVPKEY_Device_LocationInfo, &propType, reinterpret_cast<PBYTE>(locationInfo.data()), &size, 0
-    ) != CR_SUCCESS || propType != DEVPROP_TYPE_STRING)
+            current, &DEVPKEY_Device_LocationInfo, &propType, reinterpret_cast<PBYTE>(locationInfo.data()), &size, 0)
+            != CR_SUCCESS
+        || propType != DEVPROP_TYPE_STRING)
         return {};
     locationInfo = locationInfo.substr(
-        locationInfo.find(L"Port_#") + 6, 4
-    );
+        locationInfo.find(L"Port_#") + 6, 4);
     int port = _wtoi(locationInfo.c_str());
     if (!port)
         return {};
-    
+
     // Get the hub device ID
     ULONG deviceIdSize = 0;
     if (CM_Get_Device_ID_Size(&deviceIdSize, parent, 0) != CR_SUCCESS)
@@ -185,8 +186,7 @@ std::optional<UsbDeviceInfo> get_usb_device_info(std::wstring_view wid)
     std::wstring hubDeviceId(deviceIdSize, 0);
     if (CM_Get_Device_IDW(parent, hubDeviceId.data(), deviceIdSize, 0) != CR_SUCCESS)
         return {};
-    for (auto& c: hubDeviceId)
-    {
+    for (auto& c : hubDeviceId) {
         if (c == L'\\')
             c = L'#';
     }
@@ -200,8 +200,7 @@ std::optional<UsbDeviceInfo> get_usb_device_info(std::wstring_view wid)
         nullptr,
         OPEN_EXISTING,
         0,
-        nullptr
-    ));
+        nullptr));
     if (hHubDevice.get() == INVALID_HANDLE_VALUE)
         return {};
 
@@ -220,8 +219,7 @@ std::optional<UsbDeviceInfo> get_usb_device_info(std::wstring_view wid)
         connectionInfoEx,
         confInfoExSize,
         &bytesReturned,
-        nullptr
-    );
+        nullptr);
     if (success == FALSE)
         return {};
     auto speed = connectionInfoEx->Speed;
@@ -229,8 +227,7 @@ std::optional<UsbDeviceInfo> get_usb_device_info(std::wstring_view wid)
     auto deviceDescriptorPtr = reinterpret_cast<unsigned char*>(&deviceDescriptor);
     std::vector<unsigned char> descriptors(
         deviceDescriptorPtr,
-        deviceDescriptorPtr + deviceDescriptor.bLength
-    );
+        deviceDescriptorPtr + deviceDescriptor.bLength);
 
     // Get configuration descriptor
     ULONG confDescReqSize = sizeof(USB_DESCRIPTOR_REQUEST) + sizeof(USB_CONFIGURATION_DESCRIPTOR);
@@ -250,8 +247,7 @@ std::optional<UsbDeviceInfo> get_usb_device_info(std::wstring_view wid)
         confDescReq,
         confDescReqSize,
         &bytesReturned,
-        nullptr
-    );
+        nullptr);
     if (success == FALSE)
         return {};
 
@@ -273,17 +269,15 @@ std::optional<UsbDeviceInfo> get_usb_device_info(std::wstring_view wid)
         confDescReq,
         confDescReqSize,
         &bytesReturned,
-        nullptr
-    );
+        nullptr);
     if (success == FALSE)
         return {};
-    
+
     descriptors.insert(
         descriptors.end(),
         reinterpret_cast<unsigned char*>(confDesc),
-        reinterpret_cast<unsigned char*>(confDesc) + bytesReturned
-    );
-    return UsbDeviceInfo{
+        reinterpret_cast<unsigned char*>(confDesc) + bytesReturned);
+    return UsbDeviceInfo {
         .VID = deviceDescriptor.idVendor,
         .PID = deviceDescriptor.idProduct,
         .Speed = static_cast<UsbDeviceSpeed>(speed + 1),

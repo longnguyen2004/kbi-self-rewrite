@@ -1,20 +1,23 @@
 #include "device_name.h"
+#include <array>
 #include <cstdio>
 #include <cstring>
-#include <fstream>
-#include <vector>
-#include <tuple>
-#include <filesystem>
 #include <fcntl.h>
-#include <unistd.h>
+#include <filesystem>
+#include <fstream>
 #include <linux/limits.h>
+#include <tuple>
+#include <unistd.h>
+#include <vector>
 
 namespace fs = std::filesystem;
 
-static std::optional<std::string> read_sysfs_attr(std::string_view path, const char* attr)
+namespace {
+
+std::optional<std::string> readSysfsAttr(std::string_view path, const char* attr)
 {
-    auto file_path = (fs::path(path) / attr).string();
-    std::ifstream file(file_path);
+    auto filePath = (fs::path(path) / attr).string();
+    std::ifstream file(filePath);
     if (!file)
         return std::nullopt;
     std::string value;
@@ -26,21 +29,21 @@ static std::optional<std::string> read_sysfs_attr(std::string_view path, const c
 
 // Read a sysfs symlink (subsystem, driver) and return its basename.
 // e.g. readlink("/sys/.../subsystem") -> "../../../../bus/hid" -> "hid"
-static std::string read_sysfs_link_basename(std::string_view path, const char* attr)
+std::string readSysfsLinkBasename(std::string_view path, const char* attr)
 {
-    auto file_path = (fs::path(path) / attr).string();
-    char buf[PATH_MAX];
-    ssize_t len = readlink(file_path.c_str(), buf, sizeof(buf) - 1);
+    auto filePath = (fs::path(path) / attr).string();
+    std::array<char, PATH_MAX> buf {};
+    ssize_t len = readlink(filePath.c_str(), buf.data(), buf.size() - 1);
     if (len < 0)
         return {};
     buf[len] = '\0';
-    return fs::path(std::string_view(buf, len)).filename().string();
+    return fs::path(std::string_view(buf.data(), len)).filename().string();
 }
 
 // Convert a /dev/input/... path (or /dev/input/by-id/...) to its
 // corresponding sysfs path via /sys/class/input/<basename>.
 // If path is already a sysfs path, just canonicalize it.
-static bool is_sysfs_path(std::string_view path)
+bool isSysfsPath(std::string_view path)
 {
     fs::path p(path);
     auto it = p.begin();
@@ -50,26 +53,25 @@ static bool is_sysfs_path(std::string_view path)
     return it != p.end() && *it == "sys";
 }
 
-static std::optional<std::string> dev_to_syspath(std::string_view path)
+std::optional<std::string> devToSyspath(std::string_view path)
 {
-    if (is_sysfs_path(path))
-    {
-        char resolved[PATH_MAX];
-        if (!realpath(std::string(path).data(), resolved))
+    if (isSysfsPath(path)) {
+        std::array<char, PATH_MAX> resolved {};
+        if (realpath(std::string(path).data(), resolved.data()) == nullptr)
             return std::nullopt;
-        return std::string(resolved);
+        return std::string(resolved.data());
     }
 
-    char dev_real[PATH_MAX];
-    if (!realpath(std::string(path).data(), dev_real))
+    std::array<char, PATH_MAX> devReal {};
+    if (realpath(std::string(path).data(), devReal.data()) == nullptr)
         return std::nullopt;
 
-    std::string basename = fs::path(dev_real).filename().string();
+    std::string basename = fs::path(devReal.data()).filename().string();
     // All recorder devices are evdev events under /sys/class/input
-    auto class_path = (fs::path("/sys/class/input") / basename).string();
-    char sys_real[PATH_MAX];
-    if (realpath(class_path.c_str(), sys_real))
-        return std::string(sys_real);
+    auto classPath = (fs::path("/sys/class/input") / basename).string();
+    std::array<char, PATH_MAX> sysReal {};
+    if (realpath(classPath.c_str(), sysReal.data()) != nullptr)
+        return std::string(sysReal.data());
 
     // Fallback: maybe the path was already a sysfs-like path that
     // just wasn't under /sys/class/input (e.g. hidraw). Try direct
@@ -79,42 +81,48 @@ static std::optional<std::string> dev_to_syspath(std::string_view path)
 
 // Get parent device, mimicking sd_device_get_parent(): follow the
 // "device" symlink if present, otherwise use filesystem parent.
-static std::string get_parent_device(const std::string& cur)
+std::string getParentDevice(const std::string& cur)
 {
-    auto device_link = (fs::path(cur) / "device").string();
-    char resolved[PATH_MAX];
-    if (realpath(device_link.c_str(), resolved))
-        return std::string(resolved);
+    auto deviceLink = (fs::path(cur) / "device").string();
+    std::array<char, PATH_MAX> resolved {};
+    if (realpath(deviceLink.c_str(), resolved.data()) != nullptr)
+        return { resolved.data() };
     return fs::path(cur).parent_path().string();
 }
 
-std::tuple<const char*, const char*> subsys_driver_chain[] = {
-    { "input", "" },
-    { "input", "" },
-    { "hid", "hid-generic" },
-    { "usb", "usbhid" },
+struct SubsysDriver {
+    const char* subsys;
+    const char* driver;
 };
 
-std::optional<std::string> find_usb_device(std::string_view path)
+constexpr auto subsysDriverChain = std::to_array<SubsysDriver>({
+    { .subsys = "input", .driver = "" },
+    { .subsys = "input", .driver = "" },
+    { .subsys = "hid", .driver = "hid-generic" },
+    { .subsys = "usb", .driver = "usbhid" },
+});
+
+} // namespace
+
+std::optional<std::string> findUsbDevice(std::string_view path)
 {
-    auto syspath = dev_to_syspath(path);
+    auto syspath = devToSyspath(path);
     if (!syspath)
         return {};
     std::string current = *syspath;
 
-    for (auto& [subsys, driver] : subsys_driver_chain)
-    {
-        auto device_subsys = read_sysfs_link_basename(current, "subsystem");
-        if (device_subsys.empty())
+    for (const auto& [subsys, driver] : subsysDriverChain) {
+        auto deviceSubsys = readSysfsLinkBasename(current, "subsystem");
+        if (deviceSubsys.empty())
             return {};
-        auto device_driver = read_sysfs_link_basename(current, "driver");
+        auto deviceDriver = readSysfsLinkBasename(current, "driver");
 
-        if (std::strcmp(subsys, device_subsys.c_str()) != 0)
+        if (std::strcmp(subsys, deviceSubsys.c_str()) != 0)
             return {};
-        if (std::strcmp(driver, device_driver.c_str()) != 0)
+        if (std::strcmp(driver, deviceDriver.c_str()) != 0)
             return {};
 
-        auto parent = get_parent_device(current);
+        auto parent = getParentDevice(current);
         if (parent == current || parent.empty())
             return {};
         current = std::move(parent);
@@ -123,72 +131,67 @@ std::optional<std::string> find_usb_device(std::string_view path)
     return current;
 }
 
-std::optional<UsbDeviceInfo> get_usb_device_info(std::string_view path)
+std::optional<UsbDeviceInfo> getUsbDeviceInfo(std::string_view path)
 {
     UsbDeviceInfo devInfo;
 
-    auto vid_str = read_sysfs_attr(path, "idVendor");
-    if (!vid_str)
+    auto vidStr = readSysfsAttr(path, "idVendor");
+    if (!vidStr)
         return {};
-    devInfo.VID = std::strtoul(vid_str->c_str(), nullptr, 16);
+    devInfo.vid = std::strtoul(vidStr->c_str(), nullptr, 16);
 
-    auto pid_str = read_sysfs_attr(path, "idProduct");
-    if (!pid_str)
+    auto pidStr = readSysfsAttr(path, "idProduct");
+    if (!pidStr)
         return {};
-    devInfo.PID = std::strtoul(pid_str->c_str(), nullptr, 16);
+    devInfo.pid = std::strtoul(pidStr->c_str(), nullptr, 16);
 
-    auto speed_str = read_sysfs_attr(path, "speed");
-    if (!speed_str)
+    auto speedStr = readSysfsAttr(path, "speed");
+    if (!speedStr)
         return {};
-    if (*speed_str == "1.5")
-        devInfo.Speed = UsbDeviceSpeed::LOW_SPEED;
-    else if (*speed_str == "12")
-        devInfo.Speed = UsbDeviceSpeed::FULL_SPEED;
-    else if (*speed_str == "480")
-        devInfo.Speed = UsbDeviceSpeed::HIGH_SPEED;
+    if (*speedStr == "1.5")
+        devInfo.speed = UsbDeviceSpeed::LowSpeed;
+    else if (*speedStr == "12")
+        devInfo.speed = UsbDeviceSpeed::FullSpeed;
+    else if (*speedStr == "480")
+        devInfo.speed = UsbDeviceSpeed::HighSpeed;
     else
-        devInfo.Speed = UsbDeviceSpeed::SUPERSPEED;
+        devInfo.speed = UsbDeviceSpeed::SUPERSPEED;
 
-    auto descriptor_path = (fs::path(path) / "descriptors").string();
-    auto fd = open(descriptor_path.c_str(), O_RDONLY);
-    if (fd >= 0)
-    {
+    auto descriptorPath = (fs::path(path) / "descriptors").string();
+    auto fd = open(descriptorPath.c_str(), O_RDONLY);
+    if (fd >= 0) {
         std::vector<unsigned char> descriptors;
-        unsigned char buf[1024];
+        std::array<unsigned char, 1024> buf {};
         int ret;
-        while (true)
-        {
-            ret = read(fd, buf, sizeof(buf));
-            if (ret < 0)
-            {
+        while (true) {
+            ret = read(fd, buf.data(), buf.size());
+            if (ret < 0) {
                 break;
             }
-            else if (ret == 0)
-            {
-                devInfo.Descriptors = descriptors;
+            if (ret == 0) {
+                devInfo.descriptors = std::move(descriptors);
                 break;
             }
-            descriptors.insert(descriptors.end(), buf, buf + ret);
+            descriptors.insert(descriptors.end(), buf.begin(), buf.begin() + ret);
         }
         close(fd);
     }
     return devInfo;
 }
 
-std::string device_name_from_path(std::string_view path)
+std::string deviceNameFromPath(std::string_view path)
 {
-    auto syspath = dev_to_syspath(path);
+    auto syspath = devToSyspath(path);
     if (!syspath)
         return "Unknown";
 
     std::string current = *syspath;
-    for (int i = 0; i < 10; ++i)
-    {
-        auto name = read_sysfs_attr(current, "name");
+    for (int i = 0; i < 10; ++i) {
+        auto name = readSysfsAttr(current, "name");
         if (name)
             return *name;
 
-        auto parent = get_parent_device(current);
+        auto parent = getParentDevice(current);
         if (parent == current || parent.empty())
             break;
         current = std::move(parent);

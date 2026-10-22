@@ -1,56 +1,54 @@
 #include "../serializer/serializer.h"
 #include <recorder.h>
+#include <atomic>
 #include <boost/json/fwd.hpp>
-#include <spdlog/fwd.h>
 #include <ixwebsocket/IXWebSocket.h>
 #include <ixwebsocket/IXWebSocketServer.h>
-#include <atomic>
 #include <mutex>
+#include <spdlog/fwd.h>
 #include <string_view>
+#include <utility>
 
-class Controller
-{
+class Controller {
 public:
-    Controller(Recorder& recorder, std::shared_ptr<spdlog::logger> logger):
-        m_recorder(recorder), m_logger(logger) {};
-    virtual void Run() = 0;
+    Controller(Recorder& recorder, std::shared_ptr<spdlog::logger> logger)
+        : m_recorder(recorder)
+        , m_logger(std::move(logger)) { };
+    virtual void run() = 0;
 
 protected:
     Recorder& m_recorder;
     std::shared_ptr<spdlog::logger> m_logger;
 };
 
-class ConsoleController: public Controller
-{
+class ConsoleController : public Controller {
 public:
     ConsoleController(Recorder& recorder, std::shared_ptr<spdlog::logger> logger);
-    virtual void Run();
+    void run() override;
 };
 
-class WebSocketController: public Controller
-{
+class WebSocketController : public Controller {
 public:
     WebSocketController(Recorder& recorder, std::shared_ptr<spdlog::logger> logger);
-    virtual void Run();
+    void run() override;
 
 private:
     ix::WebSocketServer m_server;
-    std::atomic<unsigned long> m_client_id = 0;
+    std::atomic<unsigned long> m_clientId = 0;
     std::mutex m_ownerMutex;
     ix::WebSocket* m_owner = nullptr;
 
     JsonTextSerializer m_serializer;
 };
 
-class NeutralinoController: public Controller
-{
+class NeutralinoController : public Controller {
 public:
     NeutralinoController(Recorder& recorder, std::shared_ptr<spdlog::logger> logger);
-    virtual void Run();
+    void run() override;
 
 private:
     ix::WebSocket m_ws;
-    std::string m_access_token;
+    std::string m_accessToken;
 
-    void _sendNeutralinoEvent(std::string_view event, const boost::json::value& payload);
+    void sendNeutralinoEvent(std::string_view event, const boost::json::value& payload);
 };

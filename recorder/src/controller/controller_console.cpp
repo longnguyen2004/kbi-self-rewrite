@@ -1,13 +1,16 @@
-#include "controller.h"
 #include "../exporter/exporter.h"
 #include "../serializer/serializer.h"
+#include "controller.h"
 #include <recorder.h>
+#include <charconv>
 #include <chrono>
-#include <print>
-#include <fstream>
-#include <thread>
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
+#include <fstream>
+#include <print>
+#include <thread>
+#include <utility>
 
 using namespace std::literals;
 
@@ -16,104 +19,105 @@ using namespace std::literals;
 #endif
 
 #ifdef _WIN32
-    #include <conio.h>
+#include <conio.h>
 #endif
 
 #ifdef __linux__
-    // https://gist.github.com/ninovsnino/f910701ea912f03b73a1d0895d213b0e
-    #include <termios.h>
-    #include <stdio.h>
+// https://gist.github.com/ninovsnino/f910701ea912f03b73a1d0895d213b0e
+#include <cstdio>
+#include <termios.h>
 
-    static struct termios termios_old, termios_new;
-    void init()
-    {
-        tcgetattr(0, &termios_old);
-        termios_new = termios_old;
-        termios_new.c_lflag &= ~(ICANON | ECHO);
-        tcsetattr(0, TCSANOW, &termios_new);
-    }
-    void reset()
-    {
-        tcsetattr(0, TCSANOW, &termios_old);
-    }
-    int getch_linux()
-    {
-        init();
-        int ch = getchar();
-        reset();
-        return ch;
-    }
+namespace {
+
+struct termios termiosOld, termiosNew;
+
+void init()
+{
+    tcgetattr(0, &termiosOld);
+    termiosNew = termiosOld;
+    termiosNew.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(0, TCSANOW, &termiosNew);
+}
+void reset()
+{
+    tcsetattr(0, TCSANOW, &termiosOld);
+}
+int getchLinux()
+{
+    init();
+    int ch = getchar();
+    reset();
+    return ch;
+}
+
+} // namespace
+
 #endif
 
-int portable_getch()
+int portableGetch()
 {
-    #if defined(_WIN32)
-        return _getch();
-    #elif defined(__linux__)
-        return getch_linux();
-    #endif
+#if defined(_WIN32)
+    return _getch();
+#elif defined(__linux__)
+    return getchLinux();
+#endif
     return -1;
 }
 
-ConsoleController::ConsoleController(Recorder& recorder, std::shared_ptr<spdlog::logger> logger):
-    Controller(recorder, logger)
+ConsoleController::ConsoleController(Recorder& recorder, std::shared_ptr<spdlog::logger> logger)
+    : Controller(recorder, std::move(logger))
 {
 }
 
-void ConsoleController::Run()
+void ConsoleController::run()
 {
     auto& rec = m_recorder;
-    rec.Start();
+    rec.start();
     std::println("Keep spamming, press Esc to end...");
-    std::thread stat_thread([&]()
-    {
-        while (rec.Recording())
-        {
-            std::print("\rDevices: {}, Inputs: {}", rec.DeviceCount(), rec.InputCount());
+    std::thread statThread([&] {
+        while (rec.recording()) {
+            std::print("\rDevices: {}, Inputs: {}", rec.deviceCount(), rec.inputCount());
             std::fflush(stdout);
             std::this_thread::sleep_for(100ms);
         }
         std::println();
     });
-    while (portable_getch() != 27 /* ESC */)
-    {
+    while (portableGetch() != 27 /* ESC */) {
     }
-    rec.Stop();
-    stat_thread.join();
-    auto& inputs = rec.Inputs();
+    rec.stop();
+    statThread.join();
+    const auto& inputs = rec.inputs();
     std::println("Recorded {} devices", inputs.size());
-    inputs.cvisit_all([&](const Recorder::InputMap::value_type& input_pair) {
-        auto& [device_id, events] = input_pair;
-        if (events.size() == 0)
+    inputs.cvisit_all([&](const Recorder::InputMap::value_type& inputPair) {
+        const auto& [deviceId, events] = inputPair;
+        if (events.empty())
             return;
-        std::println("- Device {}", device_id);
-        auto& device_map = rec.Devices();
-        device_map.cvisit(device_id, [&](const Recorder::DeviceMap::value_type& device_pair) {
-            std::println("  - Name: {}", device_pair.second.Name);
+        std::println("- Device {}", deviceId);
+        const auto& deviceMap = rec.devices();
+        deviceMap.cvisit(deviceId, [&](const Recorder::DeviceMap::value_type& devicePair) {
+            std::println("  - Name: {}", devicePair.second.name);
         });
         std::println("  - Recorded {} events", events.size());
         std::println("  - First 100 diffs:");
-        for (std::size_t i = 1; i < std::min((std::size_t)101, events.size()); i++)
-            std::println("    - Diff {}: {}us", i, events[i].Timestamp - events[i - 1].Timestamp);
+        for (std::size_t i = 1; i < std::min<std::size_t>(101, events.size()); i++)
+            std::println("    - Diff {}: {}us", i, events[i].timestamp - events[i - 1].timestamp);
     });
 
 #ifdef __linux__
-    if (const char* sudo_uid = std::getenv("SUDO_UID"))
-    {
-        setfsuid(std::atoi(sudo_uid));
+    uid_t uid = getuid();
+    if (const char* sudoUid = std::getenv("SUDO_UID")) {
+        // Leave the uid untouched if it cannot be parsed.
+        std::from_chars(sudoUid, sudoUid + std::strlen(sudoUid), uid);
     }
-    else
-    {
-        setfsuid(getuid());
-    }
+    setfsuid(uid);
 #endif
     std::fstream fout("out.kbi", std::ios::out | std::ios::binary | std::ios::trunc);
-    Exporter_MatKbi exporter(rec);
-    exporter.Export(fout);
+    ExporterMatKbi exporter(rec);
+    exporter.exportTo(fout);
 
-    std::fstream fout_json("out.json", std::ios::out | std::ios::binary | std::ios::trunc);
+    std::fstream foutJson("out.json", std::ios::out | std::ios::binary | std::ios::trunc);
     JsonTextSerializer ser;
-    ser.Serialize(rec, fout_json);
+    ser.Serialize(rec, foutJson);
 #ifdef __linux__
     setfsuid(geteuid());
 #endif

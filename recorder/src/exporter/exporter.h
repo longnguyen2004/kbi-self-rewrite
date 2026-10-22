@@ -3,20 +3,19 @@
 #include <recorder.h>
 #include <ostream>
 
-class Exporter
-{
+class Exporter {
 public:
-    Exporter(const Recorder& recorder): m_recorder(recorder) {};
-    virtual void Export(std::ostream& out) = 0;
+    explicit Exporter(const Recorder& recorder)
+        : m_recorder(recorder) { };
+    virtual void exportTo(std::ostream& out) = 0;
 
 protected:
     const Recorder& m_recorder;
 };
 
-class Exporter_MatKbi: public Exporter
-{
+class ExporterMatKbi : public Exporter {
 public:
-    Exporter_MatKbi(const Recorder& recorder): Exporter(recorder) {};
-    virtual void Export(std::ostream& out);
+    explicit ExporterMatKbi(const Recorder& recorder)
+        : Exporter(recorder) { };
+    void exportTo(std::ostream& out) override;
 };
-

@@ -1,0 +1,48 @@
+name: style
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  style:
+    runs-on: ubuntu-22.04
+    env:
+      # Keep the tools in sync with the versions used locally, the output of
+      # clang-format differs between releases.
+      LLVM_VERSION: 23
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install clang-format and clang-tidy
+        run: |
+          sudo apt update
+          sudo apt install -y wget gnupg lsb-release software-properties-common
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
+            | sudo gpg --dearmor -o /usr/share/keyrings/llvm.gpg
+          echo "deb [signed-by=/usr/share/keyrings/llvm.gpg] http://apt.llvm.org/jammy/ llvm-toolchain-jammy-${LLVM_VERSION} main" \
+            | sudo tee /etc/apt/sources.list.d/llvm.list
+          sudo apt update
+          sudo apt install -y clang-format-${LLVM_VERSION} clang-tidy-${LLVM_VERSION}
+          # Use the versioned tools under their plain names, the scripts in
+          # Tools/ expect clang-format, clang-tidy and run-clang-tidy.
+          echo "/usr/lib/llvm-${LLVM_VERSION}/bin" >> $GITHUB_PATH
+          clang-format-${LLVM_VERSION} --version
+          clang-tidy-${LLVM_VERSION} --version
+
+      - name: Install CMake
+        uses: lukka/get-cmake@latest
+
+      - name: Install vcpkg
+        uses: lukka/run-vcpkg@v11
+
+      - name: Check the formatting
+        run: Tools/format.sh --check
+
+      - name: Configure
+        run: cmake --preset "vcpkg - Ninja - Release"
+
+      - name: Run clang-tidy
+        run: Tools/tidy.sh --warnings-as-errors

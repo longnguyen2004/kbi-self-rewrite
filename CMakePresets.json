@@ -50,6 +50,27 @@
       "name": "VS 2022 - Release",
       "configurePreset": "vcpkg - VS 2022",
       "configuration": "Release"
+    },
+    {
+      "name": "format",
+      "configurePreset": "vcpkg - Ninja - Release",
+      "targets": [
+        "format"
+      ]
+    },
+    {
+      "name": "format-check",
+      "configurePreset": "vcpkg - Ninja - Release",
+      "targets": [
+        "format-check"
+      ]
+    },
+    {
+      "name": "tidy",
+      "configurePreset": "vcpkg - Ninja - Release",
+      "targets": [
+        "tidy"
+      ]
     }
   ]
 }

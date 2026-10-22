@@ -3,16 +3,16 @@
 #include <string>
 #include <string_view>
 
-namespace kbi {
+namespace Kbi {
 
 // Returns the canonical name of a keycode (e.g. "A", "LeftControl",
 // "LeftClick"). Unknown codes render as "Unknown".
-[[nodiscard]] std::string_view keycode_name(int code);
+[[nodiscard]] std::string_view keycodeName(int code);
 
 // Windows virtual-key code -> keycode, used by the legacy `.kbi` parser.
-[[nodiscard]] int vk_to_keycode(int vk);
+[[nodiscard]] int vkToKeycode(int vk);
 
 // Legacy key name -> Windows virtual-key code.
-[[nodiscard]] int key_name_to_vk(std::string_view name);
+[[nodiscard]] int keyNameToVk(std::string_view name);
 
-} // namespace kbi
+} // namespace Kbi

@@ -2,7 +2,7 @@
 
 #include <vector>
 
-namespace kbi {
+namespace Kbi {
 
 struct ChartPoint {
     double x = 0.0;
@@ -24,10 +24,10 @@ struct ChartPoint {
 // deterministic and the line shape does not reshuffle as you pan within that
 // zoom.
 std::vector<ChartPoint> decimate(const std::vector<double>& data,
-                                  double extent_min,
-                                  double extent_max,
-                                  double domain_min,
-                                  double domain_max,
-                                  int width);
+    double extentMin,
+    double extentMax,
+    double domainMin,
+    double domainMax,
+    int width);
 
-} // namespace kbi
+} // namespace Kbi

@@ -2,10 +2,10 @@
 
 #include <vector>
 
-namespace kbi {
+namespace Kbi {
 
 struct PostprocessOptions {
-    bool low_cut = true;
+    bool lowCut = true;
 };
 
 struct PostprocessResult {
@@ -19,7 +19,7 @@ struct PostprocessResult {
 // The low cut divides the first bins by a logistic function centred at
 // bin 25, which suppresses the DC component and everything below roughly
 // 25 Hz. It is only meaningful in the frequency domain.
-PostprocessResult postprocess_with_max(const std::vector<double>& arr,
-                                       const PostprocessOptions& options);
+PostprocessResult postprocessWithMax(const std::vector<double>& arr,
+    const PostprocessOptions& options);
 
-} // namespace kbi
+} // namespace Kbi

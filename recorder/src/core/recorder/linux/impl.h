@@ -1,30 +1,28 @@
 #include "../recorder_impl.h"
-#include <thread>
 #include <boost/unordered/concurrent_flat_map.hpp>
 #include <libevdev/libevdev.h>
+#include <thread>
 
-struct internal_device
-{
-    libevdev* event_device = nullptr;
+struct InternalDevice {
+    libevdev* eventDevice = nullptr;
     std::string syspath;
     bool remove = false;
 };
 
-class recorder_linux_libevdev: public Recorder::Impl
-{
+class RecorderLinuxLibevdev : public Recorder::Impl {
 public:
-    recorder_linux_libevdev(std::shared_ptr<spdlog::logger> logger);
-    virtual void Start(bool kseyboard, bool mouse, bool gamepad);
-    virtual void Stop();
-    virtual std::string GetDeviceName(std::string_view id) const;
-    virtual std::optional<std::string> GetUsbDeviceId(std::string_view id) const;
-    virtual std::optional<UsbDeviceInfo> GetUsbDeviceInfo(std::string_view id) const;
+    explicit RecorderLinuxLibevdev(std::shared_ptr<spdlog::logger> logger);
+    void start(bool keyboard, bool mouse, bool gamepad) override;
+    void stop() override;
+    std::string getDeviceName(std::string_view syspath) const override;
+    std::optional<std::string> getUsbDeviceId(std::string_view id) const override;
+    std::optional<UsbDeviceInfo> getUsbDeviceInfo(std::string_view id) const override;
 
 private:
-    using EvdevDeviceMap = boost::unordered::concurrent_flat_map<std::string, internal_device>;
-    EvdevDeviceMap m_evdev_devices;
-    void _init_scan_devices();
-    void _init_poll(bool keyboard, bool mouse, bool gamepad);
-    std::jthread m_device_scan_thread;
-    std::jthread m_poll_thread;
+    using EvdevDeviceMap = boost::unordered::concurrent_flat_map<std::string, InternalDevice>;
+    EvdevDeviceMap m_evdevDevices;
+    void initScanDevices();
+    void initPoll(bool keyboard, bool mouse, bool gamepad);
+    std::jthread m_deviceScanThread;
+    std::jthread m_pollThread;
 };

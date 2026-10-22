@@ -3,15 +3,16 @@
 #include <imgui.h>
 #include <implot.h>
 
-namespace kbi::ui {
+namespace Kbi::Ui {
 namespace {
 
-Theme g_theme = Theme::Dark;
+Theme gTheme = Theme::Dark;
 
 } // namespace
 
-void apply_theme(Theme theme) {
-    g_theme = theme;
+void applyTheme(Theme theme)
+{
+    gTheme = theme;
 
     if (theme == Theme::Dark) {
         ImGui::StyleColorsDark();
@@ -30,21 +31,24 @@ void apply_theme(Theme theme) {
     style.WindowPadding = ImVec2(8.0f, 8.0f);
     style.ItemSpacing = ImVec2(8.0f, 6.0f);
 
-    ImPlotStyle& plot_style = ImPlot::GetStyle();
-    plot_style.PlotPadding = ImVec2(6.0f, 4.0f);
-    plot_style.LegendPadding = ImVec2(6.0f, 6.0f);
+    ImPlotStyle& plotStyle = ImPlot::GetStyle();
+    plotStyle.PlotPadding = ImVec2(6.0f, 4.0f);
+    plotStyle.LegendPadding = ImVec2(6.0f, 6.0f);
 }
 
-Theme current_theme() {
-    return g_theme;
+Theme currentTheme()
+{
+    return gTheme;
 }
 
-void toggle_theme() {
-    apply_theme(g_theme == Theme::Dark ? Theme::Light : Theme::Dark);
+void toggleTheme()
+{
+    applyTheme(gTheme == Theme::Dark ? Theme::Light : Theme::Dark);
 }
 
-const char* theme_name(Theme theme) {
+const char* themeName(Theme theme)
+{
     return theme == Theme::Dark ? "Dark" : "Light";
 }
 
-} // namespace kbi::ui
+} // namespace Kbi::ui

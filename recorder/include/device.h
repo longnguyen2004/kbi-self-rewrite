@@ -1,28 +1,28 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
-#include <optional>
 
 enum class UsbDeviceSpeed {
     UNKNOWN,
-    LOW_SPEED,
-    FULL_SPEED,
-    HIGH_SPEED,
+    LowSpeed,
+    FullSpeed,
+    HighSpeed,
     SUPERSPEED
 };
 
 struct UsbDeviceInfo {
-    std::uint16_t VID;
-    std::uint16_t PID;
-    UsbDeviceSpeed Speed;
-    std::vector<unsigned char> Descriptors;
+    std::uint16_t vid;
+    std::uint16_t pid;
+    UsbDeviceSpeed speed;
+    std::vector<unsigned char> descriptors;
 };
 
 struct Device {
-    std::string Name;
-    std::uint16_t VID;
-    std::uint16_t PID;
-    std::optional<std::string> UsbDeviceId;
+    std::string name;
+    std::uint16_t vid;
+    std::uint16_t pid;
+    std::optional<std::string> usbDeviceId;
 };

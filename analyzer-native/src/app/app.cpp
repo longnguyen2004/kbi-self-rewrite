@@ -3,28 +3,29 @@
 #include "app/theme.h"
 #include "parser/parser.h"
 
-#include <chrono>
-#include <datetime.h>
 #include "ui/info_window.h"
+#include <datetime.h>
+#include <chrono>
 
 #include <imgui.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <cstdio>
 #include <filesystem>
 #include <format>
-#include <chrono>
-#include <cstdio>
 
-namespace kbi::app {
+namespace Kbi::App {
 namespace {
 
-constexpr int kBinRates[] = {1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000};
+constexpr std::array<int, 8> kBinRates = { 1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000 };
 
 // Piecewise linear interpolation between the event count colors.
-ImVec4 event_count_color(double value) {
-    static const double stops[] = {50.0, 200.0, 600.0, 1500.0};
-    static const ImVec4 colors[] = {
+ImVec4 eventCountColor(double value)
+{
+    static constexpr std::array<double, 4> stops = { 50.0, 200.0, 600.0, 1500.0 };
+    static constexpr std::array<ImVec4, 4> colors = {
         ImVec4(238.0f / 255.0f, 0.0f, 0.0f, 1.0f),
         ImVec4(234.0f / 255.0f, 119.0f / 255.0f, 0.0f, 1.0f),
         ImVec4(221.0f / 255.0f, 221.0f / 255.0f, 0.0f, 1.0f),
@@ -37,10 +38,11 @@ ImVec4 event_count_color(double value) {
     for (int i = 0; i < 3; ++i) {
         if (value > stops[i] && value <= stops[i + 1]) {
             const double t = (value - stops[i]) / (stops[i + 1] - stops[i]);
-            return ImVec4(
+            return {
                 colors[i].x + static_cast<float>(t) * (colors[i + 1].x - colors[i].x),
                 colors[i].y + static_cast<float>(t) * (colors[i + 1].y - colors[i].y),
-                colors[i].z + static_cast<float>(t) * (colors[i + 1].z - colors[i].z), 1.0f);
+                colors[i].z + static_cast<float>(t) * (colors[i + 1].z - colors[i].z), 1.0f
+            };
         }
     }
     return colors[0];
@@ -48,41 +50,46 @@ ImVec4 event_count_color(double value) {
 
 } // namespace
 
-App::App() {
-    reset_analysis();
+App::App()
+{
+    resetAnalysis();
 }
 
-void App::reset_analysis() {
+void App::resetAnalysis()
+{
     m_analyzer.reset();
     m_timeline.reset();
-    m_result = Result{};
-    m_has_result = false;
-    m_device_ids.clear();
-    m_diff_sync = ui::ChartSync{};
-    m_freq_sync = ui::ChartSync{};
-    m_charts.reset_zoom();
+    m_result = Result {};
+    m_hasResult = false;
+    m_deviceIds.clear();
+    m_diffSync = Ui::ChartSync {};
+    m_freqSync = Ui::ChartSync {};
+    m_charts.resetZoom();
 }
 
 // The directory the file dialog opens in.
-std::string App::start_directory() const {
-    if (m_last_path.empty())
+std::string App::startDirectory() const
+{
+    if (m_lastPath.empty())
         return ".";
-    const std::filesystem::path parent = std::filesystem::path(m_last_path).parent_path();
+    const std::filesystem::path parent = std::filesystem::path(m_lastPath).parent_path();
     if (parent.empty())
         return ".";
     return parent.string();
 }
 
-void App::update_device_ids() {
-    m_device_ids.clear();
-    m_device_ids.reserve(m_result.devices.size());
+void App::updateDeviceIds()
+{
+    m_deviceIds.clear();
+    m_deviceIds.reserve(m_result.devices.size());
     for (const auto& [id, device] : m_result.devices)
-        m_device_ids.push_back(id);
+        m_deviceIds.push_back(id);
 }
 
-void App::ingest(const Result& result) {
+void App::ingest(const Result& result)
+{
     m_result = result;
-    m_has_result = true;
+    m_hasResult = true;
 
     std::vector<double> timestamps;
     for (const auto& [id, events] : m_result.inputs) {
@@ -97,33 +104,36 @@ void App::ingest(const Result& result) {
             m_timeline.add(id, event);
     }
 
-    update_device_ids();
+    updateDeviceIds();
 }
 
-void App::open_file(const std::string& path) {
-    const auto parsed = parse_result_file(path);
+void App::openFile(const std::string& path)
+{
+    const auto parsed = parseResultFile(path);
     if (!parsed) {
         m_status = std::format("Could not read {}", path);
         return;
     }
-    reset_analysis();
+    resetAnalysis();
     ingest(*parsed);
     // The timeline starts at the beginning of the recording.
-    m_charts.set_timeline_range(0.0, 10.0);
-    m_last_path = path;
+    m_charts.setTimelineRange(0.0, 10.0);
+    m_lastPath = path;
     m_status = std::format("Loaded {}", path);
 }
 
-bool App::load(const std::string& path) {
-    open_file(path);
-    return m_has_result;
+bool App::load(const std::string& path)
+{
+    openFile(path);
+    return m_hasResult;
 }
 
-bool App::start_recording() {
-    reset_analysis();
+bool App::startRecording()
+{
+    resetAnalysis();
 
     Result result;
-    result.time = format_iso8601_utc(std::chrono::system_clock::now());
+    result.time = formatIso8601Utc(std::chrono::system_clock::now());
 
     std::string error;
     if (!m_recorder.start(error)) {
@@ -133,34 +143,36 @@ bool App::start_recording() {
     }
 
     // The system information comes from the recorder.
-    const SystemInfo& system = m_recorder.system_info();
-    result.info.os_name = system.Common.OsName;
-    result.info.os_ver = system.Common.OsVersion;
-    result.info.arch = system.Common.Architecture;
-    result.info.backend = m_recorder.backend_name();
-    if (is_safe_mode(system))
-        result.info.safe_mode = true;
+    const SystemInfo& system = m_recorder.systemInfo();
+    result.info.osName = system.common.osName;
+    result.info.osVer = system.common.osVersion;
+    result.info.arch = system.common.architecture;
+    result.info.backend = m_recorder.backendName();
+    if (isSafeMode(system))
+        result.info.safeMode = true;
     m_result = std::move(result);
-    m_has_result = true;
-    update_device_ids();
+    m_hasResult = true;
+    updateDeviceIds();
     m_status = "Recording...";
     m_mode = Mode::Recording;
     return true;
 }
 
-void App::stop_recording() {
+void App::stopRecording()
+{
     m_recorder.stop();
-    if (m_has_result)
-        m_result.info.backend = m_recorder.backend_name();
+    if (m_hasResult)
+        m_result.info.backend = m_recorder.backendName();
     m_status = "Recording stopped";
     m_mode = Mode::FromRecorder;
 }
 
-void App::set_mode(Mode mode) {
+void App::setMode(Mode mode)
+{
     if (m_mode == mode)
         return;
     if (m_mode == Mode::Recording)
-        stop_recording();
+        stopRecording();
     m_mode = mode;
     if (mode == Mode::FromFile)
         m_status = "Open a recording to analyse it";
@@ -168,42 +180,44 @@ void App::set_mode(Mode mode) {
         m_status = "Start a recording to analyse it";
 }
 
-void App::draw_header() {
+void App::drawHeader()
+{
     ImGui::BeginTable("##header", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings);
     ImGui::TableSetupColumn("##left", ImGuiTableColumnFlags_WidthStretch);
     ImGui::TableSetupColumn("##right", ImGuiTableColumnFlags_WidthFixed, 300.0f);
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
 
-    const auto mode_button = [&](const char* label, Mode mode) {
+    const auto modeButton = [&](const char* label, Mode mode) {
         const bool active = m_mode == mode || (mode == Mode::FromRecorder && m_mode == Mode::Recording);
         if (active)
             ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
         if (ImGui::Button(label))
-            set_mode(mode);
+            setMode(mode);
         if (active)
             ImGui::PopStyleColor();
     };
 
-    mode_button("From file", Mode::FromFile);
+    modeButton("From file", Mode::FromFile);
     ImGui::SameLine();
-    mode_button("From recorder", Mode::FromRecorder);
+    modeButton("From recorder", Mode::FromRecorder);
 
     ImGui::TableNextColumn();
     ImGui::AlignTextToFramePadding();
-    if (m_has_result && ImGui::Button("Info"))
-        m_show_info = true;
-    if (m_has_result)
+    if (m_hasResult && ImGui::Button("Info"))
+        m_showInfo = true;
+    if (m_hasResult)
         ImGui::SameLine();
-    if (ImGui::Button(ui::theme_name(ui::current_theme())))
-        ui::toggle_theme();
+    if (ImGui::Button(Ui::themeName(Ui::currentTheme())))
+        Ui::toggleTheme();
     ImGui::SameLine();
     ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
 
     ImGui::EndTable();
 }
 
-void App::draw_options() {
+void App::drawOptions()
+{
     ImGui::BeginTable("##options", 3, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings);
     ImGui::TableSetupColumn("##left", ImGuiTableColumnFlags_WidthFixed, 260.0f);
     ImGui::TableSetupColumn("##middle", ImGuiTableColumnFlags_WidthFixed, 260.0f);
@@ -214,23 +228,23 @@ void App::draw_options() {
     ImGui::AlignTextToFramePadding();
     ImGui::Text("Binning rate");
     ImGui::SameLine();
-    int bin_rate = m_analyzer.bin_rate();
-    if (ImGui::BeginCombo("##binrate", std::format("{}", bin_rate).c_str())) {
+    int binRate = m_analyzer.binRate();
+    if (ImGui::BeginCombo("##binrate", std::format("{}", binRate).c_str())) {
         for (const int rate : kBinRates) {
-            const bool selected = rate == bin_rate;
+            const bool selected = rate == binRate;
             if (ImGui::Selectable(std::format("{}Hz", rate).c_str(), selected)) {
-                bin_rate = rate;
-                m_analyzer.set_bin_rate(rate);
+                binRate = rate;
+                m_analyzer.setBinRate(rate);
             }
             if (selected)
                 ImGui::SetItemDefaultFocus();
         }
         ImGui::EndCombo();
     }
-    if (m_mode == Mode::Recording && m_analyzer.bin_rate() > 16000) {
+    if (m_mode == Mode::Recording && m_analyzer.binRate() > 16000) {
         ImGui::SameLine();
         ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.1f, 1.0f),
-                           "!");
+            "!");
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip(
                 "It is not recommended to go above 16000Hz bin rate during live analysis");
@@ -241,11 +255,11 @@ void App::draw_options() {
     ImGui::AlignTextToFramePadding();
     ImGui::Text("Low cut filter");
     ImGui::SameLine();
-    ImGui::Checkbox("##lowcut", &m_postprocess.low_cut);
+    ImGui::Checkbox("##lowcut", &m_postprocess.lowCut);
 
     ImGui::TableNextColumn();
-    const ImVec4 color = event_count_color(static_cast<double>(m_analyzer.event_count()));
-    ImGui::TextColored(color, "%zu input events", m_analyzer.event_count());
+    const ImVec4 color = eventCountColor(static_cast<double>(m_analyzer.eventCount()));
+    ImGui::TextColored(color, "%zu input events", m_analyzer.eventCount());
     if (m_analyzer.calculating())
         ImGui::SameLine();
     if (m_analyzer.calculating())
@@ -254,80 +268,83 @@ void App::draw_options() {
     ImGui::EndTable();
 }
 
-void App::draw_charts() {
+void App::drawCharts()
+{
     ImGui::BeginChild("##charts", ImVec2(0.0f, 0.0f),
-                      ImGuiChildFlags_None, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+        ImGuiChildFlags_None, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
-    const ImGuiTableFlags table_flags = ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoSavedSettings;
+    const ImGuiTableFlags tableFlags = ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoSavedSettings;
 
-    ImGui::BeginTable("##diff_charts", 3, table_flags);
+    ImGui::BeginTable("##diff_charts", 3, tableFlags);
     for (int i = 0; i < 3; ++i) {
         ImGui::TableNextColumn();
         switch (i) {
         case 0:
-            m_charts.draw_diff_chart("diff_consecutive", "Consecutive timestamp diffs",
-                                     m_analyzer.consecutive_diff(), m_analyzer.consecutive_diff_max(),
-                                     m_diff_sync);
+            m_charts.drawDiffChart("diff_consecutive", "Consecutive timestamp diffs",
+                m_analyzer.consecutiveDiff(), m_analyzer.consecutiveDiffMax(),
+                m_diffSync);
             break;
         case 1:
-            m_charts.draw_diff_chart("diff_all", "All timestamp diffs", m_analyzer.all_diff(),
-                                     m_analyzer.all_diff_max(), m_diff_sync);
+            m_charts.drawDiffChart("diff_all", "All timestamp diffs", m_analyzer.allDiff(),
+                m_analyzer.allDiffMax(), m_diffSync);
             break;
         default:
-            m_charts.draw_diff_chart("diff_wrapped", "Timestamp fractional parts",
-                                     m_analyzer.wrapped_timestamp(),
-                                     m_analyzer.wrapped_timestamp_max(), m_diff_sync);
+            m_charts.drawDiffChart("diff_wrapped", "Timestamp fractional parts",
+                m_analyzer.wrappedTimestamp(),
+                m_analyzer.wrappedTimestampMax(), m_diffSync);
             break;
         }
     }
     ImGui::EndTable();
 
-    ImGui::BeginTable("##freq_charts", 3, table_flags);
+    ImGui::BeginTable("##freq_charts", 3, tableFlags);
     {
-        const auto snapshot = m_analyzer.freq_snapshot();
-        const PostprocessResult consecutive = postprocess_with_max(
-            snapshot ? snapshot->consecutive_diff : std::vector<double>{}, m_postprocess);
-        const PostprocessResult all = postprocess_with_max(
-            snapshot ? snapshot->all_diff : std::vector<double>{}, m_postprocess);
-        const PostprocessResult wrapped = postprocess_with_max(
-            snapshot ? snapshot->wrapped_timestamp : std::vector<double>{}, m_postprocess);
+        const auto snapshot = m_analyzer.freqSnapshot();
+        const PostprocessResult consecutive = postprocessWithMax(
+            snapshot ? snapshot->consecutiveDiff : std::vector<double> {}, m_postprocess);
+        const PostprocessResult all = postprocessWithMax(
+            snapshot ? snapshot->allDiff : std::vector<double> {}, m_postprocess);
+        const PostprocessResult wrapped = postprocessWithMax(
+            snapshot ? snapshot->wrappedTimestamp : std::vector<double> {}, m_postprocess);
 
         for (int i = 0; i < 3; ++i) {
             ImGui::TableNextColumn();
             switch (i) {
             case 0:
-                m_charts.draw_freq_chart("freq_consecutive",
-                                         "Consecutive timestamp diffs (frequency domain)",
-                                         consecutive.data, consecutive.max, m_analyzer.freq_max_hz(),
-                                         m_freq_sync);
+                m_charts.drawFreqChart("freq_consecutive",
+                    "Consecutive timestamp diffs (frequency domain)",
+                    consecutive.data, consecutive.max, m_analyzer.freqMaxHz(),
+                    m_freqSync);
                 break;
             case 1:
-                m_charts.draw_freq_chart("freq_all", "All timestamp diffs (frequency domain)",
-                                         all.data, all.max, m_analyzer.freq_max_hz(), m_freq_sync);
+                m_charts.drawFreqChart("freq_all", "All timestamp diffs (frequency domain)",
+                    all.data, all.max, m_analyzer.freqMaxHz(), m_freqSync);
                 break;
             default:
-                m_charts.draw_freq_chart("freq_wrapped",
-                                         "Timestamp fractional parts (frequency domain)",
-                                         wrapped.data, wrapped.max, m_analyzer.freq_max_hz(),
-                                         m_freq_sync);
+                m_charts.drawFreqChart("freq_wrapped",
+                    "Timestamp fractional parts (frequency domain)",
+                    wrapped.data, wrapped.max, m_analyzer.freqMaxHz(),
+                    m_freqSync);
                 break;
             }
         }
     }
     ImGui::EndTable();
 
-    m_charts.draw_input_timeline("##input_timeline", m_timeline, m_device_ids);
+    m_charts.drawInputTimeline("##input_timeline", m_timeline, m_deviceIds);
 
     ImGui::EndChild();
 }
 
-void App::draw_status() {
+void App::drawStatus()
+{
     if (m_status.empty())
         return;
     ImGui::TextDisabled("%s", m_status.c_str());
 }
 
-void App::draw() {
+void App::draw()
+{
     if (m_mode == Mode::Recording)
         m_recorder.drain(m_result, m_analyzer, m_timeline);
 
@@ -335,50 +352,48 @@ void App::draw() {
     ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
     ImGui::SetNextWindowSize(io.DisplaySize);
     ImGui::Begin("Keyboard Inspector", nullptr,
-                 ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
-                     ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar |
-                     ImGuiWindowFlags_NoScrollWithMouse |
-                     // The main window fills the screen, bringing it to the
-                     // front would hide the info window that is drawn after
-                     // it.
-                     ImGuiWindowFlags_NoBringToFrontOnFocus);
+        ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse |
+            // The main window fills the screen, bringing it to the
+            // front would hide the info window that is drawn after
+            // it.
+            ImGuiWindowFlags_NoBringToFrontOnFocus);
 
-    draw_header();
+    drawHeader();
     ImGui::Separator();
-    draw_options();
+    drawOptions();
     ImGui::Separator();
 
     switch (m_mode) {
     case Mode::FromFile:
         if (ImGui::Button("Open recording...")) {
-            if (const auto path = open_recording_dialog(start_directory()))
-                open_file(*path);
+            if (const auto path = openRecordingDialog(startDirectory()))
+                openFile(*path);
         }
         ImGui::SameLine();
         ImGui::TextDisabled("(.json or legacy .kbi files)");
         break;
     case Mode::FromRecorder:
         if (ImGui::Button("Start recording"))
-            start_recording();
+            startRecording();
         break;
     case Mode::Recording:
         if (ImGui::Button("Stop recording"))
-            stop_recording();
+            stopRecording();
         ImGui::SameLine();
         ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "recording...");
         break;
     }
 
-    draw_status();
+    drawStatus();
     ImGui::Separator();
 
-    if (m_has_result)
-        draw_charts();
+    if (m_hasResult)
+        drawCharts();
 
     ImGui::End();
 
-    if (m_show_info)
-        ui::draw_info_window(&m_show_info, m_result);
+    if (m_showInfo)
+        Ui::drawInfoWindow(&m_showInfo, m_result);
 }
 
-} // namespace kbi::app
+} // namespace Kbi::app

@@ -2,8 +2,8 @@
 #include <array>
 #include <linux/input-event-codes.h>
 
-constexpr auto evdev_keyboard_to_keycode = []() {
-    std::array<Keycode, 256> arr{Keycode::None};
+constexpr auto evdevKeyboardToKeycode = [] {
+    std::array<Keycode, 256> arr { Keycode::None };
 
     // Letters
     arr[KEY_A] = Keycode::A;
@@ -128,24 +128,24 @@ constexpr auto evdev_keyboard_to_keycode = []() {
     return arr;
 }();
 
-constexpr auto evdev_mouse_to_keycode = []() {
-    std::array<Keycode, BTN_TASK - BTN_LEFT + 1> arr{Keycode::None};
+constexpr auto evdevMouseToKeycode = [] {
+    std::array<Keycode, BTN_TASK - BTN_LEFT + 1> arr { Keycode::None };
 
     // Mouse buttons
-    arr[BTN_LEFT    - BTN_LEFT] = Keycode::LeftClick;
-    arr[BTN_RIGHT   - BTN_LEFT] = Keycode::RightClick;
-    arr[BTN_MIDDLE  - BTN_LEFT] = Keycode::MiddleClick;
+    arr[BTN_LEFT - BTN_LEFT] = Keycode::LeftClick;
+    arr[BTN_RIGHT - BTN_LEFT] = Keycode::RightClick;
+    arr[BTN_MIDDLE - BTN_LEFT] = Keycode::MiddleClick;
     arr[BTN_FORWARD - BTN_LEFT] = Keycode::MouseForward;
-    arr[BTN_BACK    - BTN_LEFT] = Keycode::MouseBack;
+    arr[BTN_BACK - BTN_LEFT] = Keycode::MouseBack;
 
     return arr;
 }();
 
-Keycode evdev_to_keycode(std::uint16_t code)
+Keycode evdevToKeycode(std::uint16_t code)
 {
     if (code < 256)
-        return evdev_keyboard_to_keycode[code];
+        return evdevKeyboardToKeycode[code];
     if (code >= BTN_LEFT && code <= BTN_TASK)
-        return evdev_mouse_to_keycode[code - BTN_LEFT];
+        return evdevMouseToKeycode[code - BTN_LEFT];
     return Keycode::None;
 }

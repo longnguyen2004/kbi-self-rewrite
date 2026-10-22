@@ -3,11 +3,11 @@
 #include <optional>
 #include <string>
 
-namespace kbi::app {
+namespace Kbi::App {
 
 // Opens the native file dialog to pick a recording. Returns nothing when the
 // dialog was cancelled.
-[[nodiscard]] std::optional<std::string> open_recording_dialog(
-    const std::string& start_directory);
+[[nodiscard]] std::optional<std::string> openRecordingDialog(
+    const std::string& startDirectory);
 
-} // namespace kbi::app
+} // namespace Kbi::app

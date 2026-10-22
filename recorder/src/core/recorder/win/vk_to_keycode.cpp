@@ -3,24 +3,24 @@
 #include <windows.h>
 
 static constexpr auto vk_to_keycode_arr = []() {
-    std::array<Keycode, 256> arr{Keycode::None};
+    std::array<Keycode, 256> arr { Keycode::None };
 
-    arr[VK_BACK]      = Keycode::Backspace;
-    arr[VK_TAB]       = Keycode::Tab;
-    arr[VK_RETURN]    = Keycode::Enter;
-    arr[VK_CAPITAL]   = Keycode::CapsLock;
-    arr[VK_ESCAPE]    = Keycode::Escape;
-    arr[VK_SPACE]     = Keycode::Space;
-    arr[VK_PRIOR]     = Keycode::PageUp;
-    arr[VK_NEXT]      = Keycode::PageDown;
-    arr[VK_END]       = Keycode::End;
-    arr[VK_HOME]      = Keycode::Home;
-    arr[VK_LEFT]      = Keycode::LeftArrow;
-    arr[VK_UP]        = Keycode::UpArrow;
-    arr[VK_RIGHT]     = Keycode::RightArrow;
-    arr[VK_DOWN]      = Keycode::DownArrow;
-    arr[VK_INSERT]    = Keycode::Insert;
-    arr[VK_DELETE]    = Keycode::Delete;
+    arr[VK_BACK] = Keycode::Backspace;
+    arr[VK_TAB] = Keycode::Tab;
+    arr[VK_RETURN] = Keycode::Enter;
+    arr[VK_CAPITAL] = Keycode::CapsLock;
+    arr[VK_ESCAPE] = Keycode::Escape;
+    arr[VK_SPACE] = Keycode::Space;
+    arr[VK_PRIOR] = Keycode::PageUp;
+    arr[VK_NEXT] = Keycode::PageDown;
+    arr[VK_END] = Keycode::End;
+    arr[VK_HOME] = Keycode::Home;
+    arr[VK_LEFT] = Keycode::LeftArrow;
+    arr[VK_UP] = Keycode::UpArrow;
+    arr[VK_RIGHT] = Keycode::RightArrow;
+    arr[VK_DOWN] = Keycode::DownArrow;
+    arr[VK_INSERT] = Keycode::Insert;
+    arr[VK_DELETE] = Keycode::Delete;
 
     // 0-9
     arr['0'] = Keycode::Num0;
@@ -62,37 +62,37 @@ static constexpr auto vk_to_keycode_arr = []() {
     arr['Y'] = Keycode::Y;
     arr['Z'] = Keycode::Z;
 
-    arr[VK_LWIN]      = Keycode::LeftGUI;
-    arr[VK_RWIN]      = Keycode::RightGUI;
-    arr[VK_APPS]      = Keycode::Application;
+    arr[VK_LWIN] = Keycode::LeftGUI;
+    arr[VK_RWIN] = Keycode::RightGUI;
+    arr[VK_APPS] = Keycode::Application;
 
     // Keypad
-    arr[VK_NUMPAD0]   = Keycode::Keypad0;
-    arr[VK_NUMPAD1]   = Keycode::Keypad1;
-    arr[VK_NUMPAD2]   = Keycode::Keypad2;
-    arr[VK_NUMPAD3]   = Keycode::Keypad3;
-    arr[VK_NUMPAD4]   = Keycode::Keypad4;
-    arr[VK_NUMPAD5]   = Keycode::Keypad5;
-    arr[VK_NUMPAD6]   = Keycode::Keypad6;
-    arr[VK_NUMPAD7]   = Keycode::Keypad7;
-    arr[VK_NUMPAD8]   = Keycode::Keypad8;
-    arr[VK_NUMPAD9]   = Keycode::Keypad9;
-    arr[VK_MULTIPLY]  = Keycode::KeypadAsterisk;
-    arr[VK_ADD]       = Keycode::KeypadPlus;
-    arr[VK_SUBTRACT]  = Keycode::KeypadMinus;
-    arr[VK_DECIMAL]   = Keycode::KeypadPeriod;
-    arr[VK_DIVIDE]    = Keycode::KeypadSlash;
+    arr[VK_NUMPAD0] = Keycode::Keypad0;
+    arr[VK_NUMPAD1] = Keycode::Keypad1;
+    arr[VK_NUMPAD2] = Keycode::Keypad2;
+    arr[VK_NUMPAD3] = Keycode::Keypad3;
+    arr[VK_NUMPAD4] = Keycode::Keypad4;
+    arr[VK_NUMPAD5] = Keycode::Keypad5;
+    arr[VK_NUMPAD6] = Keycode::Keypad6;
+    arr[VK_NUMPAD7] = Keycode::Keypad7;
+    arr[VK_NUMPAD8] = Keycode::Keypad8;
+    arr[VK_NUMPAD9] = Keycode::Keypad9;
+    arr[VK_MULTIPLY] = Keycode::KeypadAsterisk;
+    arr[VK_ADD] = Keycode::KeypadPlus;
+    arr[VK_SUBTRACT] = Keycode::KeypadMinus;
+    arr[VK_DECIMAL] = Keycode::KeypadPeriod;
+    arr[VK_DIVIDE] = Keycode::KeypadSlash;
 
     // Function keys
-    arr[VK_F1]  = Keycode::F1;
-    arr[VK_F2]  = Keycode::F2;
-    arr[VK_F3]  = Keycode::F3;
-    arr[VK_F4]  = Keycode::F4;
-    arr[VK_F5]  = Keycode::F5;
-    arr[VK_F6]  = Keycode::F6;
-    arr[VK_F7]  = Keycode::F7;
-    arr[VK_F8]  = Keycode::F8;
-    arr[VK_F9]  = Keycode::F9;
+    arr[VK_F1] = Keycode::F1;
+    arr[VK_F2] = Keycode::F2;
+    arr[VK_F3] = Keycode::F3;
+    arr[VK_F4] = Keycode::F4;
+    arr[VK_F5] = Keycode::F5;
+    arr[VK_F6] = Keycode::F6;
+    arr[VK_F7] = Keycode::F7;
+    arr[VK_F8] = Keycode::F8;
+    arr[VK_F9] = Keycode::F9;
     arr[VK_F10] = Keycode::F10;
     arr[VK_F11] = Keycode::F11;
     arr[VK_F12] = Keycode::F12;
@@ -109,20 +109,21 @@ static constexpr auto vk_to_keycode_arr = []() {
     arr[VK_F23] = Keycode::F23;
     arr[VK_F24] = Keycode::F24;
 
-    arr[VK_NUMLOCK]   = Keycode::NumLock;
-    arr[VK_SCROLL]    = Keycode::ScrollLock;
+    arr[VK_NUMLOCK] = Keycode::NumLock;
+    arr[VK_SCROLL] = Keycode::ScrollLock;
 
-    arr[VK_LSHIFT]    = Keycode::LeftShift;
-    arr[VK_RSHIFT]    = Keycode::RightShift;
-    arr[VK_LCONTROL]  = Keycode::LeftControl;
-    arr[VK_RCONTROL]  = Keycode::RightControl;
-    arr[VK_LMENU]     = Keycode::LeftAlt;
-    arr[VK_RMENU]     = Keycode::RightAlt;
-    
+    arr[VK_LSHIFT] = Keycode::LeftShift;
+    arr[VK_RSHIFT] = Keycode::RightShift;
+    arr[VK_LCONTROL] = Keycode::LeftControl;
+    arr[VK_RCONTROL] = Keycode::RightControl;
+    arr[VK_LMENU] = Keycode::LeftAlt;
+    arr[VK_RMENU] = Keycode::RightAlt;
+
     return arr;
 }();
 
-Keycode vk_to_keycode(int vk) {
+Keycode vk_to_keycode(int vk)
+{
     if (vk < 0 || vk >= vk_to_keycode_arr.size()) {
         return Keycode::None;
     }

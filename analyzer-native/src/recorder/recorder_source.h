@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-namespace kbi {
+namespace Kbi {
 
 // Wraps the recorder library, which is linked into the app instead of being
 // spawned as an external process.
@@ -31,22 +31,24 @@ public:
     void stop();
 
     [[nodiscard]] bool recording() const;
-    [[nodiscard]] std::string backend_name() const;
+    [[nodiscard]] std::string_view backendName() const;
 
     // The information about the machine, it comes from the recorder.
-    [[nodiscard]] const SystemInfo& system_info() const;
+    [[nodiscard]] const SystemInfo& systemInfo() const;
 
     // Moves the events that arrived since the last call into `result` and
     // feeds the analyzer and the input timeline.
     void drain(Result& result, Analyzer& analyzer, InputTimeline& timeline);
 
 private:
-    enum class EventType { UsbDevice, Device, Input };
+    enum class EventType { UsbDevice,
+        Device,
+        Input };
 
     struct Event {
         EventType type = EventType::Input;
         std::string id;
-        UsbDevice usb_device;
+        UsbDevice usbDevice;
         Device device;
         InputEvent input;
     };
@@ -58,4 +60,4 @@ private:
     std::vector<Event> m_queue;
 };
 
-} // namespace kbi
+} // namespace Kbi

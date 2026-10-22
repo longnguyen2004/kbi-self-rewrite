@@ -1,4 +1,19 @@
 {
-  "cmake.sourceDirectory": "/home/lnguyen/code_projects/kbi-self-rewrite",
-  "cmake.buildDirectory": "/home/lnguyen/code_projects/kbi-self-rewrite/build"
+  "cmake.sourceDirectory": "${workspaceFolder}",
+  "cmake.buildDirectory": "${workspaceFolder}/build",
+  "cmake.preferredGenerators": ["Ninja"],
+  "cmake.compileCommands": true,
+  "cmake.configureOnOpen": true,
+  "cmake.configureEnvironment": {
+    "VCPKG_ROOT": "/home/lnguyen/vcpkg"
+  },
+  "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+  "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json",
+  "C_Cpp.default.intelliSenseMode": "linux-gcc-x64",
+  "C_Cpp.default.cppStandard": "c++23",
+  "C_Cpp.default.cStandard": "c17",
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "ms-vscode.cpptools",
+  "C_Cpp.formatting": "clangFormat",
+  "C_Cpp.clang_format_style": "file"
 }

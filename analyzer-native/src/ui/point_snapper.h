@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <vector>
 
-namespace kbi::ui {
+namespace Kbi::Ui {
 
 // A point of a chart, in pixel coordinates.
 struct SnapPoint {
@@ -20,35 +20,37 @@ struct SnapPoint {
 // enough, which gives the same result.
 class PointSnapper {
 public:
-    void set(std::vector<SnapPoint> points) {
+    void set(std::vector<SnapPoint> points)
+    {
         m_points = std::move(points);
         std::sort(m_points.begin(), m_points.end(),
-                  [](const SnapPoint& a, const SnapPoint& b) { return a.x < b.x; });
+            [](const SnapPoint& a, const SnapPoint& b) { return a.x < b.x; });
     }
 
     // Returns the point that is closest to (x, y), but only when it is within
     // the given radius. Returns nullptr when there is none.
-    [[nodiscard]] const SnapPoint* find(double x, double y, double radius) const {
+    [[nodiscard]] const SnapPoint* find(double x, double y, double radius) const
+    {
         if (m_points.empty())
             return nullptr;
 
         const auto begin = std::lower_bound(m_points.begin(), m_points.end(), x - radius,
-                                            [](const SnapPoint& point, double value) {
-                                                return point.x < value;
-                                            });
+            [](const SnapPoint& point, double value) {
+                return point.x < value;
+            });
         const auto end = std::upper_bound(m_points.begin(), m_points.end(), x + radius,
-                                          [](double value, const SnapPoint& point) {
-                                              return value < point.x;
-                                          });
+            [](double value, const SnapPoint& point) {
+                return value < point.x;
+            });
 
         const SnapPoint* best = nullptr;
-        double best_distance = radius * radius;
+        double bestDistance = radius * radius;
         for (auto it = begin; it != end; ++it) {
             const double dx = it->x - x;
             const double dy = it->y - y;
             const double distance = dx * dx + dy * dy;
-            if (distance <= best_distance) {
-                best_distance = distance;
+            if (distance <= bestDistance) {
+                bestDistance = distance;
                 best = &*it;
             }
         }
@@ -59,4 +61,4 @@ private:
     std::vector<SnapPoint> m_points;
 };
 
-} // namespace kbi::ui
+} // namespace Kbi::ui

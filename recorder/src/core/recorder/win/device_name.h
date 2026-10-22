@@ -1,6 +1,6 @@
 #include <device.h>
-#include <string>
 #include <optional>
+#include <string>
 
 std::string hid_product_string_from_device_path(std::string_view id);
 std::string hid_product_string_from_device_path(std::string_view id);

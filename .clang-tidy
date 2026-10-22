@@ -1,0 +1,139 @@
+---
+# clang-tidy configuration following the WebKit code style guidelines.
+#
+# Reference: https://webkit.org/code-style-guidelines/
+#
+# The checks that are enabled map onto the rules of the guidelines. The
+# comment above every group of checks names the rule it comes from. Checks
+# that contradict the guidelines are switched off explicitly and the reason
+# is given.
+
+Checks: >
+  -*,
+  bugprone-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  modernize-*,
+  google-readability-casting,
+  google-explicit-constructor,
+  misc-use-anonymous-namespace,
+  misc-unused-using-decls,
+  misc-definitions-in-headers,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-implicit-widening-of-multiplication-result,
+  -bugprone-narrowing-conversions,
+  -bugprone-signed-bitwise,
+  -bugprone-unchecked-optional-access,
+  -bugprone-unused-return-value,
+  -misc-const-correctness,
+  -misc-non-private-member-variables-in-classes,
+  -modernize-add-braces-around-statements,
+  -modernize-pass-by-value,
+  -modernize-use-auto,
+  -modernize-use-nodiscard,
+  -modernize-use-ranges,
+  -modernize-use-trailing-return-type,
+  -performance-enum-size,
+  -portability-avoid-pragma-once,
+  -readability-braces-around-statements,
+  -readability-convert-member-functions-to-static,
+  -readability-avoid-nested-conditional-operator,
+  -readability-avoid-const-params-in-decls,
+  -readability-enum-initial-value,
+  -readability-function-size,
+  -readability-identifier-length,
+  -readability-inconsistent-ifelse-braces,
+  -readability-magic-numbers,
+  -readability-misplaced-array-index,
+  -readability-math-missing-parentheses,
+  -readability-trailing-comma,
+  -readability-uppercase-literal-suffix,
+  -readability-use-anyofallof,
+  -readability-use-concise-preprocessor-directives
+
+WarningsAsErrors: ''
+
+HeaderFilterRegex: '.*/(recorder|analyzer-native)/(include|src|tests)/.*'
+
+# Let clang-tidy use the repository's .clang-format when it rewrites code.
+FormatStyle: file
+
+CheckOptions:
+  # WebKit keeps its functions small and simple. The default threshold of 25
+  # is a bit tight for the parsing and plotting code.
+  readability-function-cognitive-complexity.Threshold: 50
+
+  # An exception that escapes main() terminates the program, which is the
+  # expected behaviour for the command line tools.
+  bugprone-exception-escape.CheckMain: false
+
+  # WebKit: "Use CamelCase. Capitalize the first letter, including all
+  # letters in an acronym, in a class, struct, protocol, or namespace name.
+  # Lower-case the first letter, including all letters in an acronym, in a
+  # variable or function name."
+  readability-identifier-naming.ClassCase: CamelCase
+  readability-identifier-naming.StructCase: CamelCase
+  readability-identifier-naming.UnionCase: CamelCase
+  readability-identifier-naming.EnumCase: CamelCase
+  readability-identifier-naming.NamespaceCase: CamelCase
+  readability-identifier-naming.FunctionCase: camelBack
+  readability-identifier-naming.MainFunctionCase: camelBack
+  readability-identifier-naming.MethodCase: camelBack
+  readability-identifier-naming.VariableCase: camelBack
+  readability-identifier-naming.LocalVariableCase: camelBack
+  readability-identifier-naming.ParameterCase: camelBack
+  readability-identifier-naming.GlobalVariableCase: camelBack
+  readability-identifier-naming.StaticVariableCase: camelBack
+  readability-identifier-naming.ConstantCase: camelBack
+  readability-identifier-naming.LocalConstantCase: camelBack
+  readability-identifier-naming.StaticConstantCase: camelBack
+  readability-identifier-naming.GlobalConstantCase: camelBack
+  readability-identifier-naming.ConstantPointerCase: camelBack
+  readability-identifier-naming.ConstantReferenceCase: camelBack
+  readability-identifier-naming.GlobalConstantPointerCase: camelBack
+  readability-identifier-naming.GlobalConstantReferenceCase: camelBack
+  readability-identifier-naming.InlineVariableCase: camelBack
+  readability-identifier-naming.ConstexprVariableCase: camelBack
+  readability-identifier-naming.TemplateParameterCase: camelBack
+  readability-identifier-naming.TemplateTypeParameterCase: CamelCase
+  readability-identifier-naming.TypeTemplateParameterCase: CamelCase
+  readability-identifier-naming.ConceptCase: CamelCase
+
+  # WebKit: "Enum members should use InterCaps with an initial capital
+  # letter."
+  readability-identifier-naming.EnumConstantCase: CamelCase
+
+  # WebKit: "Static data members should be prefixed by 's_'."
+  readability-identifier-naming.StaticMemberPrefix: s_
+  readability-identifier-naming.StaticMemberCase: camelBack
+
+  # WebKit: "Other data members should be prefixed by 'm_'." The rule is about
+  # encapsulated data members, so it only applies to private and protected
+  # ones. This project models plain records as structs with public members
+  # (UsbDeviceInfo, Result, ...), and those keep their unprefixed names.
+  readability-identifier-naming.ClassMemberPrefix: m_
+  readability-identifier-naming.ClassMemberCase: camelBack
+  readability-identifier-naming.PrivateMemberPrefix: m_
+  readability-identifier-naming.PrivateMemberCase: camelBack
+  readability-identifier-naming.ProtectedMemberPrefix: m_
+  readability-identifier-naming.ProtectedMemberCase: camelBack
+  readability-identifier-naming.PublicMemberPrefix: ''
+  readability-identifier-naming.PublicMemberCase: camelBack
+
+  # Namespace aliases keep their lower case name. The WebKit rule is about
+  # namespace definitions, and clang-tidy cannot rewrite the uses of an
+  # aliased namespace, so renaming them would break the code.
+  readability-identifier-naming.NamespaceAliasCase: camelBack
+  readability-identifier-naming.NamespaceAliasPrefix: ''
+  readability-identifier-naming.NamespaceIgnoredRegexp: '^(fs|io|json|uuid|di|po)$'
+
+  # boost::json finds this customization point by name through argument
+  # dependent lookup, so it has to keep its snake_case spelling.
+  readability-identifier-naming.FunctionIgnoredRegexp: '^tag_invoke$'
+
+  # Type aliases are deliberately not renamed. The C++ standard library
+  # contracts require specific alias names (value_type, size_type,
+  # difference_type, ...), and renaming them breaks every container and
+  # algorithm that is parameterized over them.
+...

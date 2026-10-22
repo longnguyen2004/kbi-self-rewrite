@@ -2,9 +2,9 @@
 
 #include "core/result.h"
 
-namespace kbi::ui {
+namespace Kbi::Ui {
 
 // Draws the info window with the Summary / Devices / USB Devices tabs.
-void draw_info_window(bool* open, const Result& result);
+void drawInfoWindow(bool* open, const Result& result);
 
-} // namespace kbi::ui
+} // namespace Kbi::ui

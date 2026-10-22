@@ -9,16 +9,16 @@
 #include <thread>
 #include <vector>
 
-namespace kbi {
+namespace Kbi {
 
 // The frequency-domain snapshot of the three histograms.
 struct FreqSnapshot {
-    std::vector<double> consecutive_diff;
-    std::vector<double> all_diff;
-    std::vector<double> wrapped_timestamp;
-    double consecutive_diff_max = 0.0;
-    double all_diff_max = 0.0;
-    double wrapped_timestamp_max = 0.0;
+    std::vector<double> consecutiveDiff;
+    std::vector<double> allDiff;
+    std::vector<double> wrappedTimestamp;
+    double consecutiveDiffMax = 0.0;
+    double allDiffMax = 0.0;
+    double wrappedTimestampMax = 0.0;
 };
 
 // Port of the analyzer's `Analyzer` class.
@@ -43,45 +43,45 @@ public:
     void reset();
 
     // The bin rate in Hz. Must be 125 * 2^n.
-    [[nodiscard]] int bin_rate() const { return m_bin_rate; }
-    void set_bin_rate(int bin_rate);
+    [[nodiscard]] int binRate() const { return m_binRate; }
+    void setBinRate(int binRate);
 
-    [[nodiscard]] const std::vector<double>& consecutive_diff() const { return m_consecutive_diff_count; }
-    [[nodiscard]] double consecutive_diff_max() const { return m_consecutive_diff_count_max; }
-    [[nodiscard]] const std::vector<double>& all_diff() const { return m_all_diff_count; }
-    [[nodiscard]] double all_diff_max() const { return m_all_diff_count_max; }
-    [[nodiscard]] const std::vector<double>& wrapped_timestamp() const { return m_wrapped_timestamp_count; }
-    [[nodiscard]] double wrapped_timestamp_max() const { return m_wrapped_timestamp_count_max; }
+    [[nodiscard]] const std::vector<double>& consecutiveDiff() const { return m_consecutiveDiffCount; }
+    [[nodiscard]] double consecutiveDiffMax() const { return m_consecutiveDiffCountMax; }
+    [[nodiscard]] const std::vector<double>& allDiff() const { return m_allDiffCount; }
+    [[nodiscard]] double allDiffMax() const { return m_allDiffCountMax; }
+    [[nodiscard]] const std::vector<double>& wrappedTimestamp() const { return m_wrappedTimestampCount; }
+    [[nodiscard]] double wrappedTimestampMax() const { return m_wrappedTimestampCountMax; }
 
     // Most recent frequency-domain snapshot; may be null before the first
     // calculation completes.
-    [[nodiscard]] std::shared_ptr<const FreqSnapshot> freq_snapshot() const;
+    [[nodiscard]] std::shared_ptr<const FreqSnapshot> freqSnapshot() const;
 
     // The highest frequency of the spectrum, in Hz.
-    [[nodiscard]] double freq_max_hz() const { return m_bin_rate / 2.0; }
+    [[nodiscard]] double freqMaxHz() const { return m_binRate / 2.0; }
 
-    [[nodiscard]] std::size_t event_count() const { return m_event_count; }
+    [[nodiscard]] std::size_t eventCount() const { return m_eventCount; }
     [[nodiscard]] bool calculating() const;
 
     // Stops the worker thread.
     void terminate();
 
 private:
-    void worker_loop();
+    void workerLoop();
     void recompute();
 
-    int m_bin_rate = 16000;
-    std::vector<double> m_timestamp_raw;
-    std::vector<double> m_timestamp_binned;
+    int m_binRate = 16000;
+    std::vector<double> m_timestampRaw;
+    std::vector<double> m_timestampBinned;
 
-    std::vector<double> m_consecutive_diff_count;
-    std::vector<double> m_all_diff_count;
-    std::vector<double> m_wrapped_timestamp_count;
-    double m_consecutive_diff_count_max = 0.0;
-    double m_all_diff_count_max = 0.0;
-    double m_wrapped_timestamp_count_max = 0.0;
+    std::vector<double> m_consecutiveDiffCount;
+    std::vector<double> m_allDiffCount;
+    std::vector<double> m_wrappedTimestampCount;
+    double m_consecutiveDiffCountMax = 0.0;
+    double m_allDiffCountMax = 0.0;
+    double m_wrappedTimestampCountMax = 0.0;
 
-    std::size_t m_event_count = 0;
+    std::size_t m_eventCount = 0;
 
     // Worker thread state.
     std::thread m_thread;
@@ -91,11 +91,11 @@ private:
     bool m_dirty = false;
     bool m_calculating = false;
     std::uint64_t m_generation = 0;
-    std::uint64_t m_pending_generation = 0;
-    std::vector<double> m_pending_consecutive;
-    std::vector<double> m_pending_all;
-    std::vector<double> m_pending_wrapped;
+    std::uint64_t m_pendingGeneration = 0;
+    std::vector<double> m_pendingConsecutive;
+    std::vector<double> m_pendingAll;
+    std::vector<double> m_pendingWrapped;
     std::shared_ptr<const FreqSnapshot> m_snapshot;
 };
 
-} // namespace kbi
+} // namespace Kbi

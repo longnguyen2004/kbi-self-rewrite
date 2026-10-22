@@ -1,12 +1,13 @@
 #pragma once
 
-namespace kbi::ui {
+namespace Kbi::Ui {
 
-enum class Theme { Dark, Light };
+enum class Theme { Dark,
+    Light };
 
-void apply_theme(Theme theme);
-[[nodiscard]] Theme current_theme();
-void toggle_theme();
-[[nodiscard]] const char* theme_name(Theme theme);
+void applyTheme(Theme theme);
+[[nodiscard]] Theme currentTheme();
+void toggleTheme();
+[[nodiscard]] const char* themeName(Theme theme);
 
-} // namespace kbi::ui
+} // namespace Kbi::ui

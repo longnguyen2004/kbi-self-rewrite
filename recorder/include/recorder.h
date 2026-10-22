@@ -3,29 +3,29 @@
 #include <device.h>
 #include <keycode.h>
 #include <system_info.h>
-#include <memory>
 #include <atomic>
-#include <cstdint>
+#include <boost/signals2.hpp>
+#include <boost/unordered/concurrent_flat_map.hpp>
 #include <chrono>
+#include <cstdint>
+#include <deque>
+#include <memory>
+#include <spdlog/fwd.h>
 #include <string>
 #include <string_view>
-#include <deque>
 #include <utility>
-#include <boost/unordered/concurrent_flat_map.hpp>
-#include <boost/signals2.hpp>
-#include <spdlog/fwd.h>
 
 struct Input {
-    std::uint64_t Timestamp;
-    bool Pressed;
-    Keycode Code;
+    std::uint64_t timestamp;
+    bool pressed;
+    Keycode code;
 };
 
 enum class RecorderBackend {
     AUTO,
-    WINDOWS_GAMEINPUT,
-    WINDOWS_RAWINPUT,
-    LINUX_EVDEV
+    WindowsGameinput,
+    WindowsRawinput,
+    LinuxEvdev
 };
 
 class Recorder {
@@ -40,65 +40,65 @@ public:
     using StartSignal = boost::signals2::signal<void()>;
     using StopSignal = boost::signals2::signal<void()>;
 
-    Recorder(RecorderBackend backend = RecorderBackend::AUTO, std::shared_ptr<spdlog::logger> logger = nullptr);
+    explicit Recorder(RecorderBackend backend = RecorderBackend::AUTO, const std::shared_ptr<spdlog::logger>& logger = nullptr);
     ~Recorder();
 
-    UsbDeviceSignal& OnUsbDevice()
+    UsbDeviceSignal& onUsbDevice()
     {
-        return m_sig_usb_device;
+        return m_sigUsbDevice;
     }
-    DeviceSignal& OnDevice()
+    DeviceSignal& onDevice()
     {
-        return m_sig_device;
+        return m_sigDevice;
     }
-    InputSignal& OnInput()
+    InputSignal& onInput()
     {
-        return m_sig_input;
+        return m_sigInput;
     }
-    StartSignal& OnStart()
+    StartSignal& onStart()
     {
-        return m_sig_start;
+        return m_sigStart;
     }
-    StopSignal& OnStop()
+    StopSignal& onStop()
     {
-        return m_sig_stop;
+        return m_sigStop;
     }
 
-    bool Recording() const;
-    void Start(bool keyboard = true, bool mouse = false, bool gamepad = false);
-    void Stop();
+    bool recording() const;
+    void start(bool keyboard = true, bool mouse = false, bool gamepad = false);
+    void stop();
 
-    std::chrono::system_clock::time_point StartTime() const;
-    std::chrono::steady_clock::duration Elapsed() const;
+    std::chrono::system_clock::time_point startTime() const;
+    std::chrono::steady_clock::duration elapsed() const;
 
-    RecorderBackend Backend() const;
+    RecorderBackend backend() const;
 
     // The information about the machine, collected when the recorder was
     // created.
-    const SystemInfo& GetSystemInfo() const { return m_system_info; }
+    const SystemInfo& getSystemInfo() const { return m_systemInfo; }
 
-    const UsbDeviceMap& UsbDevices() const;
-    const DeviceMap& Devices() const;
-    const InputMap& Inputs() const;
-    size_t DeviceCount() const;
-    size_t InputCount() const;
+    const UsbDeviceMap& usbDevices() const;
+    const DeviceMap& devices() const;
+    const InputMap& inputs() const;
+    size_t deviceCount() const;
+    size_t inputCount() const;
 
 private:
     bool m_running = false;
 
-    std::unique_ptr<Impl> p_impl;
+    std::unique_ptr<Impl> m_pImpl;
     std::shared_ptr<spdlog::logger> m_logger;
     RecorderBackend m_backend;
-    SystemInfo m_system_info;
-    UsbDeviceMap m_usb_devices;
+    SystemInfo m_systemInfo;
+    UsbDeviceMap m_usbDevices;
     DeviceMap m_devices;
     InputMap m_inputs;
-    UsbDeviceSignal m_sig_usb_device;
-    DeviceSignal m_sig_device;
-    InputSignal m_sig_input;
-    StartSignal m_sig_start;
-    StopSignal m_sig_stop;
+    UsbDeviceSignal m_sigUsbDevice;
+    DeviceSignal m_sigDevice;
+    InputSignal m_sigInput;
+    StartSignal m_sigStart;
+    StopSignal m_sigStop;
 
-    std::chrono::system_clock::time_point m_start_wallclock;
-    std::chrono::steady_clock::time_point m_start_time, m_end_time;
+    std::chrono::system_clock::time_point m_startWallclock;
+    std::chrono::steady_clock::time_point m_startTime, m_endTime;
 };

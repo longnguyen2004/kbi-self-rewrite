@@ -4,10 +4,11 @@
 // the same dispatch table as the rendering.
 #include "imgui_impl_opengl3_loader.h"
 
+#include <array>
 #include <cstdio>
 #include <format>
-#include <print>
 #include <fstream>
+#include <print>
 #include <vector>
 
 // The ImGui loader only declares the enums it needs.
@@ -18,11 +19,12 @@
 #define GL_PACK_ALIGNMENT 0x0D05
 #endif
 
-namespace kbi::app {
+namespace Kbi::App {
 
-bool save_screenshot(const std::string& path) {
-    GLint viewport[4] = {0, 0, 0, 0};
-    glGetIntegerv(GL_VIEWPORT, viewport);
+bool saveScreenshot(const std::string& path)
+{
+    std::array<GLint, 4> viewport = { 0, 0, 0, 0 };
+    glGetIntegerv(GL_VIEWPORT, viewport.data());
     const int width = viewport[2];
     const int height = viewport[3];
     if (width <= 0 || height <= 0) {
@@ -30,8 +32,7 @@ bool save_screenshot(const std::string& path) {
         return false;
     }
 
-    std::vector<unsigned char> pixels(static_cast<std::size_t>(width) *
-                                      static_cast<std::size_t>(height) * 3);
+    std::vector<unsigned char> pixels(static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 3);
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
     glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
 
@@ -41,14 +42,14 @@ bool save_screenshot(const std::string& path) {
         return false;
     }
 
-    stream << "P6\n" << width << " " << height << "\n255\n";
+    stream << "P6\n"
+           << width << " " << height << "\n255\n";
     // GL reads bottom-up, write the rows top-down.
     for (int y = height - 1; y >= 0; --y) {
-        const unsigned char* row = pixels.data() + static_cast<std::size_t>(y) *
-                                                        static_cast<std::size_t>(width) * 3;
+        const unsigned char* row = pixels.data() + static_cast<std::size_t>(y) * static_cast<std::size_t>(width) * 3;
         stream.write(reinterpret_cast<const char*>(row), static_cast<std::streamsize>(width) * 3);
     }
     return true;
 }
 
-} // namespace kbi::app
+} // namespace Kbi::app

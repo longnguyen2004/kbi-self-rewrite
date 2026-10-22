@@ -28,3 +28,43 @@ enable_testing()
 
 add_subdirectory(recorder)
 add_subdirectory(analyzer-native)
+
+# Style targets ---------------------------------------------------------------
+#
+# The sources follow the WebKit code style, see .clang-format and .clang-tidy
+# in the repository root. The scripts in Tools/ do the actual work so that
+# they can also be used without CMake.
+if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    find_program(KBI_CLANG_FORMAT NAMES clang-format)
+    find_program(KBI_CLANG_TIDY NAMES clang-tidy)
+
+    if (KBI_CLANG_FORMAT)
+        add_custom_target(format
+            COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/Tools/format.sh
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            COMMENT "Formatting the sources with clang-format"
+            VERBATIM
+        )
+
+        add_custom_target(format-check
+            COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/Tools/format.sh --check
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            COMMENT "Checking the formatting with clang-format"
+            VERBATIM
+        )
+    else()
+        message(STATUS "clang-format not found, the format targets are not available")
+    endif()
+
+    if (KBI_CLANG_TIDY)
+        add_custom_target(tidy
+            COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/Tools/tidy.sh
+                    --build-dir ${CMAKE_BINARY_DIR}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            COMMENT "Running clang-tidy over the sources"
+            VERBATIM
+        )
+    else()
+        message(STATUS "clang-tidy not found, the tidy target is not available")
+    endif()
+endif()

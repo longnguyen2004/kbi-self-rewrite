@@ -1,17 +1,17 @@
-#include "impl.h"
 #include "device_name.h"
+#include "impl.h"
 #include "vk_to_keycode.h"
 
-#include <spdlog/spdlog.h>
-#include <wil/win32_result_macros.h>
-#include <wil/com.h>
-#include <windows.h>
 #include <algorithm>
 #include <chrono>
-#include <thread>
 #include <mutex>
+#include <spdlog/spdlog.h>
 #include <stop_token>
+#include <thread>
 #include <type_traits>
+#include <wil/com.h>
+#include <wil/win32_result_macros.h>
+#include <windows.h>
 
 using namespace GameInput::v3;
 using namespace std::chrono;
@@ -21,7 +21,7 @@ IGameInput* gameinput_init()
 {
     static std::mutex mtx_init;
     static wil::com_ptr_t<IGameInput> gameinput;
-    using GameInputCreate_t = HRESULT(IUnknown** );
+    using GameInputCreate_t = HRESULT(IUnknown**);
 
     std::lock_guard lck(mtx_init);
     if (gameinput)
@@ -31,8 +31,7 @@ IGameInput* gameinput_init()
     THROW_LAST_ERROR_IF_NULL_MSG(gameinput_dll, "Failed to load the GameInput dll");
 
     auto create_func = reinterpret_cast<GameInputCreate_t*>(
-        GetProcAddress(gameinput_dll, "GameInputCreate")
-    );
+        GetProcAddress(gameinput_dll, "GameInputCreate"));
     THROW_LAST_ERROR_IF_NULL_MSG(create_func, "Failed to load the GameInput factory function");
 
     IUnknown* unknown = nullptr;
@@ -54,8 +53,7 @@ bool sort_by_scancode(const GameInputKeyState& a, const GameInputKeyState& b)
 
 void recorder_win_gameinput::_update_key_states(
     const std::string& pnp, std::uint16_t vid, std::uint16_t pid,
-    std::uint64_t timestamp, const KeyStateArray& state
-)
+    std::uint64_t timestamp, const KeyStateArray& state)
 {
     auto& state_prev = m_key_states[pnp];
     KeyStateArray pressed;
@@ -64,35 +62,23 @@ void recorder_win_gameinput::_update_key_states(
         state_prev.begin(), state_prev.end(),
         state.begin(), state.end(),
         std::back_inserter(released),
-        sort_by_scancode
-    );
+        sort_by_scancode);
     std::set_difference(
         state.begin(), state.end(),
         state_prev.begin(), state_prev.end(),
         std::back_inserter(pressed),
-        sort_by_scancode
-    );
-    for (auto& i : pressed)
-    {
-        OnInput()(pnp, vid, pid, Input{
-            .Timestamp = timestamp - m_timestamp_ref,
-            .Pressed = true,
-            .Code = static_cast<Keycode>(vk_to_keycode(i.virtualKey))
-        });
+        sort_by_scancode);
+    for (auto& i : pressed) {
+        OnInput()(pnp, vid, pid, Input { .Timestamp = timestamp - m_timestamp_ref, .Pressed = true, .Code = static_cast<Keycode>(vk_to_keycode(i.virtualKey)) });
     }
-    for (auto& i : released)
-    {
-        OnInput()(pnp, vid, pid, Input{
-            .Timestamp = timestamp - m_timestamp_ref,
-            .Pressed = false,
-            .Code = static_cast<Keycode>(vk_to_keycode(i.virtualKey))
-        });
+    for (auto& i : released) {
+        OnInput()(pnp, vid, pid, Input { .Timestamp = timestamp - m_timestamp_ref, .Pressed = false, .Code = static_cast<Keycode>(vk_to_keycode(i.virtualKey)) });
     }
     state_prev = state;
 }
 
-recorder_win_gameinput::recorder_win_gameinput(std::shared_ptr<spdlog::logger> logger):
-    Recorder::Impl(logger)
+recorder_win_gameinput::recorder_win_gameinput(std::shared_ptr<spdlog::logger> logger)
+    : Recorder::Impl(logger)
 {
     m_gameinput = gameinput_init();
 }
@@ -100,11 +86,10 @@ recorder_win_gameinput::recorder_win_gameinput(std::shared_ptr<spdlog::logger> l
 void _gameinput_reading_callback(
     GameInputCallbackToken token,
     void* context,
-    IGameInputReading* reading
-)
+    IGameInputReading* reading)
 {
-    IGameInputDevice *device = nullptr;
-    const GameInputDeviceInfo *device_info = nullptr;
+    IGameInputDevice* device = nullptr;
+    const GameInputDeviceInfo* device_info = nullptr;
     reading->GetDevice(&device);
     device->GetDeviceInfo(&device_info);
 
@@ -114,16 +99,14 @@ void _gameinput_reading_callback(
 
     auto timestamp = reading->GetTimestamp();
     auto input_kind = reading->GetInputKind();
-    if (input_kind & GameInputKind::GameInputKindKeyboard)
-    {
+    if (input_kind & GameInputKind::GameInputKindKeyboard) {
         KeyStateArray state;
         auto state_len = reading->GetKeyCount();
         state.resize(state_len);
         reading->GetKeyState(state_len, state.data());
         std::sort(state.begin(), state.end(), sort_by_scancode);
         reinterpret_cast<recorder_win_gameinput*>(context)->_update_key_states(
-            pnp, vid, pid, timestamp, state
-        );
+            pnp, vid, pid, timestamp, state);
     }
 
     device->Release();
@@ -141,17 +124,15 @@ void recorder_win_gameinput::Start(bool keyboard, bool mouse, bool gamepad)
     m_timestamp_ref = m_gameinput->GetCurrentTimestamp();
     m_key_states.clear();
     m_dispatcher_thread = std::jthread([&](const std::stop_token& stop) {
-        IGameInputDispatcher *dispatcher;
+        IGameInputDispatcher* dispatcher;
         if (FAILED(m_gameinput->CreateDispatcher(&dispatcher)))
             return;
         SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
         SetThreadAffinityMask(GetCurrentThread(), 1);
         HANDLE waitHandle = nullptr;
         dispatcher->OpenWaitHandle(&waitHandle);
-        while (!stop.stop_requested())
-        {
-            if (waitHandle)
-            {
+        while (!stop.stop_requested()) {
+            if (waitHandle) {
                 auto res = WaitForSingleObject(waitHandle, 100);
                 if (res != 0)
                     continue;
@@ -163,8 +144,7 @@ void recorder_win_gameinput::Start(bool keyboard, bool mouse, bool gamepad)
         dispatcher->Release();
     });
     m_gameinput->RegisterReadingCallback(
-        nullptr, kind, this, _gameinput_reading_callback, &m_callback_token
-    );
+        nullptr, kind, this, _gameinput_reading_callback, &m_callback_token);
 }
 
 void recorder_win_gameinput::Stop()

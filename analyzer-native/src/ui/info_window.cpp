@@ -9,25 +9,28 @@
 #include <map>
 #include <string>
 
-namespace kbi::ui {
+namespace Kbi::Ui {
 namespace {
 
-std::string hex16(std::uint16_t value) {
+std::string hex16(std::uint16_t value)
+{
     return std::format("0x{:04X}", value);
 }
 
-std::string hex_bytes(const std::vector<unsigned char>& bytes) {
+std::string hexBytes(const std::vector<unsigned char>& bytes)
+{
     std::string out;
     out.reserve(bytes.size() * 3);
     for (std::size_t i = 0; i < bytes.size(); ++i) {
-        if (i)
+        if (i != 0u)
             out += ' ';
         out += std::format("{:02X}", bytes[i]);
     }
     return out;
 }
 
-const char* speed_name(UsbDeviceSpeed speed) {
+const char* speedName(UsbDeviceSpeed speed)
+{
     switch (speed) {
     case UsbDeviceSpeed::LowSpeed:
         return "Low speed";
@@ -42,30 +45,33 @@ const char* speed_name(UsbDeviceSpeed speed) {
     }
 }
 
-void draw_fields(const std::vector<DescriptorField>& fields) {
+void drawFields(const std::vector<DescriptorField>& fields)
+{
     for (const DescriptorField& field : fields) {
         ImGui::Text("%s: %s", field.name.c_str(), field.value.c_str());
         if (!field.children.empty()) {
             ImGui::Indent();
-            draw_fields(field.children);
+            drawFields(field.children);
             ImGui::Unindent();
         }
     }
 }
 
-void draw_summary(const Result& result) {
-    ImGui::Text("OS: %s", result.info.os_name.c_str());
-    ImGui::Text("OS version: %s", result.info.os_ver.c_str());
+void drawSummary(const Result& result)
+{
+    ImGui::Text("OS: %s", result.info.osName.c_str());
+    ImGui::Text("OS version: %s", result.info.osVer.c_str());
     ImGui::Text("Architecture: %s", result.info.arch.c_str());
     ImGui::Text("Backend: %s", result.info.backend.c_str());
-    if (result.info.safe_mode)
-        ImGui::Text("Safe mode: %s", *result.info.safe_mode ? "yes" : "no");
+    if (result.info.safeMode)
+        ImGui::Text("Safe mode: %s", *result.info.safeMode ? "yes" : "no");
     ImGui::Separator();
     ImGui::Text("Recorded at: %s", result.time.c_str());
-    ImGui::Text("Input events: %zu", result.total_input_count());
+    ImGui::Text("Input events: %zu", result.totalInputCount());
 }
 
-void draw_devices(const Result& result) {
+void drawDevices(const Result& result)
+{
     if (result.devices.empty()) {
         ImGui::TextDisabled("No devices");
         return;
@@ -73,49 +79,50 @@ void draw_devices(const Result& result) {
     for (const auto& [id, device] : result.devices) {
         ImGui::PushID(id.c_str());
         if (ImGui::CollapsingHeader(device.name.empty() ? id.c_str() : device.name.c_str(),
-                                   ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Text("Id: %s", id.c_str());
             ImGui::Text("VID: %s", device.vid == 0 ? "N/A" : hex16(device.vid).c_str());
             ImGui::Text("PID: %s", device.pid == 0 ? "N/A" : hex16(device.pid).c_str());
             const auto it = result.inputs.find(id);
             const std::size_t count = it == result.inputs.end() ? 0 : it->second.size();
             ImGui::Text("Number of inputs: %zu", count);
-            if (device.usb_device)
-                ImGui::Text("USB device: %s", device.usb_device->c_str());
+            if (device.usbDevice)
+                ImGui::Text("USB device: %s", device.usbDevice->c_str());
         }
         ImGui::PopID();
     }
 }
 
-void draw_usb_devices(const Result& result) {
-    if (result.usb_devices.empty()) {
+void drawUsbDevices(const Result& result)
+{
+    if (result.usbDevices.empty()) {
         ImGui::TextDisabled("No USB devices");
         return;
     }
 
     // The descriptors are decoded once and then cached.
     static std::map<std::string, std::vector<ParsedDescriptor>> cache;
-    for (const auto& [id, device] : result.usb_devices) {
+    for (const auto& [id, device] : result.usbDevices) {
         ImGui::PushID(id.c_str());
         if (ImGui::CollapsingHeader(id.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Text("VID: %s", hex16(device.vid).c_str());
             ImGui::Text("PID: %s", hex16(device.pid).c_str());
-            ImGui::Text("Speed: %s", speed_name(device.speed));
+            ImGui::Text("Speed: %s", speedName(device.speed));
 
             if (!device.descriptors.empty()) {
                 auto cached = cache.find(id);
                 if (cached == cache.end())
-                    cached = cache.emplace(id, parse_usb_descriptors(device.descriptors)).first;
+                    cached = cache.emplace(id, parseUsbDescriptors(device.descriptors)).first;
                 for (const ParsedDescriptor& descriptor : cached->second) {
                     ImGui::PushID(static_cast<int>(descriptor.index));
                     const std::string header = std::format("#{} {} ({} bytes)",
-                                                          descriptor.index,
-                                                          descriptor.type_name,
-                                                          descriptor.length);
+                        descriptor.index,
+                        descriptor.typeName,
+                        descriptor.length);
                     if (ImGui::TreeNodeEx(header.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
-                        draw_fields(descriptor.fields);
+                        drawFields(descriptor.fields);
                         if (ImGui::TreeNode("Raw bytes")) {
-                            ImGui::TextUnformatted(hex_bytes(descriptor.raw).c_str());
+                            ImGui::TextUnformatted(hexBytes(descriptor.raw).c_str());
                             ImGui::TreePop();
                         }
                         // A tree node is only pushed when it is open, so the
@@ -132,22 +139,23 @@ void draw_usb_devices(const Result& result) {
 
 } // namespace
 
-void draw_info_window(bool* open, const Result& result) {
+void drawInfoWindow(bool* open, const Result& result)
+{
     ImGui::SetNextWindowSize(ImVec2(680.0f, 560.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Info", open, ImGuiWindowFlags_NoCollapse))
         return;
 
     if (ImGui::BeginTabBar("##info_tabs")) {
         if (ImGui::BeginTabItem("Summary")) {
-            draw_summary(result);
+            drawSummary(result);
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Devices")) {
-            draw_devices(result);
+            drawDevices(result);
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("USB Devices")) {
-            draw_usb_devices(result);
+            drawUsbDevices(result);
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();
@@ -156,4 +164,4 @@ void draw_info_window(bool* open, const Result& result) {
     ImGui::End();
 }
 
-} // namespace kbi::ui
+} // namespace Kbi::ui
