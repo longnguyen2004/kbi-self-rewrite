@@ -1,11 +1,15 @@
 #include "app/app.h"
 #include "app/screenshot.h"
 #include "app/theme.h"
+#include "ui/log_store.h"
 
+#include <boost/di.hpp>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 #include <implot.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/spdlog.h>
 
 // Use the same OpenGL loader as the ImGui backend so that every GL call goes
 // through the same dispatch table.
@@ -18,6 +22,8 @@
 #include <format>
 #include <print>
 #include <string>
+
+namespace di = boost::di;
 
 namespace {
 
@@ -53,6 +59,20 @@ int main(int argc, char** argv)
         }
     }
 
+    // The dependencies are wired together with boost::di: the logger writes
+    // to the terminal and into the log store, which is a singleton shared
+    // with the "Logs" dialog of the app. The recorder gets the logger passed
+    // by the app, then it reports in both.
+    const auto injector = di::make_injector(
+        di::bind<Kbi::Ui::LogStore>.in(di::singleton),
+        di::bind<spdlog::logger>.to([](const auto& injector) -> std::shared_ptr<spdlog::logger> {
+            auto consoleSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+            consoleSink->set_level(spdlog::level::info);
+            auto logStore = injector.template create<std::shared_ptr<Kbi::Ui::LogStore>>();
+            return std::make_shared<spdlog::logger>("kbi",
+                spdlog::sinks_init_list { consoleSink, logStore });
+        }));
+
     glfwSetErrorCallback(glfwErrorCallback);
     if (glfwInit() == 0) {
         std::println(stderr, "Failed to initialize GLFW");
@@ -86,13 +106,13 @@ int main(int argc, char** argv)
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 150");
 
-    Kbi::App::App app;
+    auto app = injector.create<std::unique_ptr<Kbi::App::App>>();
     if (!openPath.empty())
-        app.load(openPath);
+        app->load(openPath);
     if (record)
-        app.startRecording();
+        app->startRecording();
     if (showInfo)
-        app.setInfoVisible(true);
+        app->setInfoVisible(true);
 
     int frame = 0;
     while (glfwWindowShouldClose(window) == 0) {
@@ -102,7 +122,7 @@ int main(int argc, char** argv)
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        app.draw();
+        app->draw();
 
         ImGui::Render();
         int framebufferWidth = 0;

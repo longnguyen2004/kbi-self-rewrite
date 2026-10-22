@@ -16,6 +16,9 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     add_compile_definitions(-D_GLIBCXX_USE_TBB_PAR_BACKEND=0)
 endif()
 
+# The main program wires its dependencies up with boost::di.
+find_path(BEXT_DI_INCLUDE_DIRS "boost/di.hpp")
+
 # The recorder is embedded as a static library instead of being spawned as an
 # external process. When this project is built on its own the recorder is
 # added here, otherwise the top level project already did that.
@@ -58,9 +61,10 @@ add_executable(analyzer-native
 
     src/ui/charts.cpp
     src/ui/info_window.cpp
+    src/ui/log_window.cpp
 )
 
-target_include_directories(analyzer-native PRIVATE src)
+target_include_directories(analyzer-native PRIVATE src ${BEXT_DI_INCLUDE_DIRS})
 
 target_link_libraries(analyzer-native PRIVATE
     recorder-lib
@@ -109,6 +113,7 @@ add_executable(analyzer-native-tests
     src/parser/parser_kbi_legacy.cpp
     src/parser/usb_descriptors.cpp
     src/ui/charts.cpp
+    src/ui/log_store.h
 )
 target_include_directories(analyzer-native-tests PRIVATE src)
 target_link_libraries(analyzer-native-tests PRIVATE

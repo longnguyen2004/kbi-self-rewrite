@@ -11,14 +11,15 @@
 namespace Kbi {
 
 struct RecorderSource::Impl {
+    std::shared_ptr<spdlog::logger> logger;
     std::unique_ptr<::Recorder> recorder;
     boost::signals2::scoped_connection usbConnection;
     boost::signals2::scoped_connection deviceConnection;
     boost::signals2::scoped_connection inputConnection;
 };
 
-RecorderSource::RecorderSource()
-    : m_impl(std::make_unique<Impl>())
+RecorderSource::RecorderSource(std::shared_ptr<spdlog::logger> logger)
+    : m_impl(std::make_unique<Impl>(Impl { .logger = std::move(logger) }))
 {
 }
 
@@ -35,8 +36,9 @@ bool RecorderSource::start(std::string& error)
     try {
         // The recorder dereferences the logger it is given, so always hand it
         // a valid one.
-        m_impl->recorder = std::make_unique<::Recorder>(::RecorderBackend::AUTO,
-            spdlog::default_logger());
+        if (!m_impl->logger)
+            throw std::runtime_error("the recorder has no logger");
+        m_impl->recorder = std::make_unique<::Recorder>(::RecorderBackend::AUTO, m_impl->logger);
     } catch (const std::exception& e) {
         error = e.what();
         m_impl->recorder.reset();

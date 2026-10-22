@@ -5,6 +5,7 @@
 #include "core/result.h"
 
 #include <system_info.h>
+#include <spdlog/fwd.h>
 
 #include <memory>
 #include <mutex>
@@ -20,7 +21,7 @@ namespace Kbi {
 // queued and drained on the UI thread.
 class RecorderSource {
 public:
-    RecorderSource();
+    explicit RecorderSource(std::shared_ptr<spdlog::logger> logger);
     ~RecorderSource();
 
     RecorderSource(const RecorderSource&) = delete;

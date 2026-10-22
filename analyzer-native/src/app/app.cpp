@@ -8,6 +8,7 @@
 #include <chrono>
 
 #include <imgui.h>
+#include <spdlog/spdlog.h>
 
 #include <algorithm>
 #include <array>
@@ -50,7 +51,10 @@ ImVec4 eventCountColor(double value)
 
 } // namespace
 
-App::App()
+App::App(std::shared_ptr<spdlog::logger> logger, std::shared_ptr<Ui::LogStore> logStore)
+    : m_logger(std::move(logger))
+    , m_recorder(m_logger)
+    , m_logStore(std::move(logStore))
 {
     resetAnalysis();
 }
@@ -62,6 +66,7 @@ void App::resetAnalysis()
     m_result = Result {};
     m_hasResult = false;
     m_deviceIds.clear();
+    m_infoWindow.reset();
     m_diffSync = Ui::ChartSync {};
     m_freqSync = Ui::ChartSync {};
     m_charts.resetZoom();
@@ -112,6 +117,7 @@ void App::openFile(const std::string& path)
     const auto parsed = parseResultFile(path);
     if (!parsed) {
         m_status = std::format("Could not read {}", path);
+        m_logger->error("Could not read {}", path);
         return;
     }
     resetAnalysis();
@@ -120,6 +126,7 @@ void App::openFile(const std::string& path)
     m_charts.setTimelineRange(0.0, 10.0);
     m_lastPath = path;
     m_status = std::format("Loaded {}", path);
+    m_logger->info("Loaded {}", path);
 }
 
 bool App::load(const std::string& path)
@@ -137,6 +144,7 @@ bool App::startRecording()
 
     std::string error;
     if (!m_recorder.start(error)) {
+        m_logger->error("Could not start the recorder: {}", error);
         m_status = std::format("Could not start the recorder: {}", error);
         m_mode = Mode::FromRecorder;
         return false;
@@ -164,6 +172,7 @@ void App::stopRecording()
     if (m_hasResult)
         m_result.info.backend = m_recorder.backendName();
     m_status = "Recording stopped";
+    m_logger->info("Recording stopped, {} events captured", m_result.totalInputCount());
     m_mode = Mode::FromRecorder;
 }
 
@@ -190,7 +199,7 @@ void App::drawHeader()
 {
     ImGui::BeginTable("##header", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings);
     ImGui::TableSetupColumn("##left", ImGuiTableColumnFlags_WidthStretch);
-    ImGui::TableSetupColumn("##right", ImGuiTableColumnFlags_WidthFixed, 300.0f);
+    ImGui::TableSetupColumn("##right", ImGuiTableColumnFlags_WidthFixed, 340.0f);
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
 
@@ -214,6 +223,9 @@ void App::drawHeader()
         m_showInfo = true;
     if (m_hasResult)
         ImGui::SameLine();
+    if (ImGui::Button("Logs"))
+        m_showLogs = !m_showLogs;
+    ImGui::SameLine();
     if (ImGui::Button(Ui::themeName(Ui::currentTheme())))
         Ui::toggleTheme();
     ImGui::SameLine();
@@ -404,7 +416,9 @@ void App::draw()
     ImGui::End();
 
     if (m_showInfo)
-        Ui::drawInfoWindow(&m_showInfo, m_result);
+        m_infoWindow.draw(&m_showInfo, m_result);
+    if (m_showLogs && m_logStore)
+        m_logWindow.draw(&m_showLogs, *m_logStore);
 }
 
 } // namespace Kbi::app

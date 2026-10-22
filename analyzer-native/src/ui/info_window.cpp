@@ -93,7 +93,9 @@ void drawDevices(const Result& result)
     }
 }
 
-void drawUsbDevices(const Result& result)
+} // namespace
+
+void InfoWindow::drawUsbDevices(const Result& result)
 {
     if (result.usbDevices.empty()) {
         ImGui::TextDisabled("No USB devices");
@@ -101,7 +103,6 @@ void drawUsbDevices(const Result& result)
     }
 
     // The descriptors are decoded once and then cached.
-    static std::map<std::string, std::vector<ParsedDescriptor>> cache;
     for (const auto& [id, device] : result.usbDevices) {
         ImGui::PushID(id.c_str());
         if (ImGui::CollapsingHeader(id.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -110,9 +111,9 @@ void drawUsbDevices(const Result& result)
             ImGui::Text("Speed: %s", speedName(device.speed));
 
             if (!device.descriptors.empty()) {
-                auto cached = cache.find(id);
-                if (cached == cache.end())
-                    cached = cache.emplace(id, parseUsbDescriptors(device.descriptors)).first;
+                auto cached = m_parsedDescriptors.find(id);
+                if (cached == m_parsedDescriptors.end())
+                    cached = m_parsedDescriptors.emplace(id, parseUsbDescriptors(device.descriptors)).first;
                 for (const ParsedDescriptor& descriptor : cached->second) {
                     ImGui::PushID(static_cast<int>(descriptor.index));
                     const std::string header = std::format("#{} {} ({} bytes)",
@@ -137,9 +138,7 @@ void drawUsbDevices(const Result& result)
     }
 }
 
-} // namespace
-
-void drawInfoWindow(bool* open, const Result& result)
+void InfoWindow::draw(bool* open, const Result& result)
 {
     ImGui::SetNextWindowSize(ImVec2(680.0f, 560.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Info", open, ImGuiWindowFlags_NoCollapse))
@@ -164,4 +163,4 @@ void drawInfoWindow(bool* open, const Result& result)
     ImGui::End();
 }
 
-} // namespace Kbi::ui
+} // namespace Kbi::Ui

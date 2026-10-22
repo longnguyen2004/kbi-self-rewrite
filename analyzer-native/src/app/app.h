@@ -7,7 +7,13 @@
 #include "core/result.h"
 #include "recorder/recorder_source.h"
 #include "ui/charts.h"
+#include "ui/info_window.h"
+#include "ui/log_store.h"
+#include "ui/log_window.h"
 
+#include <spdlog/fwd.h>
+
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -20,7 +26,7 @@ enum class Mode { FromFile,
 // The application shell: mode selection, the analysis options and the charts.
 class App {
 public:
-    App();
+    App(std::shared_ptr<spdlog::logger> logger, std::shared_ptr<Ui::LogStore> logStore);
 
     void draw();
 
@@ -55,9 +61,14 @@ private:
     Result m_result;
     bool m_hasResult = false;
 
+    std::shared_ptr<spdlog::logger> m_logger;
     RecorderSource m_recorder;
 
     bool m_showInfo = false;
+    bool m_showLogs = false;
+    std::shared_ptr<Ui::LogStore> m_logStore;
+    Ui::LogWindow m_logWindow;
+    Ui::InfoWindow m_infoWindow;
     std::string m_status;
     std::string m_lastPath;
 
