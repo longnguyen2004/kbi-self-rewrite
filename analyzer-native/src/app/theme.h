@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string_view>
+
 namespace Kbi::Ui {
 
 enum class Theme { Dark,
@@ -8,6 +10,6 @@ enum class Theme { Dark,
 void applyTheme(Theme theme);
 [[nodiscard]] Theme currentTheme();
 void toggleTheme();
-[[nodiscard]] const char* themeName(Theme theme);
+[[nodiscard]] std::string_view themeName(Theme theme);
 
-} // namespace Kbi::ui
+} // namespace Kbi::Ui

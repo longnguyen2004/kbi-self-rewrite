@@ -1,7 +1,6 @@
 #include "device_name.h"
 #include <array>
 #include <cstdio>
-#include <cstring>
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
@@ -16,7 +15,7 @@ namespace fs = std::filesystem;
 
 namespace {
 
-std::optional<std::string> readSysfsAttr(std::string_view path, const char* attr)
+std::optional<std::string> readSysfsAttr(std::string_view path, std::string_view attr)
 {
     auto filePath = (fs::path(path) / attr).string();
     std::ifstream file(filePath);
@@ -31,7 +30,7 @@ std::optional<std::string> readSysfsAttr(std::string_view path, const char* attr
 
 // Read a sysfs symlink (subsystem, driver) and return its basename.
 // e.g. readlink("/sys/.../subsystem") -> "../../../../bus/hid" -> "hid"
-std::string readSysfsLinkBasename(std::string_view path, const char* attr)
+std::string readSysfsLinkBasename(std::string_view path, std::string_view attr)
 {
     auto filePath = (fs::path(path) / attr).string();
     std::array<char, PATH_MAX> buf {};
@@ -93,8 +92,8 @@ std::string getParentDevice(const std::string& cur)
 }
 
 struct SubsysDriver {
-    const char* subsys;
-    const char* driver;
+    std::string_view subsys;
+    std::string_view driver;
 };
 
 constexpr auto subsysDriverChain = std::to_array<SubsysDriver>({
@@ -119,9 +118,9 @@ std::optional<std::string> findUsbDevice(std::string_view path)
             return {};
         auto deviceDriver = readSysfsLinkBasename(current, "driver");
 
-        if (std::strcmp(subsys, deviceSubsys.c_str()) != 0)
+        if (subsys != deviceSubsys)
             return {};
-        if (std::strcmp(driver, deviceDriver.c_str()) != 0)
+        if (driver != deviceDriver)
             return {};
 
         auto parent = getParentDevice(current);

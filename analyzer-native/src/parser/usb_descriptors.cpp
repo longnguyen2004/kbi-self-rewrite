@@ -10,6 +10,8 @@
 #include <format>
 #include <map>
 #include <simdutf.h>
+#include <span>
+#include <string_view>
 
 namespace Kbi {
 namespace {
@@ -51,9 +53,9 @@ unsigned char readU8(const std::vector<unsigned char>& raw, std::size_t offset)
 }
 
 // Decodes UTF-16LE into UTF-8, including surrogate pairs.
-std::string utf16leToUtf8(const unsigned char* data, std::size_t length)
+std::string utf16leToUtf8(std::span<const unsigned char> data)
 {
-    const std::size_t units = length / 2;
+    const std::size_t units = data.size() / 2;
     std::vector<char16_t> utf16(units);
     for (std::size_t i = 0; i < units; ++i)
         utf16[i] = static_cast<char16_t>(data[i * 2] | (data[i * 2 + 1] << 8));
@@ -312,7 +314,7 @@ std::vector<DescriptorField> parseEndpointDescriptor(const std::vector<unsigned 
 {
     const unsigned char epAddr = readU8(raw, 2);
     const unsigned epNum = epAddr & 0x0f;
-    const char* epDir = ((epAddr & 0x80) != 0) ? "IN" : "OUT";
+    const std::string_view epDir = ((epAddr & 0x80) != 0) ? "IN" : "OUT";
     const unsigned char attr = readU8(raw, 3);
     const unsigned transferType = attr & 0x03;
     const unsigned syncType = (attr >> 2) & 0x03;
@@ -413,7 +415,7 @@ std::vector<DescriptorField> parseStringDescriptor(const std::vector<unsigned ch
     };
     if (raw.size() > 2) {
         const std::vector<unsigned char> payload(raw.begin() + 2, raw.end());
-        fields.push_back(field("bString", utf16leToUtf8(payload.data(), payload.size())));
+        fields.push_back(field("bString", utf16leToUtf8(payload)));
     }
     return fields;
 }

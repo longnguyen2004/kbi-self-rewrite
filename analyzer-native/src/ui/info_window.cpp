@@ -8,6 +8,7 @@
 #include <format>
 #include <map>
 #include <string>
+#include <string_view>
 
 namespace Kbi::Ui {
 namespace {
@@ -29,7 +30,7 @@ std::string hexBytes(const std::vector<unsigned char>& bytes)
     return out;
 }
 
-const char* speedName(UsbDeviceSpeed speed)
+std::string_view speedName(UsbDeviceSpeed speed)
 {
     switch (speed) {
     case UsbDeviceSpeed::LowSpeed:
@@ -108,7 +109,9 @@ void InfoWindow::drawUsbDevices(const Result& result)
         if (ImGui::CollapsingHeader(id.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Text("VID: %s", hex16(device.vid).c_str());
             ImGui::Text("PID: %s", hex16(device.pid).c_str());
-            ImGui::Text("Speed: %s", speedName(device.speed));
+            // The speed names are literals, they are NUL-terminated.
+            // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
+            ImGui::Text("Speed: %s", speedName(device.speed).data());
 
             if (!device.descriptors.empty()) {
                 auto cached = m_parsedDescriptors.find(id);
@@ -138,10 +141,10 @@ void InfoWindow::drawUsbDevices(const Result& result)
     }
 }
 
-void InfoWindow::draw(bool* open, const Result& result)
+void InfoWindow::draw(bool& open, const Result& result)
 {
     ImGui::SetNextWindowSize(ImVec2(680.0f, 560.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("Info", open, ImGuiWindowFlags_NoCollapse))
+    if (!ImGui::Begin("Info", &open, ImGuiWindowFlags_NoCollapse))
         return;
 
     if (ImGui::BeginTabBar("##info_tabs")) {

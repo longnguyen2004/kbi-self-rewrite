@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <format>
+#include <functional>
 #include <map>
 #include <set>
 #include <string_view>
@@ -26,18 +27,15 @@ constexpr ImVec4 kFreqColor(240.0f / 255.0f, 120.0f / 255.0f, 0.0f, 1.0f);
 // Extra room around the plot area that still counts as "over the chart".
 constexpr float kHoverMargin = 16.0f;
 
-const ImVec4* devicePalette()
-{
-    static constexpr std::array<ImVec4, 6> palette = {
-        ImVec4(65.0f / 255.0f, 140.0f / 255.0f, 240.0f / 255.0f, 1.0f),
-        ImVec4(240.0f / 255.0f, 120.0f / 255.0f, 0.0f, 1.0f),
-        ImVec4(80.0f / 255.0f, 200.0f / 255.0f, 120.0f / 255.0f, 1.0f),
-        ImVec4(220.0f / 255.0f, 80.0f / 255.0f, 80.0f / 255.0f, 1.0f),
-        ImVec4(180.0f / 255.0f, 100.0f / 255.0f, 220.0f / 255.0f, 1.0f),
-        ImVec4(240.0f / 255.0f, 200.0f / 255.0f, 60.0f / 255.0f, 1.0f),
-    };
-    return palette.data();
-}
+// The colors assigned to the devices in the order they are seen.
+constexpr std::array<ImVec4, 6> kDevicePalette = {
+    ImVec4(65.0f / 255.0f, 140.0f / 255.0f, 240.0f / 255.0f, 1.0f),
+    ImVec4(240.0f / 255.0f, 120.0f / 255.0f, 0.0f, 1.0f),
+    ImVec4(80.0f / 255.0f, 200.0f / 255.0f, 120.0f / 255.0f, 1.0f),
+    ImVec4(220.0f / 255.0f, 80.0f / 255.0f, 80.0f / 255.0f, 1.0f),
+    ImVec4(180.0f / 255.0f, 100.0f / 255.0f, 220.0f / 255.0f, 1.0f),
+    ImVec4(240.0f / 255.0f, 200.0f / 255.0f, 60.0f / 255.0f, 1.0f),
+};
 
 // The tick positions of the difference charts: the range is covered with
 // steps of 0.125, 0.25, 0.5, 1, 2, 5, ... units.
@@ -265,14 +263,14 @@ void updateRange(ChartSync& sync, const ChartInteraction& interaction)
     }
 }
 
-void ChartRenderer::drawLineChart(const char* id,
-    const char* title,
+void ChartRenderer::drawLineChart(std::string_view id,
+    std::string_view title,
     const std::vector<double>& data,
     double yMax,
     ChartSync& sync,
     const ImVec4& color,
-    const char* xLabel,
-    const char* yLabel,
+    std::string_view xLabel,
+    std::string_view yLabel,
     double initialSpan,
     TickStyle tickStyle,
     TooltipStyle tooltipStyle)
@@ -292,9 +290,13 @@ void ChartRenderer::drawLineChart(const char* id,
     if (sync.xMax <= sync.xMin)
         sync.xMax = std::min(extentMax, sync.xMin + std::max(extentSpan * 1e-9, 1e-12));
 
-    ImGui::PushID(id);
-    if (title != nullptr)
-        ImGui::TextUnformatted(title);
+    // ImGui and ImPlot take C strings. The ids, titles and axis labels are
+    // always string literals, so they are guaranteed to be NUL-terminated.
+    // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
+    ImGui::PushID(id.data());
+    if (!title.empty())
+        // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
+        ImGui::TextUnformatted(title.data());
 
     // ImPlot's own input handling is disabled, the interactions below are
     // implemented explicitly so that they behave the same in every chart.
@@ -309,8 +311,10 @@ void ChartRenderer::drawLineChart(const char* id,
     // analyzer. Only an empty chart falls back to a range of one.
     const double yRange = yMax > 0.0 ? yMax : 1.0;
 
-    ImPlot::SetupAxis(ImAxis_X1, xLabel);
-    ImPlot::SetupAxis(ImAxis_Y1, yLabel);
+    // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
+    ImPlot::SetupAxis(ImAxis_X1, xLabel.data());
+    // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
+    ImPlot::SetupAxis(ImAxis_Y1, yLabel.data());
     ImPlot::SetupAxisLimits(ImAxis_X1, sync.xMin, sync.xMax, ImPlotCond_Always);
     ImPlot::SetupAxisLimits(ImAxis_Y1, 0.0, yRange, ImPlotCond_Always);
 
@@ -406,8 +410,8 @@ void ChartRenderer::drawLineChart(const char* id,
     ImGui::PopID();
 }
 
-void ChartRenderer::drawDiffChart(const char* id,
-    const char* title,
+void ChartRenderer::drawDiffChart(std::string_view id,
+    std::string_view title,
     const std::vector<double>& data,
     double yMax,
     ChartSync& sync)
@@ -419,8 +423,8 @@ void ChartRenderer::drawDiffChart(const char* id,
         TickStyle::Milliseconds, TooltipStyle::Difference);
 }
 
-void ChartRenderer::drawFreqChart(const char* id,
-    const char* title,
+void ChartRenderer::drawFreqChart(std::string_view id,
+    std::string_view title,
     const std::vector<double>& data,
     double yMax,
     double maxFrequency,
@@ -446,11 +450,12 @@ void ChartRenderer::setTimelineRange(double xMin, double xMax)
     m_timelineSync.followEnd = false;
 }
 
-void ChartRenderer::drawInputTimeline(const char* id,
+void ChartRenderer::drawInputTimeline(std::string_view id,
     const InputTimeline& timeline,
     const std::vector<std::string>& deviceIds)
 {
-    ImGui::PushID(id);
+    // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
+    ImGui::PushID(id.data());
 
     const std::vector<std::string>& keySet = timeline.keys();
     const std::vector<Keypress>& keypresses = timeline.keypresses();
@@ -458,9 +463,8 @@ void ChartRenderer::drawInputTimeline(const char* id,
 
     // Map every device to a colour, in the order the devices were seen.
     std::map<std::string, ImU32> deviceColors;
-    const ImVec4* palette = devicePalette();
     for (std::size_t i = 0; i < deviceIds.size(); ++i)
-        deviceColors[deviceIds[i]] = ImGui::ColorConvertFloat4ToU32(palette[i % 6]);
+        deviceColors[deviceIds[i]] = ImGui::ColorConvertFloat4ToU32(kDevicePalette[i % kDevicePalette.size()]);
 
     // The index of every key on the y axis.
     std::map<std::string, double> keyIndices;
@@ -471,13 +475,13 @@ void ChartRenderer::drawInputTimeline(const char* id,
     }
 
     // The keypresses that are drawn, they are the ones the tooltip snaps to.
-    std::vector<const Keypress*> drawn;
+    std::vector<std::reference_wrapper<const Keypress>> drawn;
     drawn.reserve(keypresses.size());
 
     for (const Keypress& keypress : keypresses) {
         if (!keyIndices.contains(keypress.key))
             continue;
-        drawn.push_back(&keypress);
+        drawn.emplace_back(keypress);
     }
 
     const double endTimestamp = timeline.endTimestamp();
@@ -533,7 +537,7 @@ void ChartRenderer::drawInputTimeline(const char* id,
     std::vector<SnapPoint> snapPoints;
     snapPoints.reserve(drawn.size());
     for (std::size_t i = 0; i < drawn.size(); ++i) {
-        const Keypress& keypress = *drawn[i];
+        const Keypress& keypress = drawn[i].get();
         const double center = (keypress.start + keypress.end) / 2.0;
         const auto index = keyIndices.find(keypress.key);
         snapPoints.push_back(SnapPoint { .x = toPixelX(area, sync.xMin, sync.xMax, center),
@@ -556,14 +560,14 @@ void ChartRenderer::drawInputTimeline(const char* id,
         const double rowHeight = keyCount > 0.0 ? area.size.y / keyCount : 0.0;
         const double margin = std::min(kBarMargin, rowHeight / 4.0);
 
-        for (const Keypress* keypress : drawn) {
-            const double x0 = toPixelX(area, sync.xMin, sync.xMax, keypress->start);
-            const double x1 = toPixelX(area, sync.xMin, sync.xMax, keypress->end);
+        for (const Keypress& keypress : drawn) {
+            const double x0 = toPixelX(area, sync.xMin, sync.xMax, keypress.start);
+            const double x1 = toPixelX(area, sync.xMin, sync.xMax, keypress.end);
             // Cull the bars that are outside of the view.
             if (x1 < plotMin.x || x0 > plotMax.x)
                 continue;
 
-            const auto index = keyIndices.find(keypress->key);
+            const auto index = keyIndices.find(keypress.key);
             if (index == keyIndices.end())
                 continue;
 
@@ -574,8 +578,8 @@ void ChartRenderer::drawInputTimeline(const char* id,
             const ImVec2 pMax(static_cast<float>(std::max(x1, x0 + 1.0)),
                 static_cast<float>(std::max(yBottom - margin, yTop + margin + 1.0)));
 
-            const ImU32 color = deviceColors.contains(keypress->deviceId)
-                ? deviceColors[keypress->deviceId]
+            const ImU32 color = deviceColors.contains(keypress.deviceId)
+                ? deviceColors[keypress.deviceId]
                 : IM_COL32(200, 200, 200, 255);
             drawList->AddRectFilled(pMin, pMax, color);
         }
@@ -587,7 +591,7 @@ void ChartRenderer::drawInputTimeline(const char* id,
     if (area.hovered) {
         const ImVec2 mouse = ImGui::GetMousePos();
         if (const SnapPoint* snapped = m_snapper.find(mouse.x, mouse.y, kTooltipRadius)) {
-            const Keypress& keypress = *drawn[static_cast<std::size_t>(snapped->index)];
+            const Keypress& keypress = drawn[static_cast<std::size_t>(snapped->index)].get();
             const double duration = std::max(0.0, keypress.end - keypress.start);
             showTooltip(ImVec2(static_cast<float>(snapped->x), static_cast<float>(snapped->y)),
                 { std::format("device: {}", keypress.deviceId),

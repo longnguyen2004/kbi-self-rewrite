@@ -46,9 +46,9 @@ void toggleTheme()
     applyTheme(gTheme == Theme::Dark ? Theme::Light : Theme::Dark);
 }
 
-const char* themeName(Theme theme)
+std::string_view themeName(Theme theme)
 {
     return theme == Theme::Dark ? "Dark" : "Light";
 }
 
-} // namespace Kbi::ui
+} // namespace Kbi::Ui

@@ -16,6 +16,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <format>
+#include <string_view>
 
 namespace Kbi::App {
 namespace {
@@ -203,11 +204,13 @@ void App::drawHeader()
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
 
-    const auto modeButton = [&](const char* label, Mode mode) {
+    const auto modeButton = [&](std::string_view label, Mode mode) {
         const bool active = m_mode == mode || (mode == Mode::FromRecorder && m_mode == Mode::Recording);
         if (active)
             ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
-        if (ImGui::Button(label))
+        // The button labels are literals, they are NUL-terminated.
+        // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
+        if (ImGui::Button(label.data()))
             setMode(mode);
         if (active)
             ImGui::PopStyleColor();
@@ -226,7 +229,8 @@ void App::drawHeader()
     if (ImGui::Button("Logs"))
         m_showLogs = !m_showLogs;
     ImGui::SameLine();
-    if (ImGui::Button(Ui::themeName(Ui::currentTheme())))
+    // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
+    if (ImGui::Button(Ui::themeName(Ui::currentTheme()).data()))
         Ui::toggleTheme();
     ImGui::SameLine();
     ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
@@ -416,9 +420,9 @@ void App::draw()
     ImGui::End();
 
     if (m_showInfo)
-        m_infoWindow.draw(&m_showInfo, m_result);
+        m_infoWindow.draw(m_showInfo, m_result);
     if (m_showLogs && m_logStore)
-        m_logWindow.draw(&m_showLogs, *m_logStore);
+        m_logWindow.draw(m_showLogs, *m_logStore);
 }
 
 } // namespace Kbi::app

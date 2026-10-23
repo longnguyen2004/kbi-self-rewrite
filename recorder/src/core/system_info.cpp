@@ -228,11 +228,11 @@ SystemInfo systemInfo()
 
     // Architecture
 #if defined(__i386__)
-    const char* arch = "i386";
+    const std::string arch = "i386";
 #elif defined(__amd64__)
-    const char* arch = "amd64";
+    const std::string arch = "amd64";
 #else
-    const char* arch = "Unknown";
+    const std::string arch = "Unknown";
 #endif
 
     // Distro information

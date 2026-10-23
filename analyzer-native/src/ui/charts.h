@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace Kbi::Ui {
@@ -61,22 +62,22 @@ class ChartRenderer {
 public:
     // Time domain histogram of the timestamp differences.
     // The x axis is in milliseconds, the y axis is the number of events.
-    void drawDiffChart(const char* id,
-        const char* title,
+    void drawDiffChart(std::string_view id,
+        std::string_view title,
         const std::vector<double>& data,
         double yMax,
         ChartSync& sync);
 
     // Frequency domain magnitude of the histograms. The x axis is in Hz.
-    void drawFreqChart(const char* id,
-        const char* title,
+    void drawFreqChart(std::string_view id,
+        std::string_view title,
         const std::vector<double>& data,
         double yMax,
         double maxFrequency,
         ChartSync& sync);
 
     // Gantt style chart of the keypress intervals.
-    void drawInputTimeline(const char* id,
+    void drawInputTimeline(std::string_view id,
         const InputTimeline& timeline,
         const std::vector<std::string>& deviceIds);
 
@@ -89,14 +90,14 @@ public:
     void setTimelineRange(double xMin, double xMax);
 
 private:
-    void drawLineChart(const char* id,
-        const char* title,
+    void drawLineChart(std::string_view id,
+        std::string_view title,
         const std::vector<double>& data,
         double yMax,
         ChartSync& sync,
         const ImVec4& color,
-        const char* xLabel,
-        const char* yLabel,
+        std::string_view xLabel,
+        std::string_view yLabel,
         double initialSpan,
         TickStyle tickStyle,
         TooltipStyle tooltipStyle);
@@ -106,4 +107,4 @@ private:
     PointSnapper m_snapper;
 };
 
-} // namespace Kbi::ui
+} // namespace Kbi::Ui

@@ -7,7 +7,7 @@ namespace Kbi::Ui {
 // The "Logs" dialog, it shows what spdlog has written to the LogStore sink.
 class LogWindow {
 public:
-    void draw(bool* open, LogStore& store);
+    void draw(bool& open, LogStore& store);
 
 private:
     spdlog::level::level_enum m_minLevel = spdlog::level::info;

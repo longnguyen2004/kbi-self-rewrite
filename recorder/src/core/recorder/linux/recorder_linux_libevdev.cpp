@@ -34,9 +34,9 @@ using namespace boost::unordered;
 
 namespace {
 
-libevdev* evdevOpen(const char* path)
+libevdev* evdevOpen(const std::string& path)
 {
-    int fd = open(path, O_RDONLY | O_NONBLOCK);
+    int fd = open(path.c_str(), O_RDONLY | O_NONBLOCK);
     if (fd < 0) {
         return nullptr;
     }
@@ -157,7 +157,7 @@ void RecorderLinuxLibevdev::initPoll(bool keyboard, bool mouse, bool gamepad)
         timespec ref;
         clock_gettime(CLOCK_MONOTONIC, &ref);
         std::uint64_t refUsec = ref.tv_sec * 1000000 + ref.tv_nsec / 1000;
-        std::vector<InternalDevice*> devices;
+        std::vector<std::reference_wrapper<InternalDevice>> devices;
         std::vector<pollfd> pollfds;
         while (!stop.stop_requested()) {
             devices.clear();
@@ -172,7 +172,7 @@ void RecorderLinuxLibevdev::initPoll(bool keyboard, bool mouse, bool gamepad)
                 }
                 // New device, try to open it
                 if (!dev.eventDevice) {
-                    __attribute__((cleanup(evdevCloseP))) libevdev* eventDevice = evdevOpen(path.data());
+                    __attribute__((cleanup(evdevCloseP))) libevdev* eventDevice = evdevOpen(path);
                     if (!eventDevice) {
                         m_logger->warn(
                             "Failed to open device {}. Are you running as root/in the 'input' user group?",
@@ -220,7 +220,7 @@ void RecorderLinuxLibevdev::initPoll(bool keyboard, bool mouse, bool gamepad)
                     eventDevice = nullptr;
                     m_logger->debug("Opened device {}", path);
                 }
-                devices.push_back(&dev);
+                devices.emplace_back(dev);
                 pollfds.emplace_back(libevdev_get_fd(dev.eventDevice), POLLIN, 0);
                 return false;
             });
@@ -237,8 +237,9 @@ void RecorderLinuxLibevdev::initPoll(bool keyboard, bool mouse, bool gamepad)
             for (int i = 0; i < pollfds.size(); ++i) {
                 if (!(pollfds[i].revents & POLLIN))
                     continue;
-                auto* device = devices[i]->eventDevice;
-                auto& syspath = devices[i]->syspath;
+                InternalDevice& internalDevice = devices[i].get();
+                auto* device = internalDevice.eventDevice;
+                const auto& syspath = internalDevice.syspath;
                 input_event ev;
                 int rc;
                 int flags = LIBEVDEV_READ_FLAG_NORMAL;

@@ -9,6 +9,7 @@
 #include <cstring>
 #include <optional>
 #include <string>
+#include <string_view>
 
 namespace Kbi {
 namespace {
@@ -190,12 +191,12 @@ int parseHex4(const std::string& text, std::size_t offset)
     return static_cast<int>(value);
 }
 
-std::size_t findToken(const std::string& text, const char* token)
+std::size_t findToken(const std::string& text, std::string_view token)
 {
     const std::size_t pos = text.find(token);
     if (pos == std::string::npos)
         return std::string::npos;
-    return pos + std::char_traits<char>::length(token);
+    return pos + token.size();
 }
 
 std::optional<Result> parseKbiLegacyV3(Reader& r)

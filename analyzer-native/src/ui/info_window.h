@@ -12,7 +12,7 @@ namespace Kbi::Ui {
 // The info window with the Summary / Devices / USB Devices tabs.
 class InfoWindow {
 public:
-    void draw(bool* open, const Result& result);
+    void draw(bool& open, const Result& result);
 
     // Drops the cached parse results, the next recording displays from
     // scratch.

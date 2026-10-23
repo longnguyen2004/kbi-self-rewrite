@@ -61,10 +61,10 @@ void drawRow(const Row& row)
 
 } // namespace
 
-void LogWindow::draw(bool* open, LogStore& store)
+void LogWindow::draw(bool& open, LogStore& store)
 {
     ImGui::SetNextWindowSize(ImVec2(760.0f, 420.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("Logs", open)) {
+    if (!ImGui::Begin("Logs", &open)) {
         ImGui::End();
         return;
     }
