@@ -12,7 +12,7 @@ namespace Kbi {
 
 struct RecorderSource::Impl {
     std::shared_ptr<spdlog::logger> logger;
-    std::unique_ptr<::Recorder> recorder;
+    std::unique_ptr<Recorder> recorder;
     boost::signals2::scoped_connection usbConnection;
     boost::signals2::scoped_connection deviceConnection;
     boost::signals2::scoped_connection inputConnection;
@@ -38,7 +38,7 @@ bool RecorderSource::start(std::string& error)
         // a valid one.
         if (!m_impl->logger)
             throw std::runtime_error("the recorder has no logger");
-        m_impl->recorder = std::make_unique<::Recorder>(::RecorderBackend::AUTO, m_impl->logger);
+        m_impl->recorder = std::make_unique<Recorder>(RecorderBackend::Auto, m_impl->logger);
     } catch (const std::exception& e) {
         error = e.what();
         m_impl->recorder.reset();
@@ -58,13 +58,13 @@ bool RecorderSource::start(std::string& error)
         event.id = id;
         event.usbDevice.vid = info.vid;
         event.usbDevice.pid = info.pid;
-        event.usbDevice.speed = static_cast<UsbDeviceSpeed>(static_cast<int>(info.speed));
+        event.usbDevice.speed = info.speed;
         event.usbDevice.descriptors = info.descriptors;
         std::scoped_lock lock(m_mutex);
         m_queue.push_back(std::move(event));
     });
 
-    m_impl->deviceConnection = recorder.onDevice().connect([this](const std::string& id, const ::Device& info) {
+    m_impl->deviceConnection = recorder.onDevice().connect([this](const std::string& id, const Device& info) {
         Event event;
         event.type = EventType::Device;
         event.id = id;
@@ -77,7 +77,7 @@ bool RecorderSource::start(std::string& error)
         m_queue.push_back(std::move(event));
     });
 
-    m_impl->inputConnection = recorder.onInput().connect([this](const std::string& id, const ::Input& info) {
+    m_impl->inputConnection = recorder.onInput().connect([this](const std::string& id, const Input& info) {
         Event event;
         event.type = EventType::Input;
         event.id = id;
@@ -114,7 +114,7 @@ const SystemInfo& RecorderSource::systemInfo() const
     static const SystemInfo empty;
     if (!m_impl->recorder)
         return empty;
-    return m_impl->recorder->getSystemInfo();
+    return m_impl->recorder->systemInfo();
 }
 
 std::string_view RecorderSource::backendName() const
@@ -122,11 +122,11 @@ std::string_view RecorderSource::backendName() const
     if (!m_impl->recorder)
         return {};
     switch (m_impl->recorder->backend()) {
-    case ::RecorderBackend::WindowsGameinput:
+    case RecorderBackend::WindowsGameInput:
         return "gameinput";
-    case ::RecorderBackend::WindowsRawinput:
+    case RecorderBackend::WindowsRawInput:
         return "rawinput";
-    case ::RecorderBackend::LinuxEvdev:
+    case RecorderBackend::LinuxEvdev:
         return "evdev";
     default:
         return "unknown";

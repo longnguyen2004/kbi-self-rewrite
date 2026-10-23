@@ -3,6 +3,8 @@
 #include <libevdev/libevdev.h>
 #include <thread>
 
+namespace Kbi {
+
 struct InternalDevice {
     libevdev* eventDevice = nullptr;
     std::string syspath;
@@ -14,9 +16,9 @@ public:
     explicit RecorderLinuxLibevdev(std::shared_ptr<spdlog::logger> logger);
     void start(bool keyboard, bool mouse, bool gamepad) override;
     void stop() override;
-    std::string getDeviceName(std::string_view syspath) const override;
-    std::optional<std::string> getUsbDeviceId(std::string_view id) const override;
-    std::optional<UsbDeviceInfo> getUsbDeviceInfo(std::string_view id) const override;
+    std::string deviceName(std::string_view syspath) const override;
+    std::optional<std::string> usbDeviceId(std::string_view id) const override;
+    std::optional<UsbDeviceInfo> usbDeviceInfo(std::string_view id) const override;
 
 private:
     using EvdevDeviceMap = boost::unordered::concurrent_flat_map<std::string, InternalDevice>;
@@ -26,3 +28,5 @@ private:
     std::jthread m_deviceScanThread;
     std::jthread m_pollThread;
 };
+
+} // namespace Kbi

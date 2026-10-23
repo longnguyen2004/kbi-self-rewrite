@@ -3,6 +3,7 @@
 #include <string_view>
 #include <unordered_map>
 
+namespace Kbi {
 namespace {
 
 constexpr std::array<std::string_view, 165> hidKeycodeStrings = {
@@ -243,3 +244,5 @@ std::string_view keycodeToString(Keycode keycode)
         return hidKeycodeModifierStrings[static_cast<int>(keycode) - static_cast<int>(Keycode::LeftControl)];
     return hidKeycodeStrings[static_cast<int>(keycode)];
 }
+
+} // namespace Kbi

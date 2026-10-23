@@ -54,6 +54,8 @@ int getchLinux()
 
 #endif
 
+namespace Kbi {
+
 int portableGetch()
 {
 #if defined(_WIN32)
@@ -117,8 +119,10 @@ void ConsoleController::run()
 
     std::fstream foutJson("out.json", std::ios::out | std::ios::binary | std::ios::trunc);
     JsonTextSerializer ser;
-    ser.Serialize(rec, foutJson);
+    ser.serialize(rec, foutJson);
 #ifdef __linux__
     setfsuid(geteuid());
 #endif
 }
+
+} // namespace Kbi

@@ -10,6 +10,8 @@
 #include <unistd.h>
 #include <vector>
 
+namespace Kbi {
+
 namespace fs = std::filesystem;
 
 namespace {
@@ -155,7 +157,7 @@ std::optional<UsbDeviceInfo> usbDeviceInfoFromPath(std::string_view path)
     else if (*speedStr == "480")
         devInfo.speed = UsbDeviceSpeed::HighSpeed;
     else
-        devInfo.speed = UsbDeviceSpeed::SUPERSPEED;
+        devInfo.speed = UsbDeviceSpeed::SuperSpeed;
 
     auto descriptorPath = (fs::path(path) / "descriptors").string();
     auto fd = open(descriptorPath.c_str(), O_RDONLY);
@@ -198,3 +200,5 @@ std::string deviceNameFromPath(std::string_view path)
     }
     return "Unknown";
 }
+
+} // namespace Kbi

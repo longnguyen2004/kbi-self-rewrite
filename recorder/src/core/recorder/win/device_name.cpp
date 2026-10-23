@@ -19,6 +19,8 @@
 #include <optional>
 #include <vector>
 
+namespace Kbi {
+
 std::string hidProductStringFromDevicePath(std::wstring_view wid)
 {
     wil::unique_hfile devHandle(CreateFileW(
@@ -300,3 +302,5 @@ void deviceInfoFromPnp(std::string_view id)
         name = hidProductStringFromPnp(wid);
     usbDeviceInfoFromPath(wid);
 }
+
+} // namespace Kbi

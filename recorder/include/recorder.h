@@ -15,6 +15,8 @@
 #include <string_view>
 #include <utility>
 
+namespace Kbi {
+
 struct Input {
     std::uint64_t timestamp;
     bool pressed;
@@ -22,10 +24,10 @@ struct Input {
 };
 
 enum class RecorderBackend {
-    AUTO,
-    WindowsGameinput,
-    WindowsRawinput,
-    LinuxEvdev
+    Auto = 0,
+    WindowsGameInput = 1,
+    WindowsRawInput = 2,
+    LinuxEvdev = 3,
 };
 
 class Recorder {
@@ -40,7 +42,7 @@ public:
     using StartSignal = boost::signals2::signal<void()>;
     using StopSignal = boost::signals2::signal<void()>;
 
-    explicit Recorder(RecorderBackend backend = RecorderBackend::AUTO, const std::shared_ptr<spdlog::logger>& logger = nullptr);
+    explicit Recorder(RecorderBackend backend = RecorderBackend::Auto, const std::shared_ptr<spdlog::logger>& logger = nullptr);
     ~Recorder();
 
     UsbDeviceSignal& onUsbDevice()
@@ -64,24 +66,30 @@ public:
         return m_sigStop;
     }
 
-    bool recording() const;
+    // Whether inputs are being recorded.
+    [[nodiscard]] bool recording() const;
+    // Starts recording, optionally restricted to a subset of the devices.
     void start(bool keyboard = true, bool mouse = false, bool gamepad = false);
     void stop();
 
-    std::chrono::system_clock::time_point startTime() const;
-    std::chrono::steady_clock::duration elapsed() const;
+    // The wall clock time the last recording started at.
+    [[nodiscard]] std::chrono::system_clock::time_point startTime() const;
+    // The time the last recording took, ongoing recordings count up.
+    [[nodiscard]] std::chrono::steady_clock::duration elapsed() const;
 
-    RecorderBackend backend() const;
+    // The backend the recorder was initialized with. With `RecorderBackend::
+    // Auto` it is the backend that was picked.
+    [[nodiscard]] RecorderBackend backend() const;
 
     // The information about the machine, collected when the recorder was
     // created.
-    const SystemInfo& getSystemInfo() const { return m_systemInfo; }
+    [[nodiscard]] const SystemInfo& systemInfo() const { return m_systemInfo; }
 
-    const UsbDeviceMap& usbDevices() const;
-    const DeviceMap& devices() const;
-    const InputMap& inputs() const;
-    size_t deviceCount() const;
-    size_t inputCount() const;
+    [[nodiscard]] const UsbDeviceMap& usbDevices() const;
+    [[nodiscard]] const DeviceMap& devices() const;
+    [[nodiscard]] const InputMap& inputs() const;
+    [[nodiscard]] std::size_t deviceCount() const;
+    [[nodiscard]] std::size_t inputCount() const;
 
 private:
     bool m_running = false;
@@ -102,3 +110,5 @@ private:
     std::chrono::system_clock::time_point m_startWallclock;
     std::chrono::steady_clock::time_point m_startTime, m_endTime;
 };
+
+} // namespace Kbi

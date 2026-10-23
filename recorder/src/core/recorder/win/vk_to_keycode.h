@@ -2,4 +2,8 @@
 
 #include <keycode.h>
 
-Keycode vkToKeycode(int vk);
+namespace Kbi {
+
+[[nodiscard]] Keycode vkToKeycode(int vk);
+
+} // namespace Kbi

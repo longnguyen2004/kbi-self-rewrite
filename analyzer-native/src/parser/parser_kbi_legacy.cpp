@@ -247,7 +247,7 @@ std::optional<Result> parseKbiLegacyV3(Reader& r)
         const LegacyDevice& source = sources[i];
         sourceIds[i] = source.deviceId;
 
-        Device device;
+        ResultDevice device;
         device.name = source.name;
         const std::size_t vidPos = findToken(source.deviceId, "VID_");
         const std::size_t pidPos = findToken(source.deviceId, "PID_");

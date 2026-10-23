@@ -605,14 +605,14 @@ void testResultDevices()
 
     // The devices keep the order they were discovered in, the colors of the
     // input timeline are assigned in that order.
-    result.addDevice("second", Kbi::Device { .name = "B" });
-    result.addDevice("first", Kbi::Device { .name = "A" });
+    result.addDevice("second", Kbi::ResultDevice { .name = "B" });
+    result.addDevice("first", Kbi::ResultDevice { .name = "A" });
     check(result.devices.size() == 2, "the devices are added");
     check(result.devices[0].first == "second" && result.devices[1].first == "first",
         "the devices keep the order they were discovered in");
 
     // Adding a known device updates it.
-    result.addDevice("second", Kbi::Device { .name = "B2" });
+    result.addDevice("second", Kbi::ResultDevice { .name = "B2" });
     check(result.devices.size() == 2, "a known device is not added twice");
     check(result.findDevice("second") != nullptr && result.findDevice("second")->name == "B2",
         "a known device is updated");
@@ -628,7 +628,7 @@ void testLegacyParser(const std::string& path)
         return;
     check(result->inputs.size() == 2, "both sources are present");
     check(result->devices.size() == 2, "the device list is parsed");
-    const Kbi::Device* keyboardDevice = result->findDevice("HID_VID_3149&PID_5041&MI_00");
+    const Kbi::ResultDevice* keyboardDevice = result->findDevice("HID_VID_3149&PID_5041&MI_00");
     check(keyboardDevice != nullptr, "the keyboard device is parsed");
     if (keyboardDevice != nullptr) {
         check(keyboardDevice->name == "MonsGeek Keyboard", "the device name is parsed");

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <device.h>
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -7,16 +8,6 @@
 #include <vector>
 
 namespace Kbi {
-
-// Mirrors the `UsbDeviceSpeed` ordinals used by the recorder and by the
-// analyzer's JSON schema.
-enum class UsbDeviceSpeed {
-    Unknown = 0,
-    LowSpeed = 1,
-    FullSpeed = 2,
-    HighSpeed = 3,
-    SuperSpeed = 4,
-};
 
 std::string_view toString(UsbDeviceSpeed speed);
 
@@ -30,7 +21,7 @@ struct InputEvent {
 };
 
 // A HID device that produced input events.
-struct Device {
+struct ResultDevice {
     std::string name;
     std::uint16_t vid = 0;
     std::uint16_t pid = 0;
@@ -60,11 +51,11 @@ struct Result {
     std::map<std::string, UsbDevice> usbDevices;
     // The devices in the order they were discovered, the colors of the input
     // timeline are assigned in that order.
-    std::vector<std::pair<std::string, Device>> devices;
+    std::vector<std::pair<std::string, ResultDevice>> devices;
     std::map<std::string, std::vector<InputEvent>> inputs;
 
     // Adds a device, or updates it when it is already known.
-    void addDevice(std::string id, Device device)
+    void addDevice(std::string id, ResultDevice device)
     {
         for (auto& [knownId, known] : devices) {
             if (knownId == id) {
@@ -76,7 +67,7 @@ struct Result {
     }
 
     // The device with the given id, or nullptr when it is unknown.
-    [[nodiscard]] const Device* findDevice(const std::string& id) const
+    [[nodiscard]] const ResultDevice* findDevice(const std::string& id) const
     {
         for (const auto& [knownId, known] : devices) {
             if (knownId == id)

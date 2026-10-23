@@ -155,8 +155,8 @@ std::array<int, 256> buildVkTable()
     table[0x59] = static_cast<int>(Keycode::Y);
     table[0x5a] = static_cast<int>(Keycode::Z);
 
-    table[VkLwin] = static_cast<int>(Keycode::LeftGUI);
-    table[VkRwin] = static_cast<int>(Keycode::RightGUI);
+    table[VkLwin] = static_cast<int>(Keycode::LeftGui);
+    table[VkRwin] = static_cast<int>(Keycode::RightGui);
     table[VkApps] = static_cast<int>(Keycode::Application);
 
     table[VkNumpaD0] = static_cast<int>(Keycode::Keypad0);
@@ -382,7 +382,7 @@ std::string_view keycodeName(int code)
         return keycodeToString(static_cast<Keycode>(code));
     if (code >= static_cast<int>(Keycode::LeftClick) && code <= static_cast<int>(Keycode::MouseForward))
         return keycodeToString(static_cast<Keycode>(code));
-    if (code >= static_cast<int>(Keycode::LeftControl) && code <= static_cast<int>(Keycode::RightGUI))
+    if (code >= static_cast<int>(Keycode::LeftControl) && code <= static_cast<int>(Keycode::RightGui))
         return keycodeToString(static_cast<Keycode>(code));
     if (code >= 0 && code <= static_cast<int>(Keycode::ExSel))
         return keycodeToString(static_cast<Keycode>(code));

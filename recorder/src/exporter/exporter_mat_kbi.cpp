@@ -13,31 +13,16 @@
 #include <string_view>
 #include <unordered_map>
 
+namespace Kbi {
+
 using namespace boost::endian;
 using namespace std::chrono;
 
-static const std::array<char, 4> kbiHeader = { 'K', 'B', 'I', 0 };
-static constexpr std::string_view creator = "kbi_cpp_recorder";
-
+// A single .kbi input, its key name and the index of its device.
 struct KbiInput {
     std::string key;
     std::int64_t source;
 };
-
-namespace std {
-template<>
-struct hash<KbiInput> {
-    std::size_t operator()(const KbiInput& input) const
-    {
-        return std::hash<std::string>()(input.key) ^ std::hash<std::int64_t>()(input.source);
-    }
-};
-}
-
-bool operator==(const KbiInput& a, const KbiInput& b)
-{
-    return a.key == b.key && a.source == b.source;
-}
 
 struct KbiEvent {
     double time;
@@ -49,6 +34,30 @@ struct KbiInputInfo {
     std::int32_t color;
     bool visible;
 };
+
+namespace {
+
+const std::array<char, 4> kbiHeader = { 'K', 'B', 'I', 0 };
+constexpr std::string_view creator = "kbi_cpp_recorder";
+
+} // namespace
+
+} // namespace Kbi
+
+template<>
+struct std::hash<Kbi::KbiInput> {
+    std::size_t operator()(const Kbi::KbiInput& input) const
+    {
+        return std::hash<std::string>()(input.key) ^ std::hash<std::int64_t>()(input.source);
+    }
+};
+
+namespace Kbi {
+
+bool operator==(const KbiInput& a, const KbiInput& b)
+{
+    return a.key == b.key && a.source == b.source;
+}
 
 void writeUleb128(std::ostream& out, std::uint64_t x)
 {
@@ -121,10 +130,10 @@ void writeList(
 void writeTime(std::ostream& out, time_point<system_clock, nanoseconds> t)
 {
     // The .NET DateTime binary format, see datetime.h.
-    writeUint64(out, Kbi::toNetDatetimeTicks(t, Kbi::kNetDateTimeKindUtc));
+    writeUint64(out, toNetDatetimeTicks(t, kNetDateTimeKindUtc));
 }
 
-void writeKbiinput(std::ostream& out, const KbiInput& input)
+void writeKbiInput(std::ostream& out, const KbiInput& input)
 {
     writeString(out, input.key);
     writeInt64(out, input.source);
@@ -142,7 +151,7 @@ void ExporterMatKbi::exportTo(std::ostream& out)
 
     // Write creator
     switch (m_recorder.backend()) {
-    case RecorderBackend::WindowsGameinput:
+    case RecorderBackend::WindowsGameInput:
         writeString(out, std::string(creator) + " (Backend: Windows GameInput)");
         break;
 
@@ -198,7 +207,7 @@ void ExporterMatKbi::exportTo(std::ostream& out)
         [](std::ostream& out, const KbiEvent& event) {
             writeDouble(out, event.time);
             writeBool(out, event.pressed);
-            writeKbiinput(out, event.input);
+            writeKbiInput(out, event.input);
         });
 
     // Write sources
@@ -227,8 +236,10 @@ void ExporterMatKbi::exportTo(std::ostream& out)
         out, kbiInputInfo.begin(), kbiInputInfo.end(),
         [](std::ostream& out, const std::pair<KbiInput, KbiInputInfo>& pair) {
             const auto& [input, info] = pair;
-            writeKbiinput(out, input);
+            writeKbiInput(out, input);
             writeInt32(out, info.color);
             writeBool(out, info.visible);
         });
 }
+
+} // namespace Kbi

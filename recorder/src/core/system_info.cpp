@@ -20,9 +20,10 @@
 #include <format>
 #include <simdutf.h>
 
+namespace Kbi {
 namespace {
 
-IWbemServices* connect_cim()
+IWbemServices* connectCim()
 {
     static wil::unique_couninitialize_call init;
     static wil::com_ptr_t<IWbemLocator> pLocator;
@@ -47,9 +48,9 @@ IWbemServices* connect_cim()
     return pServices.get();
 }
 
-std::string query_cim(std::wstring_view column, std::wstring_view table)
+std::string queryCim(std::wstring_view column, std::wstring_view table)
 {
-    auto cim = connect_cim();
+    auto cim = connectCim();
     auto query = std::format(L"SELECT {} FROM {}", column, table);
     wil::com_ptr_nothrow<IEnumWbemClassObject> pEnumerator = nullptr;
     THROW_IF_FAILED(cim->ExecQuery(
@@ -66,9 +67,9 @@ std::string query_cim(std::wstring_view column, std::wstring_view table)
             continue;
         auto str = vtProp.bstrVal;
         auto len = SysStringLen(str);
-        auto len_utf8 = simdutf::utf8_length_from_utf16(
+        auto lenUtf8 = simdutf::utf8_length_from_utf16(
             reinterpret_cast<const char16_t*>(str), len);
-        std::string value(len_utf8, 0);
+        std::string value(lenUtf8, 0);
         simdutf::convert_utf16_to_utf8(
             reinterpret_cast<const char16_t*>(str), len,
             value.data());
@@ -77,33 +78,33 @@ std::string query_cim(std::wstring_view column, std::wstring_view table)
     return "";
 }
 
-const std::string& get_windows_edition()
+const std::string& windowsEdition()
 {
     static std::string edition;
     if (edition.size())
         return edition;
     edition = "Unknown";
     try {
-        edition = query_cim(L"Caption", L"Win32_OperatingSystem");
+        edition = queryCim(L"Caption", L"Win32_OperatingSystem");
     } catch (std::exception) {
     }
     return edition;
 }
 
-const std::string& get_cpu_name()
+const std::string& cpuName()
 {
     static std::string name;
     if (name.size())
         return name;
     name = "Unknown";
     try {
-        name = query_cim(L"Name", L"Win32_Processor");
+        name = queryCim(L"Name", L"Win32_Processor");
     } catch (std::exception) {
     }
     return name;
 }
 
-const std::string& get_arch()
+const std::string& architecture()
 {
     static std::string arch;
     if (arch.size())
@@ -151,11 +152,11 @@ const std::string& get_arch()
     return arch;
 }
 
-const std::string& get_windows_version()
+const std::string& windowsVersion()
 {
-    static std::string os_version;
-    if (os_version.size())
-        return os_version;
+    static std::string osVersion;
+    if (osVersion.size())
+        return osVersion;
 
     NTSTATUS(WINAPI * RtlGetVersion)(LPOSVERSIONINFOEXW);
     OSVERSIONINFOEXW osInfo;
@@ -164,35 +165,38 @@ const std::string& get_windows_version()
     if (RtlGetVersion != nullptr) {
         osInfo.dwOSVersionInfoSize = sizeof(osInfo);
         if (RtlGetVersion(&osInfo) >= 0)
-            os_version = std::format(
+            osVersion = std::format(
                 "{}.{}.{}", osInfo.dwMajorVersion, osInfo.dwMinorVersion, osInfo.dwBuildNumber);
     } else {
-        os_version = "Unknown";
+        osVersion = "Unknown";
     }
-    return os_version;
+    return osVersion;
 }
 
 } // namespace
 
-SystemInfo GetSystemInfo()
+SystemInfo systemInfo()
 {
     LARGE_INTEGER clockFreq;
     QueryPerformanceFrequency(&clockFreq);
     return {
-        .Common = {
-            .OsName = get_windows_edition(),
-            .OsVersion = get_windows_version(),
-            .Architecture = get_arch(),
-            .CpuName = get_cpu_name() },
-        .IsSafeMode = (bool)GetSystemMetrics(SM_CLEANBOOT),
-        .ClockFrequency = static_cast<double>(clockFreq.QuadPart)
+        .common = {
+            .osName = windowsEdition(),
+            .osVersion = windowsVersion(),
+            .architecture = architecture(),
+            .cpuName = cpuName() },
+        .isSafeMode = static_cast<bool>(GetSystemMetrics(SM_CLEANBOOT)),
+        .clockFrequency = static_cast<double>(clockFreq.QuadPart)
     };
 }
+
+} // namespace Kbi
 
 #elif defined(__linux__)
 
 #include <sys/utsname.h>
 
+namespace Kbi {
 namespace {
 
 std::string readCpuName()
@@ -216,7 +220,7 @@ std::string readCpuName()
 
 } // namespace
 
-SystemInfo getSystemInfo()
+SystemInfo systemInfo()
 {
     // Kernel information
     utsname buffer {};
@@ -272,5 +276,7 @@ SystemInfo getSystemInfo()
         .clockFrequency = res == -1 ? 0 : 1e9 / res
     };
 }
+
+} // namespace Kbi
 
 #endif

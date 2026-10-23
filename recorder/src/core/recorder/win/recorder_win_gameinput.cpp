@@ -14,25 +14,26 @@
 #include <wil/win32_result_macros.h>
 #include <windows.h>
 
+namespace Kbi {
+
 using namespace GameInput::v3;
 using namespace std::chrono;
-using namespace std::literals;
 
-IGameInput* gameinputInit()
+IGameInput* gameInputInit()
 {
-    static std::mutex mtxInit;
+    static std::mutex initMutex;
     static wil::com_ptr_t<IGameInput> gameinput;
     using GameInputCreate_t = HRESULT(IUnknown**);
 
-    std::scoped_lock lck(mtxInit);
+    std::scoped_lock lock(initMutex);
     if (gameinput)
         return gameinput.get();
 
-    HMODULE gameinputDll = LoadLibraryW(L"gameinput.dll");
-    THROW_LAST_ERROR_IF_NULL_MSG(gameinputDll, "Failed to load the GameInput dll");
+    HMODULE gameInputDll = LoadLibraryW(L"gameinput.dll");
+    THROW_LAST_ERROR_IF_NULL_MSG(gameInputDll, "Failed to load the GameInput dll");
 
     auto createFunc = reinterpret_cast<GameInputCreate_t*>(
-        GetProcAddress(gameinputDll, "GameInputCreate"));
+        GetProcAddress(gameInputDll, "GameInputCreate"));
     THROW_LAST_ERROR_IF_NULL_MSG(createFunc, "Failed to load the GameInput factory function");
 
     IUnknown* unknown = nullptr;
@@ -52,7 +53,7 @@ bool sortByScancode(const GameInputKeyState& a, const GameInputKeyState& b)
     return a.scanCode < b.scanCode;
 }
 
-void RecorderWinGameinput::updateKeyStates(
+void RecorderWinGameInput::updateKeyStates(
     const std::string& pnp, std::uint16_t vid, std::uint16_t pid,
     std::uint64_t timestamp, const KeyStateArray& state)
 {
@@ -78,13 +79,13 @@ void RecorderWinGameinput::updateKeyStates(
     statePrev = state;
 }
 
-RecorderWinGameinput::RecorderWinGameinput(std::shared_ptr<spdlog::logger> logger)
+RecorderWinGameInput::RecorderWinGameInput(std::shared_ptr<spdlog::logger> logger)
     : Recorder::Impl(std::move(logger))
 {
-    m_gameinput = gameinputInit();
+    m_gameinput = gameInputInit();
 }
 
-void gameinputReadingCallback(
+void gameInputReadingCallback(
     GameInputCallbackToken token,
     void* context,
     IGameInputReading* reading)
@@ -106,14 +107,14 @@ void gameinputReadingCallback(
         state.resize(stateLen);
         reading->GetKeyState(stateLen, state.data());
         std::sort(state.begin(), state.end(), sortByScancode);
-        reinterpret_cast<RecorderWinGameinput*>(context)->updateKeyStates(
+        reinterpret_cast<RecorderWinGameInput*>(context)->updateKeyStates(
             pnp, vid, pid, timestamp, state);
     }
 
     device->Release();
 }
 
-void RecorderWinGameinput::start(bool keyboard, bool mouse, bool gamepad)
+void RecorderWinGameInput::start(bool keyboard, bool mouse, bool gamepad)
 {
     GameInputKind kind = GameInputKind::GameInputKindUnknown;
     if (keyboard)
@@ -145,10 +146,10 @@ void RecorderWinGameinput::start(bool keyboard, bool mouse, bool gamepad)
         dispatcher->Release();
     });
     m_gameinput->RegisterReadingCallback(
-        nullptr, kind, this, gameinputReadingCallback, &m_callbackToken);
+        nullptr, kind, this, gameInputReadingCallback, &m_callbackToken);
 }
 
-void RecorderWinGameinput::stop()
+void RecorderWinGameInput::stop()
 {
     m_gameinput->UnregisterCallback(m_callbackToken);
     m_dispatcherThread.request_stop();
@@ -156,17 +157,19 @@ void RecorderWinGameinput::stop()
         m_dispatcherThread.join();
 }
 
-std::string RecorderWinGameinput::getDeviceName(std::string_view pnp) const
+std::string RecorderWinGameInput::deviceName(std::string_view pnp) const
 {
     return deviceNameFromPnp(pnp);
 }
 
-std::optional<std::string> RecorderWinGameinput::getUsbDeviceId(std::string_view id) const
+std::optional<std::string> RecorderWinGameInput::usbDeviceId(std::string_view id) const
 {
     return findUsbDevice(id);
 }
 
-std::optional<UsbDeviceInfo> RecorderWinGameinput::getUsbDeviceInfo(std::string_view id) const
+std::optional<UsbDeviceInfo> RecorderWinGameInput::usbDeviceInfo(std::string_view id) const
 {
     return usbDeviceInfoFromPath(id);
 }
+
+} // namespace Kbi

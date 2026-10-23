@@ -5,12 +5,16 @@
 #include <string>
 #include <vector>
 
+namespace Kbi {
+
+// The absolute value is serialized into the .kbi and the JSON files, it has
+// to stay stable.
 enum class UsbDeviceSpeed {
-    UNKNOWN,
-    LowSpeed,
-    FullSpeed,
-    HighSpeed,
-    SUPERSPEED
+    Unknown = 0,
+    LowSpeed = 1,
+    FullSpeed = 2,
+    HighSpeed = 3,
+    SuperSpeed = 4,
 };
 
 struct UsbDeviceInfo {
@@ -26,3 +30,5 @@ struct Device {
     std::uint16_t pid;
     std::optional<std::string> usbDeviceId;
 };
+
+} // namespace Kbi

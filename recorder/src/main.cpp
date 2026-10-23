@@ -24,9 +24,9 @@ namespace di = boost::di;
 namespace po = boost::program_options;
 
 enum class ProgramMode {
-    CONSOLE,
-    WEBSOCKET,
-    NEUTRALINO
+    Console,
+    WebSocket,
+    Neutralino
 };
 
 std::istream& operator>>(std::istream& in, ProgramMode& mode)
@@ -35,11 +35,11 @@ std::istream& operator>>(std::istream& in, ProgramMode& mode)
     in >> token;
 
     if (token == "console") {
-        mode = ProgramMode::CONSOLE;
+        mode = ProgramMode::Console;
     } else if (token == "websocket") {
-        mode = ProgramMode::WEBSOCKET;
+        mode = ProgramMode::WebSocket;
     } else if (token == "neutralino") {
-        mode = ProgramMode::NEUTRALINO;
+        mode = ProgramMode::Neutralino;
     } else {
         in.setstate(std::ios_base::failbit);
     }
@@ -53,7 +53,7 @@ int main(int argc, char const* argv[])
     po::options_description desc("Allowed options");
     desc.add_options()("help", "produce help message")(
         "mode",
-        po::value<ProgramMode>(&mode)->default_value(ProgramMode::CONSOLE, "console"),
+        po::value<ProgramMode>(&mode)->default_value(ProgramMode::Console, "console"),
         "Operating mode (console, websocket, neutralino)")(
         "log-path",
         po::value<std::string>(&logPath)->default_value("log.txt"),
@@ -93,14 +93,14 @@ int main(int argc, char const* argv[])
 
             return multiSink;
         }),
-        boost::di::bind<Controller>.to([&](const auto& injector) -> Controller& {
+        boost::di::bind<Kbi::Controller>.to([&](const auto& injector) -> Kbi::Controller& {
             switch (mode) {
-            case ProgramMode::CONSOLE:
-                return injector.template create<ConsoleController&>();
-            case ProgramMode::WEBSOCKET:
-                return injector.template create<WebSocketController&>();
-            case ProgramMode::NEUTRALINO:
-                return injector.template create<NeutralinoController&>();
+            case ProgramMode::Console:
+                return injector.template create<Kbi::ConsoleController&>();
+            case ProgramMode::WebSocket:
+                return injector.template create<Kbi::WebSocketController&>();
+            case ProgramMode::Neutralino:
+                return injector.template create<Kbi::NeutralinoController&>();
             default:
                 throw std::runtime_error("Unknown/unimplemented program mode");
             }
@@ -108,7 +108,7 @@ int main(int argc, char const* argv[])
     auto logger = injector.create<std::shared_ptr<spdlog::logger>>();
     logger->info("Saving log to {}", logPath);
     try {
-        auto& controller = injector.create<Controller&>();
+        auto& controller = injector.create<Kbi::Controller&>();
         controller.run();
     } catch (const std::exception& e) {
         logger->error("An exception occurred: {}", e.what());

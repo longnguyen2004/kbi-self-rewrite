@@ -13,14 +13,16 @@
 #include "evdev_to_keycode.h"
 #include <fcntl.h>
 #include <glob.h>
+#include <libevdev/libevdev.h>
 #include <linux/input-event-codes.h>
 #include <poll.h>
 #include <sys/inotify.h>
 #include <unistd.h>
 
+namespace Kbi {
+
 using namespace boost::container;
 using namespace boost::unordered;
-using namespace std::literals;
 
 #ifndef input_event_sec
 #define input_event_sec time.tv_sec
@@ -29,6 +31,8 @@ using namespace std::literals;
 #ifndef input_event_usec
 #define input_event_usec time.tv_usec
 #endif
+
+namespace {
 
 libevdev* evdevOpen(const char* path)
 {
@@ -58,6 +62,8 @@ void evdevCloseP(libevdev** ptr)
 {
     evdevClose(*ptr);
 }
+
+} // namespace
 
 // The hotplug scan walks the inotify events of /dev/input/by-id, which
 // needs a nested loop over the event stream.
@@ -284,17 +290,19 @@ void RecorderLinuxLibevdev::stop()
     m_evdevDevices.clear();
 }
 
-std::string RecorderLinuxLibevdev::getDeviceName(std::string_view syspath) const
+std::string RecorderLinuxLibevdev::deviceName(std::string_view syspath) const
 {
     return deviceNameFromPath(syspath);
 }
 
-std::optional<std::string> RecorderLinuxLibevdev::getUsbDeviceId(std::string_view id) const
+std::optional<std::string> RecorderLinuxLibevdev::usbDeviceId(std::string_view id) const
 {
     return findUsbDevice(id);
 }
 
-std::optional<UsbDeviceInfo> RecorderLinuxLibevdev::getUsbDeviceInfo(std::string_view id) const
+std::optional<UsbDeviceInfo> RecorderLinuxLibevdev::usbDeviceInfo(std::string_view id) const
 {
     return usbDeviceInfoFromPath(id);
 }
+
+} // namespace Kbi

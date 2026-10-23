@@ -2,6 +2,9 @@
 #include <array>
 #include <linux/input-event-codes.h>
 
+namespace Kbi {
+namespace {
+
 constexpr auto evdevKeyboardToKeycode = [] {
     std::array<Keycode, 256> arr { Keycode::None };
 
@@ -72,8 +75,8 @@ constexpr auto evdevKeyboardToKeycode = [] {
     arr[KEY_RIGHTCTRL] = Keycode::RightControl;
     arr[KEY_LEFTALT] = Keycode::LeftAlt;
     arr[KEY_RIGHTALT] = Keycode::RightAlt;
-    arr[KEY_LEFTMETA] = Keycode::LeftGUI;
-    arr[KEY_RIGHTMETA] = Keycode::RightGUI;
+    arr[KEY_LEFTMETA] = Keycode::LeftGui;
+    arr[KEY_RIGHTMETA] = Keycode::RightGui;
     arr[KEY_MENU] = Keycode::Menu;
 
     // Symbols
@@ -141,6 +144,8 @@ constexpr auto evdevMouseToKeycode = [] {
     return arr;
 }();
 
+} // namespace
+
 Keycode evdevToKeycode(std::uint16_t code)
 {
     if (code < 256)
@@ -149,3 +154,5 @@ Keycode evdevToKeycode(std::uint16_t code)
         return evdevMouseToKeycode[code - BTN_LEFT];
     return Keycode::None;
 }
+
+} // namespace Kbi

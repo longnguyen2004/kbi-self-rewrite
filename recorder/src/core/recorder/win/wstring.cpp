@@ -1,6 +1,8 @@
 #include "wstring.h"
 #include <simdutf.h>
 
+namespace Kbi {
+
 using namespace simdutf;
 
 std::wstring stringToWstring(std::string_view str)
@@ -22,3 +24,5 @@ std::string wstringToString(std::wstring_view wstr)
     convert_utf16_to_utf8(reinterpret_cast<const char16_t*>(wstr.data()), wstr.size(), str.data());
     return str;
 }
+
+} // namespace Kbi

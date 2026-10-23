@@ -1,7 +1,12 @@
 #pragma once
-#include <string>
 
-// Based on HID 1.0 specification, with extra values for mouse and gamepad buttons
+#include <string>
+#include <string_view>
+
+namespace Kbi {
+
+// Based on HID 1.0 specification, with extra values for mouse and gamepad
+// buttons.
 enum class Keycode {
     None = 0x00,
     ErrorRollOver = 0x01,
@@ -147,15 +152,15 @@ enum class Keycode {
     International7 = 0x8D,
     International8 = 0x8E,
     International9 = 0x8F,
-    LANG1 = 0x90,
-    LANG2 = 0x91,
-    LANG3 = 0x92,
-    LANG4 = 0x93,
-    LANG5 = 0x94,
-    LANG6 = 0x95,
-    LANG7 = 0x96,
-    LANG8 = 0x97,
-    LANG9 = 0x98,
+    Lang1 = 0x90,
+    Lang2 = 0x91,
+    Lang3 = 0x92,
+    Lang4 = 0x93,
+    Lang5 = 0x94,
+    Lang6 = 0x95,
+    Lang7 = 0x96,
+    Lang8 = 0x97,
+    Lang9 = 0x98,
     AlternateErase = 0x99,
     SysReq = 0x9A,
     Cancel = 0x9B,
@@ -173,11 +178,11 @@ enum class Keycode {
     LeftControl = 0xE0,
     LeftShift = 0xE1,
     LeftAlt = 0xE2,
-    LeftGUI = 0xE3,
+    LeftGui = 0xE3,
     RightControl = 0xE4,
     RightShift = 0xE5,
     RightAlt = 0xE6,
-    RightGUI = 0xE7,
+    RightGui = 0xE7,
 
     // Start of mouse buttons
     LeftClick = 0x100,
@@ -225,4 +230,8 @@ enum class Keycode {
     HatW
 };
 
-std::string_view keycodeToString(Keycode keycode);
+// The canonical name of a keycode, as stored in the .kbi files (e.g. "A",
+// "LeftControl", "LeftClick").
+[[nodiscard]] std::string_view keycodeToString(Keycode keycode);
+
+} // namespace Kbi

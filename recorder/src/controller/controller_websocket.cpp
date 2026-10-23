@@ -7,7 +7,9 @@
 #include <string>
 #include <utility>
 
+namespace Kbi {
 namespace {
+
 std::optional<unsigned long> parseIdFromUri(const std::string& uri)
 {
     auto result = boost::urls::parse_origin_form(uri);
@@ -34,7 +36,8 @@ void broadcast(ix::WebSocketServer& server, const std::string& message)
         client->sendText(message);
     }
 }
-}
+
+} // namespace
 
 WebSocketController::WebSocketController(Recorder& recorder, std::shared_ptr<spdlog::logger> logger)
     : Controller(recorder, std::move(logger))
@@ -100,19 +103,19 @@ void WebSocketController::run()
 
     auto conn1 = m_recorder.onUsbDevice().connect(
         [this](const std::string& id, const UsbDeviceInfo& device) {
-            auto json = m_serializer.Serialize(device);
+            auto json = m_serializer.serialize(device);
             auto payload = std::format(R"({{"type":"usb_device","id":"{}","data":{}}})", id, json);
             broadcast(m_server, payload);
         });
     auto conn2 = m_recorder.onDevice().connect(
         [this](const std::string& id, const Device& device) {
-            auto json = m_serializer.Serialize(device);
+            auto json = m_serializer.serialize(device);
             auto payload = std::format(R"({{"type":"device","id":"{}","data":{}}})", id, json);
             broadcast(m_server, payload);
         });
     auto conn3 = m_recorder.onInput().connect(
         [this](const std::string& id, const Input& input) {
-            auto json = m_serializer.Serialize(input);
+            auto json = m_serializer.serialize(input);
             auto payload = std::format(R"({{"type":"input","id":"{}","data":{}}})", id, json);
             broadcast(m_server, payload);
         });
@@ -123,3 +126,5 @@ void WebSocketController::run()
     conn2.disconnect();
     conn3.disconnect();
 }
+
+} // namespace Kbi

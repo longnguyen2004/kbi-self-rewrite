@@ -1,18 +1,22 @@
 #pragma once
+
 #include <recorder.h>
 #include <system_info.h>
 #include <boost/json/fwd.hpp>
 #include <boost/preprocessor/seq/for_each.hpp>
 #include <ostream>
+#include <string>
+
+namespace Kbi {
 
 #define SERIALIZER_CLASS_TO_DECLARE (UsbDeviceInfo)(Device)(Input)(Recorder)(SystemInfo)
 
 #define DECLARE_OSTREAM_SERIALIZER(r, pure, type) \
-    virtual void Serialize(const type& a, std::ostream& out) BOOST_PP_IF(pure, = 0, );
+    virtual void serialize(const type& a, std::ostream& out) BOOST_PP_IF(pure, = 0, );
 #define DECLARE_STRING_SERIALIZER(r, pure, type) \
-    virtual std::string Serialize(const type& val) BOOST_PP_IF(pure, = 0, );
+    virtual std::string serialize(const type& val) BOOST_PP_IF(pure, = 0, );
 #define DECLARE_BUFFER_SERIALIZER(r, pure, type) \
-    virtual void Serialize(const type& val, char* out, size_t n) BOOST_PP_IF(pure, = 0, );
+    virtual void serialize(const type& val, char* out, std::size_t n) BOOST_PP_IF(pure, = 0, );
 
 #define DECLARE_OSTREAM_SERIALIZER_ALL(pure) \
     BOOST_PP_SEQ_FOR_EACH(DECLARE_OSTREAM_SERIALIZER, pure, SERIALIZER_CLASS_TO_DECLARE)
@@ -33,15 +37,17 @@ public:
     DECLARE_OSTREAM_SERIALIZER_ALL(0)
     DECLARE_STRING_SERIALIZER_ALL(0)
 
-#define DECLARE_GET_JSON(r, _, type) \
-    boost::json::value GetJson(const type& val);
+#define DECLARE_TO_JSON(r, _, type) \
+    boost::json::value toJson(const type& val);
 
-    BOOST_PP_SEQ_FOR_EACH(DECLARE_GET_JSON, _, SERIALIZER_CLASS_TO_DECLARE)
+    BOOST_PP_SEQ_FOR_EACH(DECLARE_TO_JSON, _, SERIALIZER_CLASS_TO_DECLARE)
 
-#undef DECLARE_GET_JSON
+#undef DECLARE_TO_JSON
 };
 
 class CborSerializer : public Serializer {
 public:
     DECLARE_OSTREAM_SERIALIZER_ALL(0)
 };
+
+} // namespace Kbi

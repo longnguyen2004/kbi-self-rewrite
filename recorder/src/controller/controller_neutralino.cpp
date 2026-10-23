@@ -11,6 +11,8 @@
 #include <thread>
 #include <utility>
 
+namespace Kbi {
+
 using namespace std::literals;
 namespace json = boost::json;
 namespace uuid = boost::uuids;
@@ -20,53 +22,50 @@ NeutralinoController::NeutralinoController(Recorder& recorder, std::shared_ptr<s
 {
 }
 
-void NeutralinoController::sendNeutralinoEvent(
+void NeutralinoController::sendEvent(
     std::string_view event, const json::value& payload)
 {
     static uuid::random_generator gen;
     json::object msg = {
         { "id", uuid::to_string(gen()) },
         { "method", "app.broadcast" },
-        { "accessToken", this->m_accessToken },
+        { "accessToken", m_accessToken },
         { "data", { { "event", event }, { "data", payload } } }
     };
     auto msgStr = json::serialize(msg);
     m_logger->info("Sending to Neutralino: {}", msgStr);
-    this->m_ws.sendText(msgStr);
+    m_ws.sendText(msgStr);
 }
 
 void NeutralinoController::run()
 {
-    const auto& sysInfo = m_recorder.getSystemInfo();
+    const auto& sysInfo = m_recorder.systemInfo();
     JsonTextSerializer serializer;
     auto conn1 = m_recorder.onUsbDevice().connect(
         [&](const std::string& id, const UsbDeviceInfo& device) {
             try {
-                auto json = serializer.GetJson(device);
-                this->sendNeutralinoEvent("usbDevice", json::object { { id, json } });
+                auto json = serializer.toJson(device);
+                sendEvent("usbDevice", json::object { { id, json } });
             } catch (const std::exception& e) {
-                m_logger->error("dead: {}", e.what());
-                return;
+                m_logger->error("Neutralino event serialization failed: {}", e.what());
             }
         });
     auto conn2 = m_recorder.onDevice().connect(
         [&](const std::string& id, const Device& device) {
             try {
-                auto json = serializer.GetJson(device);
-                this->sendNeutralinoEvent("device", json::object { { id, json } });
+                auto json = serializer.toJson(device);
+                sendEvent("device", json::object { { id, json } });
             } catch (const std::exception& e) {
-                m_logger->error("dead: {}", e.what());
-                return;
+                m_logger->error("Neutralino event serialization failed: {}", e.what());
             }
         });
     auto conn3 = m_recorder.onInput().connect(
         [&](const std::string& id, const Input& input) {
             try {
-                auto json = serializer.GetJson(input);
-                this->sendNeutralinoEvent("input", json::object { { id, json } });
+                auto json = serializer.toJson(input);
+                sendEvent("input", json::object { { id, json } });
             } catch (const std::exception& e) {
-                m_logger->error("dead: {}", e.what());
-                return;
+                m_logger->error("Neutralino event serialization failed: {}", e.what());
             }
         });
 
@@ -78,14 +77,14 @@ void NeutralinoController::run()
     auto nlConnectToken = connInfo.at("nlConnectToken").as_string();
     auto nlExtensionId = connInfo.at("nlExtensionId").as_string();
     m_logger->info("Received Neutralino connection info: {}", json::serialize(connInfo));
-    this->m_accessToken = nlToken;
+    m_accessToken = nlToken;
 
     m_logger->info("Connecting to Neutralino server");
-    this->m_ws.setUrl(
+    m_ws.setUrl(
         std::format(
             "ws://localhost:{}?extensionId={}&connectToken={}",
             nlPort.c_str(), nlExtensionId.c_str(), nlConnectToken.c_str()));
-    this->m_ws.setOnMessageCallback([&](const ix::WebSocketMessagePtr& msg) {
+    m_ws.setOnMessageCallback([&](const ix::WebSocketMessagePtr& msg) {
         if (msg->type == ix::WebSocketMessageType::Message) {
             json::object msgJson;
             try {
@@ -100,10 +99,10 @@ void NeutralinoController::run()
                 return;
             auto event = maybeEvent.value().as_string();
             if (event == "start") {
-                this->sendNeutralinoEvent("systemInfo", serializer.GetJson(sysInfo));
-                this->m_recorder.start();
+                sendEvent("systemInfo", serializer.toJson(sysInfo));
+                m_recorder.start();
             } else if (event == "stop")
-                this->m_recorder.stop();
+                m_recorder.stop();
         } else if (msg->type == ix::WebSocketMessageType::Open) {
             m_logger->info("Connected to Neutralino server");
         } else if (msg->type == ix::WebSocketMessageType::Error) {
@@ -111,10 +110,12 @@ void NeutralinoController::run()
         }
     });
 
-    this->m_ws.start();
+    m_ws.start();
 
     while (true) {
         // Just spin this thread
         std::this_thread::sleep_for(1s);
     }
 }
+
+} // namespace Kbi

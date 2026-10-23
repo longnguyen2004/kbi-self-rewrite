@@ -120,7 +120,7 @@ void parseDevices(const json::object& object, Result& result)
         if (!node.is_object())
             continue;
         const json::object& entry = node.as_object();
-        Device device;
+        ResultDevice device;
         device.name = getString(entry, "name");
         if (const auto vid = getInt(entry, "vid"))
             device.vid = static_cast<std::uint16_t>(*vid);

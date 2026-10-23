@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <string>
 
+namespace Kbi {
+
 // The information about the machine the recorder runs on.
 struct SystemInfoCommon {
     std::string osName;
@@ -13,9 +15,9 @@ struct SystemInfoCommon {
 
 #if defined(_WIN32)
 struct SystemInfoWindows {
-    SystemInfoCommon Common;
-    bool IsSafeMode = false;
-    double ClockFrequency = 0.0;
+    SystemInfoCommon common;
+    bool isSafeMode = false;
+    double clockFrequency = 0.0;
 };
 using SystemInfo = SystemInfoWindows;
 #elif defined(__linux__)
@@ -29,21 +31,23 @@ struct SystemInfoLinux {
 using SystemInfo = SystemInfoLinux;
 #else
 struct SystemInfoUnknown {
-    SystemInfoCommon Common;
+    SystemInfoCommon common;
 };
 using SystemInfo = SystemInfoUnknown;
 #endif
 
 // Collects the information about the machine.
-[[nodiscard]] SystemInfo getSystemInfo();
+[[nodiscard]] SystemInfo systemInfo();
 
 // Whether the machine was started in safe mode, it is only known on Windows.
 [[nodiscard]] inline bool isSafeMode(const SystemInfo& info) noexcept
 {
 #if defined(_WIN32)
-    return info.IsSafeMode;
+    return info.isSafeMode;
 #else
     (void)info;
     return false;
 #endif
 }
+
+} // namespace Kbi

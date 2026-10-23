@@ -1,3 +1,5 @@
+#pragma once
+
 #include "../serializer/serializer.h"
 #include <recorder.h>
 #include <atomic>
@@ -9,11 +11,15 @@
 #include <string_view>
 #include <utility>
 
+namespace Kbi {
+
 class Controller {
 public:
     Controller(Recorder& recorder, std::shared_ptr<spdlog::logger> logger)
         : m_recorder(recorder)
-        , m_logger(std::move(logger)) { };
+        , m_logger(std::move(logger))
+    {
+    }
     virtual void run() = 0;
 
 protected:
@@ -50,5 +56,7 @@ private:
     ix::WebSocket m_ws;
     std::string m_accessToken;
 
-    void sendNeutralinoEvent(std::string_view event, const boost::json::value& payload);
+    void sendEvent(std::string_view event, const boost::json::value& payload);
 };
+
+} // namespace Kbi

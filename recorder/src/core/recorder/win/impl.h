@@ -6,17 +6,19 @@
 #include <thread>
 #include <windows.h>
 
+namespace Kbi {
+
 using namespace GameInput::v3;
 using KeyStateArray = boost::container::static_vector<GameInputKeyState, 50>;
 
-class RecorderWinGameinput : public Recorder::Impl {
+class RecorderWinGameInput : public Recorder::Impl {
 public:
-    explicit RecorderWinGameinput(std::shared_ptr<spdlog::logger> logger);
+    explicit RecorderWinGameInput(std::shared_ptr<spdlog::logger> logger);
     void start(bool keyboard, bool mouse, bool gamepad) override;
     void stop() override;
-    std::string getDeviceName(std::string_view pnp) const override;
-    std::optional<std::string> getUsbDeviceId(std::string_view id) const override;
-    std::optional<UsbDeviceInfo> getUsbDeviceInfo(std::string_view id) const override;
+    std::string deviceName(std::string_view pnp) const override;
+    std::optional<std::string> usbDeviceId(std::string_view id) const override;
+    std::optional<UsbDeviceInfo> usbDeviceInfo(std::string_view id) const override;
 
     void updateKeyStates(
         const std::string& pnp, std::uint16_t vid, std::uint16_t pid,
@@ -30,14 +32,14 @@ private:
     std::unordered_map<std::string, KeyStateArray> m_keyStates;
 };
 
-class RecorderWinRawinput : public Recorder::Impl {
+class RecorderWinRawInput : public Recorder::Impl {
 public:
-    explicit RecorderWinRawinput(std::shared_ptr<spdlog::logger> logger);
+    explicit RecorderWinRawInput(std::shared_ptr<spdlog::logger> logger);
     void start(bool keyboard, bool mouse, bool gamepad) override;
     void stop() override;
-    std::string getDeviceName(std::string_view pnp) const override;
-    std::optional<std::string> getUsbDeviceId(std::string_view id) const override;
-    std::optional<UsbDeviceInfo> getUsbDeviceInfo(std::string_view id) const override;
+    std::string deviceName(std::string_view pnp) const override;
+    std::optional<std::string> usbDeviceId(std::string_view id) const override;
+    std::optional<UsbDeviceInfo> usbDeviceInfo(std::string_view id) const override;
 
     void processRawInput(HRAWINPUT rawInput);
 
@@ -46,3 +48,5 @@ private:
     std::jthread m_windowThread;
     std::chrono::steady_clock::time_point m_startRef;
 };
+
+} // namespace Kbi

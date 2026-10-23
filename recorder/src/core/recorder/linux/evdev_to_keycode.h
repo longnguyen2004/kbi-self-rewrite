@@ -3,4 +3,8 @@
 #include <keycode.h>
 #include <cstdint>
 
-Keycode evdevToKeycode(std::uint16_t code);
+namespace Kbi {
+
+[[nodiscard]] Keycode evdevToKeycode(std::uint16_t code);
+
+} // namespace Kbi

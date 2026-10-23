@@ -2,7 +2,10 @@
 #include <array>
 #include <windows.h>
 
-static constexpr auto vkToKeycodeArr = [] {
+namespace Kbi {
+namespace {
+
+constexpr auto vkToKeycodeArr = [] {
     std::array<Keycode, 256> arr { Keycode::None };
 
     arr[VK_BACK] = Keycode::Backspace;
@@ -62,8 +65,8 @@ static constexpr auto vkToKeycodeArr = [] {
     arr['Y'] = Keycode::Y;
     arr['Z'] = Keycode::Z;
 
-    arr[VK_LWIN] = Keycode::LeftGUI;
-    arr[VK_RWIN] = Keycode::RightGUI;
+    arr[VK_LWIN] = Keycode::LeftGui;
+    arr[VK_RWIN] = Keycode::RightGui;
     arr[VK_APPS] = Keycode::Application;
 
     // Keypad
@@ -122,6 +125,8 @@ static constexpr auto vkToKeycodeArr = [] {
     return arr;
 }();
 
+} // namespace
+
 Keycode vkToKeycode(int vk)
 {
     if (vk < 0 || vk >= vkToKeycodeArr.size()) {
@@ -129,3 +134,5 @@ Keycode vkToKeycode(int vk)
     }
     return vkToKeycodeArr[vk];
 }
+
+} // namespace Kbi

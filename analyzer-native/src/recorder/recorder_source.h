@@ -50,7 +50,7 @@ private:
         EventType type = EventType::Input;
         std::string id;
         UsbDevice usbDevice;
-        Device device;
+        ResultDevice device;
         InputEvent input;
     };
 

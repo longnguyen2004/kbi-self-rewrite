@@ -11,31 +11,31 @@
 #include "linux/impl.h"
 #endif
 
+namespace Kbi {
+
 using namespace std::literals;
 
 Recorder::Recorder(RecorderBackend backend, const std::shared_ptr<spdlog::logger>& logger)
     : m_logger(logger ? logger : spdlog::default_logger())
 {
-    m_systemInfo = ::getSystemInfo();
+    m_systemInfo = systemInfo();
 
 #ifdef _WIN32
-    if (
-        !p_impl && (backend == RecorderBackend::AUTO || backend == RecorderBackend::WINDOWS_GAMEINPUT)) {
+    if (!m_pImpl && (backend == RecorderBackend::Auto || backend == RecorderBackend::WindowsGameInput)) {
         try {
             m_logger->info("Trying to initialize GameInput backend");
-            p_impl = std::make_unique<RecorderWinGameinput>(logger);
-            m_backend = RecorderBackend::WINDOWS_GAMEINPUT;
+            m_pImpl = std::make_unique<RecorderWinGameInput>(logger);
+            m_backend = RecorderBackend::WindowsGameInput;
             m_logger->info("Initialized GameInput backend");
         } catch (const std::exception& e) {
             m_logger->info("Failed to initialize GameInput backend");
         }
     }
-    if (
-        !p_impl && (backend == RecorderBackend::AUTO || backend == RecorderBackend::WINDOWS_RAWINPUT)) {
+    if (!m_pImpl && (backend == RecorderBackend::Auto || backend == RecorderBackend::WindowsRawInput)) {
         try {
             m_logger->info("Trying to initialize Raw Input backend");
-            p_impl = std::make_unique<RecorderWinRawinput>(logger);
-            m_backend = RecorderBackend::WINDOWS_RAWINPUT;
+            m_pImpl = std::make_unique<RecorderWinRawInput>(logger);
+            m_backend = RecorderBackend::WindowsRawInput;
             m_logger->info("Initialized Raw Input backend");
         } catch (const std::exception& e) {
             m_logger->info("Failed to initialize Raw Input backend");
@@ -44,8 +44,7 @@ Recorder::Recorder(RecorderBackend backend, const std::shared_ptr<spdlog::logger
 #endif
 
 #ifdef __linux__
-    if (
-        !m_pImpl && (backend == RecorderBackend::AUTO || backend == RecorderBackend::LinuxEvdev)) {
+    if (!m_pImpl && (backend == RecorderBackend::Auto || backend == RecorderBackend::LinuxEvdev)) {
         try {
             m_logger->info("Trying to initialize evdev backend");
             m_pImpl = std::make_unique<RecorderLinuxLibevdev>(logger);
@@ -68,15 +67,15 @@ Recorder::Recorder(RecorderBackend backend, const std::shared_ptr<spdlog::logger
             id,
             ""s, vid, pid, std::nullopt,
             [&, this](DeviceMap::value_type& newDevice) {
-                newDevice.second.name = m_pImpl->getDeviceName(id);
-                auto usbDevice = m_pImpl->getUsbDeviceId(id);
+                newDevice.second.name = m_pImpl->deviceName(id);
+                auto usbDevice = m_pImpl->usbDeviceId(id);
                 if (usbDevice) {
                     newDevice.second.usbDeviceId = usbDevice;
                     m_usbDevices.try_emplace_and_visit(
                         usbDevice.value(), std::nullopt,
                         [&, this](UsbDeviceMap::value_type& newUsbDevice) {
                             auto& [id, device] = newUsbDevice;
-                            device = std::move(m_pImpl->getUsbDeviceInfo(id));
+                            device = std::move(m_pImpl->usbDeviceInfo(id));
                             if (device)
                                 this->onUsbDevice()(id, device.value());
                         },
@@ -160,16 +159,18 @@ const Recorder::InputMap& Recorder::inputs() const
     return m_inputs;
 }
 
-size_t Recorder::deviceCount() const
+std::size_t Recorder::deviceCount() const
 {
     return m_devices.size();
 }
 
-size_t Recorder::inputCount() const
+std::size_t Recorder::inputCount() const
 {
-    size_t count = 0;
+    std::size_t count = 0;
     m_inputs.visit_all([&](const InputMap::value_type& input) {
         count += input.second.size();
     });
     return count;
 }
+
+} // namespace Kbi
