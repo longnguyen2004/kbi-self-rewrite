@@ -21,8 +21,7 @@ void SDLCALL onFileSelected(void* userdata, const char* const* filelist, int /*f
 {
     auto* state = static_cast<DialogState*>(userdata);
     if (filelist != nullptr && filelist[0] != nullptr && filelist[0][0] != '\0')
-        state->result.store(std::make_shared<std::string>(filelist[0]),
-            std::memory_order_release);
+        state->result.store(std::make_shared<std::string>(filelist[0]), std::memory_order_release);
     state->done.store(true, std::memory_order_release);
 }
 

@@ -17,21 +17,17 @@ using namespace std::literals;
 namespace json = boost::json;
 namespace uuid = boost::uuids;
 
-NeutralinoController::NeutralinoController(Recorder& recorder, std::shared_ptr<spdlog::logger> logger)
+NeutralinoController::NeutralinoController(
+    Recorder& recorder, std::shared_ptr<spdlog::logger> logger)
     : Controller(recorder, std::move(logger))
 {
 }
 
-void NeutralinoController::sendEvent(
-    std::string_view event, const json::value& payload)
+void NeutralinoController::sendEvent(std::string_view event, const json::value& payload)
 {
     static uuid::random_generator gen;
-    json::object msg = {
-        { "id", uuid::to_string(gen()) },
-        { "method", "app.broadcast" },
-        { "accessToken", m_accessToken },
-        { "data", { { "event", event }, { "data", payload } } }
-    };
+    json::object msg = { { "id", uuid::to_string(gen()) }, { "method", "app.broadcast" },
+        { "accessToken", m_accessToken }, { "data", { { "event", event }, { "data", payload } } } };
     auto msgStr = json::serialize(msg);
     m_logger->info("Sending to Neutralino: {}", msgStr);
     m_ws.sendText(msgStr);
@@ -41,33 +37,31 @@ void NeutralinoController::run()
 {
     const auto& sysInfo = m_recorder.systemInfo();
     JsonTextSerializer serializer;
-    auto conn1 = m_recorder.onUsbDevice().connect(
-        [&](const std::string& id, const UsbDeviceInfo& device) {
-            try {
-                auto json = serializer.toJson(device);
-                sendEvent("usbDevice", json::object { { id, json } });
-            } catch (const std::exception& e) {
-                m_logger->error("Neutralino event serialization failed: {}", e.what());
-            }
-        });
-    auto conn2 = m_recorder.onDevice().connect(
-        [&](const std::string& id, const Device& device) {
-            try {
-                auto json = serializer.toJson(device);
-                sendEvent("device", json::object { { id, json } });
-            } catch (const std::exception& e) {
-                m_logger->error("Neutralino event serialization failed: {}", e.what());
-            }
-        });
-    auto conn3 = m_recorder.onInput().connect(
-        [&](const std::string& id, const Input& input) {
-            try {
-                auto json = serializer.toJson(input);
-                sendEvent("input", json::object { { id, json } });
-            } catch (const std::exception& e) {
-                m_logger->error("Neutralino event serialization failed: {}", e.what());
-            }
-        });
+    auto conn1
+        = m_recorder.onUsbDevice().connect([&](const std::string& id, const UsbDeviceInfo& device) {
+              try {
+                  auto json = serializer.toJson(device);
+                  sendEvent("usbDevice", json::object { { id, json } });
+              } catch (const std::exception& e) {
+                  m_logger->error("Neutralino event serialization failed: {}", e.what());
+              }
+          });
+    auto conn2 = m_recorder.onDevice().connect([&](const std::string& id, const Device& device) {
+        try {
+            auto json = serializer.toJson(device);
+            sendEvent("device", json::object { { id, json } });
+        } catch (const std::exception& e) {
+            m_logger->error("Neutralino event serialization failed: {}", e.what());
+        }
+    });
+    auto conn3 = m_recorder.onInput().connect([&](const std::string& id, const Input& input) {
+        try {
+            auto json = serializer.toJson(input);
+            sendEvent("input", json::object { { id, json } });
+        } catch (const std::exception& e) {
+            m_logger->error("Neutralino event serialization failed: {}", e.what());
+        }
+    });
 
     m_logger->info("Waiting for Neutralino connection info");
     std::error_code ec;
@@ -80,10 +74,8 @@ void NeutralinoController::run()
     m_accessToken = nlToken;
 
     m_logger->info("Connecting to Neutralino server");
-    m_ws.setUrl(
-        std::format(
-            "ws://localhost:{}?extensionId={}&connectToken={}",
-            nlPort.c_str(), nlExtensionId.c_str(), nlConnectToken.c_str()));
+    m_ws.setUrl(std::format("ws://localhost:{}?extensionId={}&connectToken={}", nlPort.c_str(),
+        nlExtensionId.c_str(), nlConnectToken.c_str()));
     m_ws.setOnMessageCallback([&](const ix::WebSocketMessagePtr& msg) {
         if (msg->type == ix::WebSocketMessageType::Message) {
             json::object msgJson;

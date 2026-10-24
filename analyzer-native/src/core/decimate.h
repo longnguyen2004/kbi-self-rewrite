@@ -23,11 +23,7 @@ struct ChartPoint {
 // data-index span, so the bucket-max sample selected per column is
 // deterministic and the line shape does not reshuffle as you pan within that
 // zoom.
-std::vector<ChartPoint> decimate(const std::vector<double>& data,
-    double extentMin,
-    double extentMax,
-    double domainMin,
-    double domainMax,
-    int width);
+std::vector<ChartPoint> decimate(const std::vector<double>& data, double extentMin,
+    double extentMax, double domainMin, double domainMax, int width);
 
 } // namespace Kbi

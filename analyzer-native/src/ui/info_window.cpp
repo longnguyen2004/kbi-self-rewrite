@@ -13,10 +13,7 @@
 namespace Kbi::Ui {
 namespace {
 
-std::string hex16(std::uint16_t value)
-{
-    return std::format("0x{:04X}", value);
-}
+std::string hex16(std::uint16_t value) { return std::format("0x{:04X}", value); }
 
 std::string hexBytes(const std::vector<unsigned char>& bytes)
 {
@@ -116,13 +113,13 @@ void InfoWindow::drawUsbDevices(const Result& result)
             if (!device.descriptors.empty()) {
                 auto cached = m_parsedDescriptors.find(id);
                 if (cached == m_parsedDescriptors.end())
-                    cached = m_parsedDescriptors.emplace(id, parseUsbDescriptors(device.descriptors)).first;
+                    cached
+                        = m_parsedDescriptors.emplace(id, parseUsbDescriptors(device.descriptors))
+                              .first;
                 for (const ParsedDescriptor& descriptor : cached->second) {
                     ImGui::PushID(static_cast<int>(descriptor.index));
-                    const std::string header = std::format("#{} {} ({} bytes)",
-                        descriptor.index,
-                        descriptor.typeName,
-                        descriptor.length);
+                    const std::string header = std::format("#{} {} ({} bytes)", descriptor.index,
+                        descriptor.typeName, descriptor.length);
                     if (ImGui::TreeNodeEx(header.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
                         drawFields(descriptor.fields);
                         if (ImGui::TreeNode("Raw bytes")) {

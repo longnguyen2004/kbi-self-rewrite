@@ -54,7 +54,8 @@ void drawRow(const Row& row)
     // The time stamps and the level names have a fixed width, so the columns
     // are simple offsets from the left edge.
     ImGui::SameLine(105.0f);
-    ImGui::TextColored(levelColor(row.level), "%s", spdlog::level::to_string_view(row.level).data());
+    ImGui::TextColored(
+        levelColor(row.level), "%s", spdlog::level::to_string_view(row.level).data());
     ImGui::SameLine(160.0f);
     ImGui::TextUnformatted(row.text.c_str());
 }
@@ -78,7 +79,8 @@ void LogWindow::draw(bool& open, LogStore& store)
             if (entry.level < m_minLevel)
                 continue;
             Row row;
-            row.prefix = std::format("{:%T}", std::chrono::floor<std::chrono::milliseconds>(entry.time));
+            row.prefix
+                = std::format("{:%T}", std::chrono::floor<std::chrono::milliseconds>(entry.time));
             row.level = entry.level;
             row.text = entry.text;
             rows.push_back(std::move(row));
@@ -93,8 +95,8 @@ void LogWindow::draw(bool& open, LogStore& store)
     if (ImGui::Button("Copy")) {
         std::string out;
         for (const Row& row : rows)
-            out += std::format("{} [{}] {}\n", row.prefix,
-                spdlog::level::to_string_view(row.level), row.text);
+            out += std::format(
+                "{} [{}] {}\n", row.prefix, spdlog::level::to_string_view(row.level), row.text);
         ImGui::SetClipboardText(out.c_str());
     }
     ImGui::SameLine();
@@ -116,8 +118,8 @@ void LogWindow::draw(bool& open, LogStore& store)
 
     ImGui::Separator();
 
-    ImGui::BeginChild("##log", ImVec2(0.0f, 0.0f), ImGuiChildFlags_None,
-        ImGuiWindowFlags_HorizontalScrollbar);
+    ImGui::BeginChild(
+        "##log", ImVec2(0.0f, 0.0f), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar);
     // Only the rows that are on the screen are laid out, the buffer keeps
     // thousands of messages.
     ImGuiListClipper clipper;

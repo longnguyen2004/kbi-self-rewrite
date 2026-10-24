@@ -5,8 +5,8 @@
 
 namespace Kbi {
 
-PostprocessResult postprocessWithMax(const std::vector<double>& arr,
-    const PostprocessOptions& options)
+PostprocessResult postprocessWithMax(
+    const std::vector<double>& arr, const PostprocessOptions& options)
 {
     PostprocessResult result;
     result.data = arr;

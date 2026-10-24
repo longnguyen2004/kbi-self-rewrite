@@ -8,8 +8,7 @@
 namespace Kbi {
 namespace {
 
-FreqSnapshot computeSnapshot(const std::vector<double>& consecutive,
-    const std::vector<double>& all,
+FreqSnapshot computeSnapshot(const std::vector<double>& consecutive, const std::vector<double>& all,
     const std::vector<double>& wrapped)
 {
     FreqSnapshot snapshot;
@@ -31,12 +30,16 @@ FreqSnapshot computeSnapshot(const std::vector<double>& consecutive,
 
     for (std::size_t freq = 0; freq < bins; ++freq) {
         // The first and the last bin are not mirrored, so they are not doubled.
-        const double norm = ((freq == 0 || freq + 1 == bins) ? 1.0 : 2.0) / static_cast<double>(len);
+        const double norm
+            = ((freq == 0 || freq + 1 == bins) ? 1.0 : 2.0) / static_cast<double>(len);
         const double consecutiveMag = std::hypot(consecutiveSpectrum.values[freq * 2],
                                           consecutiveSpectrum.values[freq * 2 + 1])
             * norm;
-        const double allMag = std::hypot(allSpectrum.values[freq * 2], allSpectrum.values[freq * 2 + 1]) * norm;
-        const double wrappedMag = std::hypot(wrappedSpectrum.values[freq * 2], wrappedSpectrum.values[freq * 2 + 1]) * norm;
+        const double allMag
+            = std::hypot(allSpectrum.values[freq * 2], allSpectrum.values[freq * 2 + 1]) * norm;
+        const double wrappedMag
+            = std::hypot(wrappedSpectrum.values[freq * 2], wrappedSpectrum.values[freq * 2 + 1])
+            * norm;
 
         snapshot.consecutiveDiff[freq] = consecutiveMag;
         snapshot.allDiff[freq] = allMag;
@@ -58,10 +61,7 @@ Analyzer::Analyzer()
     m_thread = std::thread([this] { workerLoop(); });
 }
 
-Analyzer::~Analyzer()
-{
-    terminate();
-}
+Analyzer::~Analyzer() { terminate(); }
 
 void Analyzer::terminate()
 {
@@ -136,18 +136,18 @@ void Analyzer::add(const std::vector<double>& timestamps)
                 // Consecutive diff: gap to the previous event.
                 const double consecutiveDiff = binned - last;
                 if (consecutiveDiff < 1000000.0) {
-                    const auto index = static_cast<std::size_t>(
-                        std::llround(consecutiveDiff / interval));
+                    const auto index
+                        = static_cast<std::size_t>(std::llround(consecutiveDiff / interval));
                     if (index < m_consecutiveDiffCount.size()) {
                         m_consecutiveDiffCount[index] += 1.0;
-                        m_consecutiveDiffCountMax = std::max(m_consecutiveDiffCountMax, m_consecutiveDiffCount[index]);
+                        m_consecutiveDiffCountMax
+                            = std::max(m_consecutiveDiffCountMax, m_consecutiveDiffCount[index]);
                     }
                 }
 
                 // All diff: gap to every previous event within the last second.
-                const auto start = std::lower_bound(m_timestampBinned.begin(),
-                    m_timestampBinned.end(),
-                    binned - 1000000.0);
+                const auto start = std::lower_bound(
+                    m_timestampBinned.begin(), m_timestampBinned.end(), binned - 1000000.0);
                 for (auto i = start; i != m_timestampBinned.end(); ++i) {
                     const double longDiff = binned - *i;
                     const auto index = static_cast<std::size_t>(std::llround(longDiff / interval));
@@ -159,10 +159,12 @@ void Analyzer::add(const std::vector<double>& timestamps)
 
                 // Fractional part of the timestamp within a one second window.
                 const double binnedWrapped = std::fmod(binned, 1000000.0);
-                const auto wrappedIndex = static_cast<std::size_t>(std::llround(binnedWrapped / interval));
+                const auto wrappedIndex
+                    = static_cast<std::size_t>(std::llround(binnedWrapped / interval));
                 if (wrappedIndex < m_wrappedTimestampCount.size()) {
                     m_wrappedTimestampCount[wrappedIndex] += 1.0;
-                    m_wrappedTimestampCountMax = std::max(m_wrappedTimestampCountMax, m_wrappedTimestampCount[wrappedIndex]);
+                    m_wrappedTimestampCountMax = std::max(
+                        m_wrappedTimestampCountMax, m_wrappedTimestampCount[wrappedIndex]);
                 }
             }
         }
@@ -219,8 +221,7 @@ void Analyzer::workerLoop()
             m_calculating = true;
         }
 
-        auto snapshot = std::make_shared<FreqSnapshot>(
-            computeSnapshot(consecutive, all, wrapped));
+        auto snapshot = std::make_shared<FreqSnapshot>(computeSnapshot(consecutive, all, wrapped));
 
         {
             std::scoped_lock lock(m_mutex);

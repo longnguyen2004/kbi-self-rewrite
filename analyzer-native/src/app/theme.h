@@ -4,8 +4,7 @@
 
 namespace Kbi::Ui {
 
-enum class Theme { Dark,
-    Light };
+enum class Theme { Dark, Light };
 
 void applyTheme(Theme theme);
 [[nodiscard]] Theme currentTheme();

@@ -23,11 +23,7 @@
 namespace di = boost::di;
 namespace po = boost::program_options;
 
-enum class ProgramMode {
-    Console,
-    WebSocket,
-    Neutralino
-};
+enum class ProgramMode { Console, WebSocket, Neutralino };
 
 std::istream& operator>>(std::istream& in, ProgramMode& mode)
 {
@@ -51,13 +47,10 @@ int main(int argc, char const* argv[])
     std::string logPath;
     ProgramMode mode;
     po::options_description desc("Allowed options");
-    desc.add_options()("help", "produce help message")(
-        "mode",
+    desc.add_options()("help", "produce help message")("mode",
         po::value<ProgramMode>(&mode)->default_value(ProgramMode::Console, "console"),
-        "Operating mode (console, websocket, neutralino)")(
-        "log-path",
-        po::value<std::string>(&logPath)->default_value("log.txt"),
-        "Path for the log file");
+        "Operating mode (console, websocket, neutralino)")("log-path",
+        po::value<std::string>(&logPath)->default_value("log.txt"), "Path for the log file");
     po::variables_map vm;
 
     try {
@@ -84,11 +77,14 @@ int main(int argc, char const* argv[])
                 fchmod(fd, 0666);
             };
 #endif
-            auto fileSink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logPath, true, handlers);
+            auto fileSink
+                = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logPath, true, handlers);
             fileSink->set_level(spdlog::level::trace);
 
-            const std::array<std::shared_ptr<spdlog::sinks::sink>, 2> sinks = { consoleSink, fileSink };
-            auto multiSink = std::make_shared<spdlog::logger>("", std::begin(sinks), std::end(sinks));
+            const std::array<std::shared_ptr<spdlog::sinks::sink>, 2> sinks
+                = { consoleSink, fileSink };
+            auto multiSink
+                = std::make_shared<spdlog::logger>("", std::begin(sinks), std::end(sinks));
             multiSink->set_level(spdlog::level::trace);
 
             return multiSink;

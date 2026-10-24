@@ -22,17 +22,16 @@ inline constexpr std::uint64_t kNetDateTimeKindUtc = 1;
 inline constexpr std::uint64_t kNetDateTimeKindLocal = 2;
 
 // Converts a time point into .NET DateTime ticks.
-[[nodiscard]] std::uint64_t toNetDatetimeTicks(std::chrono::system_clock::time_point timePoint,
-    std::uint64_t kind = kNetDateTimeKindUtc);
+[[nodiscard]] std::uint64_t toNetDatetimeTicks(
+    std::chrono::system_clock::time_point timePoint, std::uint64_t kind = kNetDateTimeKindUtc);
 
 // Converts .NET DateTime ticks into a time point. The DateTimeKind bits are
 // ignored.
-[[nodiscard]] std::chrono::system_clock::time_point
-fromNetDatetimeTicks(std::uint64_t ticks);
+[[nodiscard]] std::chrono::system_clock::time_point fromNetDatetimeTicks(std::uint64_t ticks);
 
 // Formats a time point as an ISO 8601 timestamp in UTC, for example
 // "2026-10-21T20:30:45Z".
-[[nodiscard]] std::string formatIso8601Utc(std::chrono::system_clock::time_point timePoint,
-    bool milliseconds = false);
+[[nodiscard]] std::string formatIso8601Utc(
+    std::chrono::system_clock::time_point timePoint, bool milliseconds = false);
 
 } // namespace Kbi

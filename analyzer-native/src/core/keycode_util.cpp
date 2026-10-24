@@ -380,9 +380,11 @@ std::string_view keycodeName(int code)
         return "Unknown";
     if (code >= static_cast<int>(Keycode::Button1) && code <= static_cast<int>(Keycode::HatW))
         return keycodeToString(static_cast<Keycode>(code));
-    if (code >= static_cast<int>(Keycode::LeftClick) && code <= static_cast<int>(Keycode::MouseForward))
+    if (code >= static_cast<int>(Keycode::LeftClick)
+        && code <= static_cast<int>(Keycode::MouseForward))
         return keycodeToString(static_cast<Keycode>(code));
-    if (code >= static_cast<int>(Keycode::LeftControl) && code <= static_cast<int>(Keycode::RightGui))
+    if (code >= static_cast<int>(Keycode::LeftControl)
+        && code <= static_cast<int>(Keycode::RightGui))
         return keycodeToString(static_cast<Keycode>(code));
     if (code >= 0 && code <= static_cast<int>(Keycode::ExSel))
         return keycodeToString(static_cast<Keycode>(code));

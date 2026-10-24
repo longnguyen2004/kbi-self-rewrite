@@ -17,7 +17,8 @@ std::wstring stringToWstring(std::string_view str)
 
 std::string wstringToString(std::wstring_view wstr)
 {
-    auto length = utf8_length_from_utf16(reinterpret_cast<const char16_t*>(wstr.data()), wstr.size());
+    auto length
+        = utf8_length_from_utf16(reinterpret_cast<const char16_t*>(wstr.data()), wstr.size());
     if (length == 0)
         return {};
     std::string str(length, 0);

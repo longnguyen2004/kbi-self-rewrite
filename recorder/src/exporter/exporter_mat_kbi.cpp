@@ -44,8 +44,7 @@ constexpr std::string_view creator = "kbi_cpp_recorder";
 
 } // namespace Kbi
 
-template<>
-struct std::hash<Kbi::KbiInput> {
+template<> struct std::hash<Kbi::KbiInput> {
     std::size_t operator()(const Kbi::KbiInput& input) const
     {
         return std::hash<std::string>()(input.key) ^ std::hash<std::int64_t>()(input.source);
@@ -70,10 +69,7 @@ void writeUleb128(std::ostream& out, std::uint64_t x)
     } while (x != 0);
 }
 
-void writeBool(std::ostream& out, bool x)
-{
-    out.put(x ? 1 : 0);
-}
+void writeBool(std::ostream& out, bool x) { out.put(x ? 1 : 0); }
 
 void writeInt32(std::ostream& out, std::int32_t x)
 {
@@ -117,9 +113,9 @@ void writeString(std::ostream& out, std::string_view str)
 
 template<typename Iterator>
     requires std::forward_iterator<Iterator>
-void writeList(
-    std::ostream& out, Iterator start, Iterator end,
-    const std::function<void(std::ostream&, const typename std::iterator_traits<Iterator>::value_type&)>& serializer)
+void writeList(std::ostream& out, Iterator start, Iterator end,
+    const std::function<void(
+        std::ostream&, const typename std::iterator_traits<Iterator>::value_type&)>& serializer)
 {
     auto count = std::distance(start, end);
     writeInt32(out, count);
@@ -180,9 +176,7 @@ void ExporterMatKbi::exportTo(std::ostream& out)
     // KBI uses indices to associate events with their corresponding devices
     std::unordered_map<std::string, std::int64_t> indexMap;
     std::int64_t i = 0;
-    devices.cvisit_all([&](const DeviceMap::value_type& device) {
-        indexMap[device.first] = i++;
-    });
+    devices.cvisit_all([&](const DeviceMap::value_type& device) { indexMap[device.first] = i++; });
 
     // Create events and input info lists
     std::list<KbiEvent> kbiEvents;
@@ -191,20 +185,15 @@ void ExporterMatKbi::exportTo(std::ostream& out)
     inputs.visit_all([&](const InputMap::value_type& device) {
         const auto& [id, events] = device;
         for (const auto& event : events) {
-            KbiInput input { .key = std::string { keycodeToString(event.code) }, .source = indexMap[id] };
-            kbiEvents.emplace_back(
-                event.timestamp / 1000000.0,
-                event.pressed,
-                input);
-            kbiInputInfo.try_emplace(
-                input,
-                0xFFA9A9A9, true // Default color and visibility
+            KbiInput input { .key = std::string { keycodeToString(event.code) },
+                .source = indexMap[id] };
+            kbiEvents.emplace_back(event.timestamp / 1000000.0, event.pressed, input);
+            kbiInputInfo.try_emplace(input, 0xFFA9A9A9, true // Default color and visibility
             );
         }
     });
     writeList(
-        out, kbiEvents.begin(), kbiEvents.end(),
-        [](std::ostream& out, const KbiEvent& event) {
+        out, kbiEvents.begin(), kbiEvents.end(), [](std::ostream& out, const KbiEvent& event) {
             writeDouble(out, event.time);
             writeBool(out, event.pressed);
             writeKbiInput(out, event.input);
@@ -212,16 +201,12 @@ void ExporterMatKbi::exportTo(std::ostream& out)
 
     // Write sources
     std::list<DeviceMap::value_type> devicesList;
-    devices.cvisit_all([&](const DeviceMap::value_type& device) {
-        devicesList.push_back(device);
-    });
-    writeList(
-        out, devicesList.begin(), devicesList.end(),
+    devices.cvisit_all([&](const DeviceMap::value_type& device) { devicesList.push_back(device); });
+    writeList(out, devicesList.begin(), devicesList.end(),
         [&](std::ostream& out, const std::pair<std::string, Device>& device) {
             writeInt64(out, indexMap[device.first]);
-            inputs.cvisit(device.first, [&](const InputMap::value_type& input) {
-                writeInt32(out, input.second.size());
-            });
+            inputs.cvisit(device.first,
+                [&](const InputMap::value_type& input) { writeInt32(out, input.second.size()); });
             writeString(out, device.second.name);
             writeString(out, device.first);
         });
@@ -232,8 +217,7 @@ void ExporterMatKbi::exportTo(std::ostream& out)
     writeBool(out, true); // Low cut
 
     // Write input info
-    writeList(
-        out, kbiInputInfo.begin(), kbiInputInfo.end(),
+    writeList(out, kbiInputInfo.begin(), kbiInputInfo.end(),
         [](std::ostream& out, const std::pair<KbiInput, KbiInputInfo>& pair) {
             const auto& [input, info] = pair;
             writeKbiInput(out, input);

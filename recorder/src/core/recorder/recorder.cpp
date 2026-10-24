@@ -21,7 +21,8 @@ Recorder::Recorder(RecorderBackend backend, const std::shared_ptr<spdlog::logger
     m_systemInfo = systemInfo();
 
 #ifdef _WIN32
-    if (!m_pImpl && (backend == RecorderBackend::Auto || backend == RecorderBackend::WindowsGameInput)) {
+    if (!m_pImpl
+        && (backend == RecorderBackend::Auto || backend == RecorderBackend::WindowsGameInput)) {
         try {
             m_logger->info("Trying to initialize GameInput backend");
             m_pImpl = std::make_unique<RecorderWinGameInput>(logger);
@@ -31,7 +32,8 @@ Recorder::Recorder(RecorderBackend backend, const std::shared_ptr<spdlog::logger
             m_logger->info("Failed to initialize GameInput backend");
         }
     }
-    if (!m_pImpl && (backend == RecorderBackend::Auto || backend == RecorderBackend::WindowsRawInput)) {
+    if (!m_pImpl
+        && (backend == RecorderBackend::Auto || backend == RecorderBackend::WindowsRawInput)) {
         try {
             m_logger->info("Trying to initialize Raw Input backend");
             m_pImpl = std::make_unique<RecorderWinRawInput>(logger);
@@ -61,47 +63,41 @@ Recorder::Recorder(RecorderBackend backend, const std::shared_ptr<spdlog::logger
         throw std::runtime_error("Failed to initialize any backend");
     }
 
-    m_pImpl->onInput().connect([this](
-                                   const std::string& id, std::uint16_t vid, std::uint16_t pid, Input input) {
-        m_devices.try_emplace_and_visit(
-            id,
-            ""s, vid, pid, std::nullopt,
-            [&, this](DeviceMap::value_type& newDevice) {
-                newDevice.second.name = m_pImpl->deviceName(id);
-                auto usbDevice = m_pImpl->usbDeviceId(id);
-                if (usbDevice) {
-                    newDevice.second.usbDeviceId = usbDevice;
-                    m_usbDevices.try_emplace_and_visit(
-                        usbDevice.value(), std::nullopt,
-                        [&, this](UsbDeviceMap::value_type& newUsbDevice) {
-                            auto& [id, device] = newUsbDevice;
-                            device = std::move(m_pImpl->usbDeviceInfo(id));
-                            if (device)
-                                this->onUsbDevice()(id, device.value());
-                        },
-                        [](auto& _) {
-                        });
-                }
-                this->onDevice()(id, newDevice.second);
-            },
-            [](const DeviceMap::value_type& existingDevice) {
+    m_pImpl->onInput().connect(
+        [this](const std::string& id, std::uint16_t vid, std::uint16_t pid, Input input) {
+            m_devices.try_emplace_and_visit(
+                id, ""s, vid, pid, std::nullopt,
+                [&, this](DeviceMap::value_type& newDevice) {
+                    newDevice.second.name = m_pImpl->deviceName(id);
+                    auto usbDevice = m_pImpl->usbDeviceId(id);
+                    if (usbDevice) {
+                        newDevice.second.usbDeviceId = usbDevice;
+                        m_usbDevices.try_emplace_and_visit(
+                            usbDevice.value(), std::nullopt,
+                            [&, this](UsbDeviceMap::value_type& newUsbDevice) {
+                                auto& [id, device] = newUsbDevice;
+                                device = std::move(m_pImpl->usbDeviceInfo(id));
+                                if (device)
+                                    this->onUsbDevice()(id, device.value());
+                            },
+                            [](auto& _) { });
+                    }
+                    this->onDevice()(id, newDevice.second);
+                },
+                [](const DeviceMap::value_type& existingDevice) {
 
-            });
-        auto processInput = [&, this](InputMap::value_type& inputArr) {
-            this->onInput()(id, input);
-            inputArr.second.push_back(input);
-        };
-        m_inputs.try_emplace_and_visit(
-            id, 0, processInput, processInput);
-    });
+                });
+            auto processInput = [&, this](InputMap::value_type& inputArr) {
+                this->onInput()(id, input);
+                inputArr.second.push_back(input);
+            };
+            m_inputs.try_emplace_and_visit(id, 0, processInput, processInput);
+        });
 }
 
 Recorder::~Recorder() = default;
 
-bool Recorder::recording() const
-{
-    return m_running;
-}
+bool Recorder::recording() const { return m_running; }
 
 void Recorder::start(bool keyboard, bool mouse, bool gamepad)
 {
@@ -128,10 +124,7 @@ void Recorder::stop()
     onStop()();
 }
 
-std::chrono::system_clock::time_point Recorder::startTime() const
-{
-    return m_startWallclock;
-}
+std::chrono::system_clock::time_point Recorder::startTime() const { return m_startWallclock; }
 
 std::chrono::steady_clock::duration Recorder::elapsed() const
 {
@@ -139,37 +132,20 @@ std::chrono::steady_clock::duration Recorder::elapsed() const
     return end - m_startTime;
 }
 
-RecorderBackend Recorder::backend() const
-{
-    return m_backend;
-}
+RecorderBackend Recorder::backend() const { return m_backend; }
 
-const Recorder::UsbDeviceMap& Recorder::usbDevices() const
-{
-    return m_usbDevices;
-}
+const Recorder::UsbDeviceMap& Recorder::usbDevices() const { return m_usbDevices; }
 
-const Recorder::DeviceMap& Recorder::devices() const
-{
-    return m_devices;
-}
+const Recorder::DeviceMap& Recorder::devices() const { return m_devices; }
 
-const Recorder::InputMap& Recorder::inputs() const
-{
-    return m_inputs;
-}
+const Recorder::InputMap& Recorder::inputs() const { return m_inputs; }
 
-std::size_t Recorder::deviceCount() const
-{
-    return m_devices.size();
-}
+std::size_t Recorder::deviceCount() const { return m_devices.size(); }
 
 std::size_t Recorder::inputCount() const
 {
     std::size_t count = 0;
-    m_inputs.visit_all([&](const InputMap::value_type& input) {
-        count += input.second.size();
-    });
+    m_inputs.visit_all([&](const InputMap::value_type& input) { count += input.second.size(); });
     return count;
 }
 

@@ -58,10 +58,7 @@ void evdevClose(libevdev* device)
     libevdev_free(device);
 }
 
-void evdevCloseP(libevdev** ptr)
-{
-    evdevClose(*ptr);
-}
+void evdevCloseP(libevdev** ptr) { evdevClose(*ptr); }
 
 } // namespace
 
@@ -77,8 +74,7 @@ void RecorderLinuxLibevdev::initScanDevices()
     if (glob("/dev/input/by-id/*event*", 0, nullptr, &globResult) == 0) {
         auto glPathc = globResult.gl_pathc;
         auto* glPathv = globResult.gl_pathv;
-        m_evdevDevices.insert(
-            boost::make_transform_iterator(glPathv, defaultConstruct),
+        m_evdevDevices.insert(boost::make_transform_iterator(glPathv, defaultConstruct),
             boost::make_transform_iterator(glPathv + glPathc, defaultConstruct));
         globfree(&globResult);
     }
@@ -89,15 +85,14 @@ void RecorderLinuxLibevdev::initScanDevices()
             m_logger->error("inotify_init1 failed");
             return;
         }
-        if (inotify_add_watch(notifyFd, "/dev/input/by-id", IN_CREATE | IN_DELETE | IN_MOVED_TO | IN_MOVED_FROM) < 0) {
+        if (inotify_add_watch(
+                notifyFd, "/dev/input/by-id", IN_CREATE | IN_DELETE | IN_MOVED_TO | IN_MOVED_FROM)
+            < 0) {
             m_logger->error("inotify_add_watch failed for /dev/input/by-id");
             close(notifyFd);
             return;
         }
-        pollfd pollStruct {
-            .fd = notifyFd,
-            .events = POLLIN
-        };
+        pollfd pollStruct { .fd = notifyFd, .events = POLLIN };
         constexpr size_t bufSize = 4096;
         std::array<char, bufSize> buf;
         while (!stop.stop_requested()) {
@@ -114,14 +109,16 @@ void RecorderLinuxLibevdev::initScanDevices()
                 if (len == 0)
                     break;
                 auto makeDevice = [](std::string_view path) {
-                    return std::make_pair(std::string(path), InternalDevice { .syspath = std::string(path) });
+                    return std::make_pair(
+                        std::string(path), InternalDevice { .syspath = std::string(path) });
                 };
                 static_vector<std::string, 100> added;
                 static_vector<std::string, 100> removed;
                 size_t offset = 0;
                 while (std::cmp_less(offset, len)) {
                     auto* ev = reinterpret_cast<struct inotify_event*>(buf.data() + offset);
-                    std::string_view name = ev->len ? std::string_view(ev->name, ev->len) : std::string_view {};
+                    std::string_view name
+                        = ev->len ? std::string_view(ev->name, ev->len) : std::string_view {};
                     // Trim trailing NUL if present
                     if (!name.empty() && name.back() == '\0')
                         name.remove_suffix(1);
@@ -138,9 +135,7 @@ void RecorderLinuxLibevdev::initScanDevices()
                 for (auto& p : added)
                     m_evdevDevices.insert(makeDevice(p));
                 m_evdevDevices.visit(removed.begin(), removed.end(),
-                    [](EvdevDeviceMap::value_type& dev) {
-                        dev.second.remove = true;
-                    });
+                    [](EvdevDeviceMap::value_type& dev) { dev.second.remove = true; });
             }
         }
         close(notifyFd);
@@ -174,8 +169,8 @@ void RecorderLinuxLibevdev::initPoll(bool keyboard, bool mouse, bool gamepad)
                 if (!dev.eventDevice) {
                     __attribute__((cleanup(evdevCloseP))) libevdev* eventDevice = evdevOpen(path);
                     if (!eventDevice) {
-                        m_logger->warn(
-                            "Failed to open device {}. Are you running as root/in the 'input' user group?",
+                        m_logger->warn("Failed to open device {}. Are you running as root/in the "
+                                       "'input' user group?",
                             path);
                         return true;
                     }
@@ -250,7 +245,11 @@ void RecorderLinuxLibevdev::initPoll(bool keyboard, bool mouse, bool gamepad)
                     if (rc == LIBEVDEV_READ_STATUS_SUCCESS) {
                         if (ev.type != EV_KEY || ev.value == 2)
                             continue;
-                        onInput()(syspath, vid, pid, Input { .timestamp = (ev.input_event_sec * 1000000ULL + ev.input_event_usec - refUsec), .pressed = static_cast<bool>(ev.value), .code = evdevToKeycode(ev.code) });
+                        onInput()(syspath, vid, pid,
+                            Input { .timestamp
+                                = (ev.input_event_sec * 1000000ULL + ev.input_event_usec - refUsec),
+                                .pressed = static_cast<bool>(ev.value),
+                                .code = evdevToKeycode(ev.code) });
                         continue;
                     }
                     if (rc == LIBEVDEV_READ_STATUS_SYNC) {
@@ -270,7 +269,8 @@ RecorderLinuxLibevdev::RecorderLinuxLibevdev(std::shared_ptr<spdlog::logger> log
     : Recorder::Impl(std::move(logger))
 {
     if (geteuid() != 0)
-        m_logger->warn("The program is not running as root. You might not be able to capture inputs");
+        m_logger->warn(
+            "The program is not running as root. You might not be able to capture inputs");
 }
 
 void RecorderLinuxLibevdev::start(bool keyboard, bool mouse, bool gamepad)
@@ -285,9 +285,8 @@ void RecorderLinuxLibevdev::stop()
     m_pollThread.request_stop();
     m_deviceScanThread.join();
     m_pollThread.join();
-    m_evdevDevices.visit_all([](EvdevDeviceMap::value_type& entry) {
-        evdevClose(entry.second.eventDevice);
-    });
+    m_evdevDevices.visit_all(
+        [](EvdevDeviceMap::value_type& entry) { evdevClose(entry.second.eventDevice); });
     m_evdevDevices.clear();
 }
 

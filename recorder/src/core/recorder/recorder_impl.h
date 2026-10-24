@@ -10,7 +10,8 @@ namespace Kbi {
 // The platform specific implementation of the `Recorder`.
 class Recorder::Impl {
 public:
-    using InputSignalWithVIDPID = boost::signals2::signal<void(const std::string&, std::uint16_t, std::uint16_t, Input)>;
+    using InputSignalWithVIDPID
+        = boost::signals2::signal<void(const std::string&, std::uint16_t, std::uint16_t, Input)>;
 
     explicit Impl(std::shared_ptr<spdlog::logger> logger)
         : m_logger(std::move(logger))
@@ -20,10 +21,7 @@ public:
     Impl(const Impl&) = delete;
     Impl& operator=(const Impl&) = delete;
 
-    InputSignalWithVIDPID& onInput()
-    {
-        return m_sigInput;
-    }
+    InputSignalWithVIDPID& onInput() { return m_sigInput; }
 
     virtual void start(bool keyboard = true, bool mouse = false, bool gamepad = false) = 0;
     virtual void stop() = 0;

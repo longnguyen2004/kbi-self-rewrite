@@ -33,10 +33,7 @@ std::string hexBytes(const std::vector<unsigned char>& bytes)
     return out;
 }
 
-std::string hex4(std::uint16_t value)
-{
-    return std::format("{:04x}", value);
-}
+std::string hex4(std::uint16_t value) { return std::format("{:04x}", value); }
 
 std::uint16_t readU16(const std::vector<unsigned char>& raw, std::size_t offset)
 {
@@ -60,14 +57,14 @@ std::string utf16leToUtf8(std::span<const unsigned char> data)
     for (std::size_t i = 0; i < units; ++i)
         utf16[i] = static_cast<char16_t>(data[i * 2] | (data[i * 2 + 1] << 8));
 
-    const simdutf::result size = simdutf::utf8_length_from_utf16le_with_replacement(
-        utf16.data(), units);
+    const simdutf::result size
+        = simdutf::utf8_length_from_utf16le_with_replacement(utf16.data(), units);
     if (size.error != simdutf::error_code::SUCCESS)
         return {};
 
     std::vector<char> utf8(size.count);
-    const std::size_t written = simdutf::convert_utf16le_to_utf8_with_replacement(
-        utf16.data(), units, utf8.data());
+    const std::size_t written
+        = simdutf::convert_utf16le_to_utf8_with_replacement(utf16.data(), units, utf8.data());
     return { utf8.data(), written };
 }
 
@@ -330,8 +327,8 @@ std::vector<DescriptorField> parseEndpointDescriptor(const std::vector<unsigned 
     return {
         field("bLength", std::format("{}", readU8(raw, 0))),
         field("bDescriptorType", hexByte(readU8(raw, 1))),
-        field("bEndpointAddress",
-            std::format("{} (Endpoint {}, {})", hexByte(epAddr), epNum, epDir)),
+        field(
+            "bEndpointAddress", std::format("{} (Endpoint {}, {})", hexByte(epAddr), epNum, epDir)),
         std::move(attributes),
         field("wMaxPacketSize", std::format("{}", readU16(raw, 4))),
         field("bInterval", std::format("{}", readU8(raw, 6))),
@@ -348,9 +345,8 @@ std::vector<DescriptorField> parseHidDescriptor(const std::vector<unsigned char>
         const unsigned char subType = readU8(raw, offset);
         const std::uint16_t subLen = readU16(raw, offset + 1);
         const auto typeIt = usbDescriptorTypes().find(subType);
-        const std::string typeName = typeIt != usbDescriptorTypes().end()
-            ? typeIt->second
-            : hexByte(subType);
+        const std::string typeName
+            = typeIt != usbDescriptorTypes().end() ? typeIt->second : hexByte(subType);
         subDescriptors.push_back(field(std::format("Sub-descriptor {}", i + 1),
             std::format("{} ({} bytes)", typeName, subLen)));
         offset += 3;
@@ -467,9 +463,11 @@ std::uint16_t roundDownToPowerOfTwo(std::uint16_t x)
 
 std::string base64Decode(const std::string& base64)
 {
-    const std::size_t maxLength = simdutf::maximal_binary_length_from_base64(base64.data(), base64.size());
+    const std::size_t maxLength
+        = simdutf::maximal_binary_length_from_base64(base64.data(), base64.size());
     std::vector<char> buffer(maxLength);
-    const simdutf::result result = simdutf::base64_to_binary(base64.data(), base64.size(), buffer.data());
+    const simdutf::result result
+        = simdutf::base64_to_binary(base64.data(), base64.size(), buffer.data());
     if (result.error != simdutf::error_code::SUCCESS)
         return {};
     return { buffer.data(), result.count };
@@ -493,9 +491,7 @@ std::vector<ParsedDescriptor> parseDescriptors(const std::vector<unsigned char>&
         descriptor.index = index;
         descriptor.type = type;
         const auto typeIt = usbDescriptorTypes().find(type);
-        descriptor.typeName = typeIt != usbDescriptorTypes().end()
-            ? typeIt->second
-            : hexByte(type);
+        descriptor.typeName = typeIt != usbDescriptorTypes().end() ? typeIt->second : hexByte(type);
         descriptor.length = length;
         descriptor.raw = slice;
         descriptor.fields = parseDescriptorFields(slice);
@@ -547,15 +543,17 @@ std::vector<ParsedDescriptor> parseUsbDescriptors(const std::vector<unsigned cha
                         break;
                     requested = requested * 10 + static_cast<unsigned>(c - '0');
                 }
-                const unsigned effective = roundDownToPowerOfTwo(
-                    static_cast<std::uint16_t>(requested));
+                const unsigned effective
+                    = roundDownToPowerOfTwo(static_cast<std::uint16_t>(requested));
                 f.children = {
                     field("Polling Interval (Requested)",
                         formatDuration(static_cast<double>(requested) * frameDuration)),
                     field("Polling Interval (Effective)",
                         formatDuration(static_cast<double>(effective) * frameDuration)),
                     field("Polling Rate",
-                        formatNumber(1000000.0 / static_cast<double>(effective) / static_cast<double>(frameDuration)) + "Hz"),
+                        formatNumber(1000000.0 / static_cast<double>(effective)
+                            / static_cast<double>(frameDuration))
+                            + "Hz"),
                 };
             }
         } break;

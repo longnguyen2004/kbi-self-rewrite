@@ -20,14 +20,12 @@ struct PffftSetupDeleter {
 using PffftSetup = std::unique_ptr<PFFFT_Setup, PffftSetupDeleter>;
 
 // The buffers of PFFFT have to be aligned, 16 bytes on x86 and powerpc.
-template<typename T>
-struct PffftAllocator {
+template<typename T> struct PffftAllocator {
     using value_type = T;
 
     PffftAllocator() = default;
 
-    template<typename U>
-    explicit PffftAllocator(const PffftAllocator<U>& /*unused*/) { }
+    template<typename U> explicit PffftAllocator(const PffftAllocator<U>& /*unused*/) { }
 
     [[nodiscard]] T* allocate(std::size_t count)
     {

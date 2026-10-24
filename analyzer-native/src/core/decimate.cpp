@@ -9,12 +9,8 @@ namespace {
 
 } // namespace
 
-std::vector<ChartPoint> decimate(const std::vector<double>& data,
-    double extentMin,
-    double extentMax,
-    double domainMin,
-    double domainMax,
-    int width)
+std::vector<ChartPoint> decimate(const std::vector<double>& data, double extentMin,
+    double extentMax, double domainMin, double domainMax, int width)
 {
     std::vector<ChartPoint> points;
     const std::size_t n = data.size();

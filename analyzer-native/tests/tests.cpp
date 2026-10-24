@@ -50,7 +50,8 @@ std::vector<std::complex<double>> naiveDft(const std::vector<double>& input, std
     for (std::size_t k = 0; k < size; ++k) {
         std::complex<double> sum(0.0, 0.0);
         for (std::size_t j = 0; j < input.size(); ++j) {
-            const double angle = -2.0 * std::numbers::pi * static_cast<double>(k * j) / static_cast<double>(size);
+            const double angle
+                = -2.0 * std::numbers::pi * static_cast<double>(k * j) / static_cast<double>(size);
             sum += input[j] * std::complex<double>(std::cos(angle), std::sin(angle));
         }
         result[k] = sum;
@@ -93,7 +94,8 @@ void testFft()
     const std::size_t m = 16384;
     std::vector<double> tone(m);
     for (std::size_t i = 0; i < m; ++i) {
-        tone[i] = std::cos(2.0 * std::numbers::pi * 100.0 * static_cast<double>(i) / static_cast<double>(m));
+        tone[i] = std::cos(
+            2.0 * std::numbers::pi * 100.0 * static_cast<double>(i) / static_cast<double>(m));
     }
     const auto spectrum = Kbi::Fft::realDft(tone);
     std::size_t peak = 0;
@@ -115,8 +117,7 @@ void testFft()
 
     // A size that PFFFT does not support is rounded up to a power of two.
     const std::vector<double> small(1000, 1.0);
-    check(Kbi::Fft::realDft(small).transformSize == 1024,
-        "an unsupported size is rounded up");
+    check(Kbi::Fft::realDft(small).transformSize == 1024, "an unsupported size is rounded up");
     check(std::abs(peakValue - static_cast<double>(m) / 2.0) < 1.0,
         "the magnitude of the tone is m/2");
 }
@@ -195,11 +196,12 @@ void testAnalyzer()
             // PFFFT needs a transform size that is a multiple of 32, the two
             // small bin rates are rounded up to the next power of two and
             // their spectrum has a few entries above the axis.
-            const std::size_t transformSize = rate % 32 == 0 ? static_cast<std::size_t>(rate)
-                                                             : std::bit_ceil(static_cast<unsigned>(rate));
+            const std::size_t transformSize = rate % 32 == 0
+                ? static_cast<std::size_t>(rate)
+                : std::bit_ceil(static_cast<unsigned>(rate));
             check(snapshot->consecutiveDiff.size() == transformSize / 2 + 1,
-                std::format("a {}Hz bin rate has {} frequency entries", rate,
-                    transformSize / 2 + 1));
+                std::format(
+                    "a {}Hz bin rate has {} frequency entries", rate, transformSize / 2 + 1));
         }
     }
 
@@ -292,11 +294,9 @@ void testBase64()
     check(decoded == "Hello", "base64 decoding");
 
     // A device descriptor followed by a HID descriptor.
-    const std::vector<unsigned char> raw = {
-        0x12, 0x01, 0x00, 0x02, 0x00, 0x00, 0x00, 0x40, 0x31, 0x31, 0x50, 0x27, 0x00,
-        0x02, 0x01, 0x01, 0x03, 0x21,
-        0x09, 0x21, 0x11, 0x01, 0x00, 0x01, 0x22, 0x3f, 0x00
-    };
+    const std::vector<unsigned char> raw
+        = { 0x12, 0x01, 0x00, 0x02, 0x00, 0x00, 0x00, 0x40, 0x31, 0x31, 0x50, 0x27, 0x00, 0x02,
+              0x01, 0x01, 0x03, 0x21, 0x09, 0x21, 0x11, 0x01, 0x00, 0x01, 0x22, 0x3f, 0x00 };
     const auto descriptors = Kbi::parseDescriptors(raw);
     check(descriptors.size() == 2, "the descriptor blob is split");
     check(descriptors[0].typeName == "DEVICE", "the device descriptor is recognized");
@@ -327,16 +327,15 @@ void testLogStore()
     });
     check(texts.size() == 3 && texts[0] == "hello 42" && texts[2] == "oops",
         "the messages keep the order they arrived in");
-    check(levels.size() == 3 && levels[1] == spdlog::level::warn,
-        "the message levels are preserved");
+    check(
+        levels.size() == 3 && levels[1] == spdlog::level::warn, "the message levels are preserved");
 
     // A debug message is not logged by the default level, but it is once it is
     // enabled.
     logger->debug("quiet one");
     std::size_t count = 0;
-    store->withEntries([&](const std::vector<Kbi::Ui::LogStore::Entry>& entries) {
-        count = entries.size();
-    });
+    store->withEntries(
+        [&](const std::vector<Kbi::Ui::LogStore::Entry>& entries) { count = entries.size(); });
     check(count == 3, "debug is not logged at the default level");
     logger->set_level(spdlog::level::debug);
     logger->debug("quiet one");
@@ -348,8 +347,7 @@ void testLogStore()
         if (!entries.empty())
             first = entries.front().text;
     });
-    check(count == 3 && first == "watch out",
-        "debug is logged once its level is enabled");
+    check(count == 3 && first == "watch out", "debug is logged once its level is enabled");
 
     // The buffer is bounded, the oldest messages are dropped.
     for (int i = 0; i < 5; ++i)
@@ -384,7 +382,7 @@ void testChartInteraction()
     drag.dragging = true;
     drag.dragDeltaX = 50.0f;
     drag.plotWidth = 500.0f;
-    Kbi::Ui::updateRange(sync, drag);
+    sync.updateRange(drag);
     check(std::abs(sync.xMin - 97.5) < 1e-9, "dragging pans the view");
     check(std::abs(sync.xMax - 122.5) < 1e-9, "dragging keeps the span");
 
@@ -393,7 +391,7 @@ void testChartInteraction()
     bigDrag.dragging = true;
     bigDrag.dragDeltaX = -10000.0f;
     bigDrag.plotWidth = 500.0f;
-    Kbi::Ui::updateRange(sync, bigDrag);
+    sync.updateRange(bigDrag);
     check(sync.xMax <= sync.extentMax + 1e-9, "the view is clamped to the extent");
     check(sync.xMax - sync.xMin > 0.0, "the view keeps a positive span");
 
@@ -406,7 +404,7 @@ void testChartInteraction()
     Kbi::Ui::ChartInteraction zoom;
     zoom.wheel = 1.0f;
     zoom.mouseX = 50.0;
-    Kbi::Ui::updateRange(zoomSync, zoom);
+    zoomSync.updateRange(zoom);
     check(zoomSync.xMax - zoomSync.xMin < 100.0, "scrolling zooms in");
     check(std::abs((zoomSync.xMin + zoomSync.xMax) * 0.5 - 50.0) < 1e-6,
         "zooming keeps the cursor position");
@@ -414,7 +412,7 @@ void testChartInteraction()
     Kbi::Ui::ChartInteraction zoomOut;
     zoomOut.wheel = -1.0f;
     zoomOut.mouseX = 50.0;
-    Kbi::Ui::updateRange(zoomSync, zoomOut);
+    zoomSync.updateRange(zoomOut);
     check(zoomSync.xMax - zoomSync.xMin > 90.0, "scrolling down zooms out");
 
     // Zooming out never goes beyond the extent.
@@ -422,7 +420,7 @@ void testChartInteraction()
         Kbi::Ui::ChartInteraction step;
         step.wheel = -1.0f;
         step.mouseX = 500.0;
-        Kbi::Ui::updateRange(zoomSync, step);
+        zoomSync.updateRange(step);
     }
     check(std::abs(zoomSync.xMin - 0.0) < 1e-9 && std::abs(zoomSync.xMax - 1000.0) < 1e-9,
         "zooming out stops at the extent");
@@ -430,7 +428,7 @@ void testChartInteraction()
     // A double click resets the view.
     Kbi::Ui::ChartInteraction reset;
     reset.doubleClicked = true;
-    Kbi::Ui::updateRange(zoomSync, reset);
+    zoomSync.updateRange(reset);
     check(zoomSync.xMin == 0.0 && zoomSync.xMax == 1000.0, "a double click resets the view");
 }
 
@@ -519,7 +517,8 @@ void testPointSnapper()
     check(snapper.find(0.0, 0.0, 40.0) == nullptr, "an empty snapper finds nothing");
 
     // The points are not sorted, the snapper sorts them.
-    snapper.set({ { .x = 30.0, .y = 5.0, .index = 2 }, { .x = 10.0, .y = 5.0, .index = 0 }, { .x = 20.0, .y = 5.0, .index = 1 } });
+    snapper.set({ { .x = 30.0, .y = 5.0, .index = 2 }, { .x = 10.0, .y = 5.0, .index = 0 },
+        { .x = 20.0, .y = 5.0, .index = 1 } });
 
     const Kbi::Ui::SnapPoint* snapped = snapper.find(11.0, 5.0, 40.0);
     check(snapped != nullptr, "a point is found");
@@ -529,7 +528,8 @@ void testPointSnapper()
     }
 
     // A point that is too far away is not found.
-    check(snapper.find(500.0, 500.0, 40.0) == nullptr, "a point outside of the radius is not found");
+    check(
+        snapper.find(500.0, 500.0, 40.0) == nullptr, "a point outside of the radius is not found");
 
     // The closest point wins, not the first one.
     snapper.set({ { .x = 10.0, .y = 100.0, .index = 0 }, { .x = 12.0, .y = 0.0, .index = 1 } });
@@ -574,19 +574,18 @@ void testDatetime()
 
     // The two upper bits hold the DateTimeKind, they are not part of the time.
     const std::uint64_t withKind = ticks | (2ULL << 62);
-    check(Kbi::fromNetDatetimeTicks(withKind) == timePoint,
-        "the DateTimeKind bits are ignored");
-    check(Kbi::fromNetDatetimeTicks(ticks | (1ULL << 62)) == timePoint,
-        "the Utc kind is ignored");
+    check(Kbi::fromNetDatetimeTicks(withKind) == timePoint, "the DateTimeKind bits are ignored");
+    check(Kbi::fromNetDatetimeTicks(ticks | (1ULL << 62)) == timePoint, "the Utc kind is ignored");
 
     // The round trip through the .NET DateTime encoding, the same conversion
     // the .kbi exporter uses.
-    const auto roundTrip = Kbi::fromNetDatetimeTicks(
-        Kbi::toNetDatetimeTicks(timePoint, Kbi::kNetDateTimeKindUtc));
+    const auto roundTrip
+        = Kbi::fromNetDatetimeTicks(Kbi::toNetDatetimeTicks(timePoint, Kbi::kNetDateTimeKindUtc));
     check(roundTrip == timePoint, "the .NET DateTime encoding round trips");
 
     // The kind bits are set, but they do not change the time.
-    check(Kbi::toNetDatetimeTicks(timePoint, Kbi::kNetDateTimeKindUtc) != Kbi::toNetDatetimeTicks(timePoint, Kbi::kNetDateTimeKindLocal),
+    check(Kbi::toNetDatetimeTicks(timePoint, Kbi::kNetDateTimeKindUtc)
+            != Kbi::toNetDatetimeTicks(timePoint, Kbi::kNetDateTimeKindLocal),
         "the DateTimeKind is stored in the upper bits");
     check((Kbi::toNetDatetimeTicks(timePoint, Kbi::kNetDateTimeKindUtc) >> 62) == 1,
         "the Utc kind is written");
@@ -594,7 +593,8 @@ void testDatetime()
     // A time before the unix epoch.
     const auto before = Kbi::fromNetDatetimeTicks(621'355'968'000'000'000ULL - 1);
     check(Kbi::formatIso8601Utc(before) == "1969-12-31T23:59:59Z",
-        "times before the unix epoch are converted correctly (" + Kbi::formatIso8601Utc(before) + ")");
+        "times before the unix epoch are converted correctly (" + Kbi::formatIso8601Utc(before)
+            + ")");
 }
 
 void testResultDevices()

@@ -20,8 +20,7 @@ public:
     std::optional<std::string> usbDeviceId(std::string_view id) const override;
     std::optional<UsbDeviceInfo> usbDeviceInfo(std::string_view id) const override;
 
-    void updateKeyStates(
-        const std::string& pnp, std::uint16_t vid, std::uint16_t pid,
+    void updateKeyStates(const std::string& pnp, std::uint16_t vid, std::uint16_t pid,
         std::uint64_t timestamp, const KeyStateArray& state);
 
 private:

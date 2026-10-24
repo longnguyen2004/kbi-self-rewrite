@@ -101,8 +101,8 @@ std::optional<std::string> readString(Reader& r)
         r.offset = originalOffset;
         return std::nullopt;
     }
-    std::string result(reinterpret_cast<const char*>(r.buf.data() + r.offset),
-        static_cast<std::size_t>(*length));
+    std::string result(
+        reinterpret_cast<const char*>(r.buf.data() + r.offset), static_cast<std::size_t>(*length));
     r.offset += static_cast<std::size_t>(*length);
     return result;
 }
@@ -269,7 +269,8 @@ std::optional<Result> parseKbiLegacyV3(Reader& r)
         }
         // The web analyzer groups the events of an unknown source under the
         // "undefined" key.
-        const std::string sourceId = sourceIndex < sources.size() ? sourceIds[sourceIndex] : std::string("undefined");
+        const std::string sourceId
+            = sourceIndex < sources.size() ? sourceIds[sourceIndex] : std::string("undefined");
 
         const int vk = keyNameToVk(event.input.key);
         InputEvent input;

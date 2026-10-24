@@ -42,9 +42,7 @@ public:
     void drain(Result& result, Analyzer& analyzer, InputTimeline& timeline);
 
 private:
-    enum class EventType { UsbDevice,
-        Device,
-        Input };
+    enum class EventType { UsbDevice, Device, Input };
 
     struct Event {
         EventType type = EventType::Input;

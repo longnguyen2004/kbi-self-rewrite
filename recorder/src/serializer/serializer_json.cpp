@@ -19,32 +19,36 @@ namespace io = boost::iostreams;
 
 namespace {
 
-// CBOR serializer taken from https://www.boost.org/doc/libs/latest/libs/json/doc/html/json/examples.html#json.examples.cbor
-void serializeCborNumber(
-    unsigned char mt, std::uint64_t n, std::ostream& out)
+// CBOR serializer taken from
+// https://www.boost.org/doc/libs/latest/libs/json/doc/html/json/examples.html#json.examples.cbor
+void serializeCborNumber(unsigned char mt, std::uint64_t n, std::ostream& out)
 {
     mt <<= 5;
 
     if (n < 24) {
         out.put(static_cast<char>(mt + n));
     } else if (n < 256) {
-        const std::array<unsigned char, 2> data = { static_cast<unsigned char>(mt + 24), static_cast<unsigned char>(n) };
+        const std::array<unsigned char, 2> data
+            = { static_cast<unsigned char>(mt + 24), static_cast<unsigned char>(n) };
         out.write(reinterpret_cast<const char*>(data.data()), data.size());
     } else if (n < 65536) {
-        const std::array<unsigned char, 3> data = { static_cast<unsigned char>(mt + 25), static_cast<unsigned char>(n >> 8), static_cast<unsigned char>(n) };
+        const std::array<unsigned char, 3> data = { static_cast<unsigned char>(mt + 25),
+            static_cast<unsigned char>(n >> 8), static_cast<unsigned char>(n) };
         out.write(reinterpret_cast<const char*>(data.data()), data.size());
     } else if (n < 0x1000000ull) {
         std::array<unsigned char, 5> data {};
 
         data[0] = static_cast<unsigned char>(mt + 26);
-        boost::endian::endian_store<std::uint32_t, 4, boost::endian::order::big>(data.data() + 1, static_cast<std::uint32_t>(n));
+        boost::endian::endian_store<std::uint32_t, 4, boost::endian::order::big>(
+            data.data() + 1, static_cast<std::uint32_t>(n));
 
         out.write(reinterpret_cast<const char*>(data.data()), data.size());
     } else {
         std::array<unsigned char, 9> data {};
 
         data[0] = static_cast<unsigned char>(mt + 27);
-        boost::endian::endian_store<std::uint64_t, 8, boost::endian::order::big>(data.data() + 1, n);
+        boost::endian::endian_store<std::uint64_t, 8, boost::endian::order::big>(
+            data.data() + 1, n);
 
         out.write(reinterpret_cast<const char*>(data.data()), data.size());
     }
@@ -84,7 +88,8 @@ void serializeCborValue(const value& jv, std::ostream& out)
     case kind::double_: {
         std::array<unsigned char, 9> data {};
         data[0] = 224 + 27;
-        boost::endian::endian_store<double, 8, boost::endian::order::big>(data.data() + 1, jv.get_double());
+        boost::endian::endian_store<double, 8, boost::endian::order::big>(
+            data.data() + 1, jv.get_double());
 
         out.write(reinterpret_cast<const char*>(data.data()), data.size());
     } break;
@@ -124,46 +129,39 @@ void tag_invoke(const value_from_tag& /*unused*/, value& j, const UsbDeviceInfo&
     auto& val = j.emplace_object() = {
         { "vid", usbDevice.vid },
         { "pid", usbDevice.pid },
-        { "speed", static_cast<std::underlying_type_t<decltype(usbDevice.speed)>>(usbDevice.speed) },
+        { "speed",
+            static_cast<std::underlying_type_t<decltype(usbDevice.speed)>>(usbDevice.speed) },
     };
     if (!usbDevice.descriptors.empty()) {
         const auto& source = usbDevice.descriptors;
         std::string base64(simdutf::base64_length_from_binary(source.size()), 0);
         std::ignore = simdutf::binary_to_base64(
-            reinterpret_cast<const char*>(source.data()), source.size(),
-            base64.data());
+            reinterpret_cast<const char*>(source.data()), source.size(), base64.data());
         val.insert_or_assign("descriptors", base64);
     }
 }
 
 void tag_invoke(const value_from_tag& /*unused*/, value& j, const Device& device)
 {
-    auto& val = j.emplace_object() = {
-        { "name", device.name },
-        { "vid", device.vid },
-        { "pid", device.pid }
-    };
+    auto& val = j.emplace_object()
+        = { { "name", device.name }, { "vid", device.vid }, { "pid", device.pid } };
     if (device.usbDeviceId)
         val.insert_or_assign("usb_device", device.usbDeviceId.value());
 }
 
 void tag_invoke(const value_from_tag& /*unused*/, value& j, const Input& input)
 {
-    j.emplace_object() = {
-        { "timestamp", input.timestamp },
-        { "pressed", input.pressed },
-        { "code", static_cast<std::underlying_type_t<decltype(input.code)>>(input.code) }
-    };
+    j.emplace_object() = { { "timestamp", input.timestamp }, { "pressed", input.pressed },
+        { "code", static_cast<std::underlying_type_t<decltype(input.code)>>(input.code) } };
 }
 
-template<typename T>
-void tag_invoke(const value_from_tag& /*unused*/, value& j, const boost::unordered::concurrent_flat_map<std::string, T>& map)
+template<typename T> void tag_invoke(const value_from_tag& /*unused*/, value& j,
+    const boost::unordered::concurrent_flat_map<std::string, T>& map)
 {
     using map_type = std::remove_reference_t<decltype(map)>;
     auto& obj = j.emplace_object();
-    map.cvisit_all([&](const map_type::value_type& item) {
-        obj[item.first] = value_from(item.second);
-    });
+    map.cvisit_all(
+        [&](const map_type::value_type& item) { obj[item.first] = value_from(item.second); });
 }
 
 void tag_invoke(const value_from_tag& /*unused*/, value& j, const SystemInfo& sysInfo)
@@ -213,27 +211,21 @@ void tag_invoke(const value_from_tag& /*unused*/, value& j, const Recorder& reco
     // clang-format on
 }
 
-#define DEFINE_JSON_SERIALIZER(r, _, type)                               \
-    void JsonTextSerializer::serialize(const type& a, std::ostream& out) \
-    {                                                                    \
-        out << value_from(a);                                            \
-    }                                                                    \
-    std::string JsonTextSerializer::serialize(const type& a)             \
-    {                                                                    \
-        return boost::json::serialize(value_from(a));                    \
-    }                                                                    \
-    void CborSerializer::serialize(const type& a, std::ostream& out)     \
-    {                                                                    \
-        serializeCborValue(value_from(a), out);                          \
+#define DEFINE_JSON_SERIALIZER(r, _, type)                                                         \
+    void JsonTextSerializer::serialize(const type& a, std::ostream& out) { out << value_from(a); } \
+    std::string JsonTextSerializer::serialize(const type& a)                                       \
+    {                                                                                              \
+        return boost::json::serialize(value_from(a));                                              \
+    }                                                                                              \
+    void CborSerializer::serialize(const type& a, std::ostream& out)                               \
+    {                                                                                              \
+        serializeCborValue(value_from(a), out);                                                    \
     }
 
 BOOST_PP_SEQ_FOR_EACH(DEFINE_JSON_SERIALIZER, _, SERIALIZER_CLASS_TO_DECLARE)
 
-#define DEFINE_TO_JSON(r, _, type)                               \
-    boost::json::value JsonTextSerializer::toJson(const type& a) \
-    {                                                            \
-        return value_from(a);                                    \
-    }
+#define DEFINE_TO_JSON(r, _, type)                                                                 \
+    boost::json::value JsonTextSerializer::toJson(const type& a) { return value_from(a); }
 
 BOOST_PP_SEQ_FOR_EACH(DEFINE_TO_JSON, _, SERIALIZER_CLASS_TO_DECLARE)
 

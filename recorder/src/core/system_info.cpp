@@ -32,19 +32,15 @@ IWbemServices* connectCim()
         return pServices.get();
     if (!init)
         init = wil::CoInitializeEx();
-    CoInitializeSecurity(
-        nullptr, -1, nullptr, nullptr,
-        RPC_C_AUTHN_LEVEL_DEFAULT, RPC_C_IMP_LEVEL_IMPERSONATE,
-        nullptr, EOAC_NONE, nullptr);
+    CoInitializeSecurity(nullptr, -1, nullptr, nullptr, RPC_C_AUTHN_LEVEL_DEFAULT,
+        RPC_C_IMP_LEVEL_IMPERSONATE, nullptr, EOAC_NONE, nullptr);
     if (!pLocator)
         pLocator = wil::CoCreateInstance<IWbemLocator>(CLSID_WbemLocator, CLSCTX_INPROC_SERVER);
     if (!pServices)
         THROW_IF_FAILED(pLocator->ConnectServer(
             bstr_t(L"ROOT\\CIMV2"), nullptr, nullptr, 0, 0, nullptr, nullptr, &pServices));
-    THROW_IF_FAILED(CoSetProxyBlanket(
-        pServices.get(), RPC_C_AUTHN_WINNT, RPC_C_AUTHZ_NONE,
-        nullptr, RPC_C_AUTHN_LEVEL_CALL, RPC_C_IMP_LEVEL_IMPERSONATE,
-        nullptr, EOAC_NONE, nullptr));
+    THROW_IF_FAILED(CoSetProxyBlanket(pServices.get(), RPC_C_AUTHN_WINNT, RPC_C_AUTHZ_NONE, nullptr,
+        RPC_C_AUTHN_LEVEL_CALL, RPC_C_IMP_LEVEL_IMPERSONATE, nullptr, EOAC_NONE, nullptr));
     return pServices.get();
 }
 
@@ -53,11 +49,8 @@ std::string queryCim(std::wstring_view column, std::wstring_view table)
     auto cim = connectCim();
     auto query = std::format(L"SELECT {} FROM {}", column, table);
     wil::com_ptr_nothrow<IEnumWbemClassObject> pEnumerator = nullptr;
-    THROW_IF_FAILED(cim->ExecQuery(
-        bstr_t(L"WQL"),
-        bstr_t(query.c_str()),
-        WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
-        nullptr, &pEnumerator));
+    THROW_IF_FAILED(cim->ExecQuery(bstr_t(L"WQL"), bstr_t(query.c_str()),
+        WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY, nullptr, &pEnumerator));
 
     wil::com_ptr_t<IWbemClassObject> pClassObject = nullptr;
     ULONG uReturn = 0;
@@ -67,12 +60,9 @@ std::string queryCim(std::wstring_view column, std::wstring_view table)
             continue;
         auto str = vtProp.bstrVal;
         auto len = SysStringLen(str);
-        auto lenUtf8 = simdutf::utf8_length_from_utf16(
-            reinterpret_cast<const char16_t*>(str), len);
+        auto lenUtf8 = simdutf::utf8_length_from_utf16(reinterpret_cast<const char16_t*>(str), len);
         std::string value(lenUtf8, 0);
-        simdutf::convert_utf16_to_utf8(
-            reinterpret_cast<const char16_t*>(str), len,
-            value.data());
+        simdutf::convert_utf16_to_utf8(reinterpret_cast<const char16_t*>(str), len, value.data());
         return value;
     }
     return "";
@@ -179,15 +169,12 @@ SystemInfo systemInfo()
 {
     LARGE_INTEGER clockFreq;
     QueryPerformanceFrequency(&clockFreq);
-    return {
-        .common = {
-            .osName = windowsEdition(),
-            .osVersion = windowsVersion(),
-            .architecture = architecture(),
-            .cpuName = cpuName() },
+    return { .common = { .osName = windowsEdition(),
+                 .osVersion = windowsVersion(),
+                 .architecture = architecture(),
+                 .cpuName = cpuName() },
         .isSafeMode = static_cast<bool>(GetSystemMetrics(SM_CLEANBOOT)),
-        .clockFrequency = static_cast<double>(clockFreq.QuadPart)
-    };
+        .clockFrequency = static_cast<double>(clockFreq.QuadPart) };
 }
 
 } // namespace Kbi
@@ -264,17 +251,14 @@ SystemInfo systemInfo()
     // timespec tp;
     // if (clock_getres(CLOCK_MONOTONIC, &tp) == 0);
     //     res = tp.tv_sec * 1000000000ULL + tp.tv_nsec;
-    return {
-        .common = {
-            .osName = (buffer.sysname != nullptr) ? buffer.sysname : "Unknown",
-            .osVersion = (buffer.release != nullptr) ? buffer.release : "Unknown",
-            .architecture = arch,
-            .cpuName = readCpuName() },
+    return { .common = { .osName = (buffer.sysname != nullptr) ? buffer.sysname : "Unknown",
+                 .osVersion = (buffer.release != nullptr) ? buffer.release : "Unknown",
+                 .architecture = arch,
+                 .cpuName = readCpuName() },
         .distroName = distroName,
         .distroVersion = distroVer,
         .clockSource = currentClocksource,
-        .clockFrequency = res == -1 ? 0 : 1e9 / res
-    };
+        .clockFrequency = res == -1 ? 0 : 1e9 / res };
 }
 
 } // namespace Kbi

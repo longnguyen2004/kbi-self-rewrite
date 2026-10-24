@@ -35,8 +35,7 @@ public:
 
     // The captured entries, oldest first, visited while the sink's lock is
     // held so that recorder threads cannot add messages in the middle.
-    template<typename Visitor>
-    void withEntries(Visitor&& visitor)
+    template<typename Visitor> void withEntries(Visitor&& visitor)
     {
         std::scoped_lock lock(mutex_);
         visitor(m_entries);
@@ -52,8 +51,8 @@ protected:
 
         m_entries.push_back(std::move(entry));
         if (m_entries.size() > capacity)
-            m_entries.erase(m_entries.begin(),
-                m_entries.end() - static_cast<std::ptrdiff_t>(capacity));
+            m_entries.erase(
+                m_entries.begin(), m_entries.end() - static_cast<std::ptrdiff_t>(capacity));
     }
 
     void flush_() override { }

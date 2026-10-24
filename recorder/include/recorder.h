@@ -33,7 +33,8 @@ enum class RecorderBackend {
 class Recorder {
 public:
     class Impl;
-    using UsbDeviceMap = boost::unordered::concurrent_flat_map<std::string, std::optional<UsbDeviceInfo>>;
+    using UsbDeviceMap
+        = boost::unordered::concurrent_flat_map<std::string, std::optional<UsbDeviceInfo>>;
     using DeviceMap = boost::unordered::concurrent_flat_map<std::string, Device>;
     using InputMap = boost::unordered::concurrent_flat_map<std::string, std::deque<Input>>;
     using UsbDeviceSignal = boost::signals2::signal<void(const std::string&, const UsbDeviceInfo&)>;
@@ -42,29 +43,15 @@ public:
     using StartSignal = boost::signals2::signal<void()>;
     using StopSignal = boost::signals2::signal<void()>;
 
-    explicit Recorder(RecorderBackend backend = RecorderBackend::Auto, const std::shared_ptr<spdlog::logger>& logger = nullptr);
+    explicit Recorder(RecorderBackend backend = RecorderBackend::Auto,
+        const std::shared_ptr<spdlog::logger>& logger = nullptr);
     ~Recorder();
 
-    UsbDeviceSignal& onUsbDevice()
-    {
-        return m_sigUsbDevice;
-    }
-    DeviceSignal& onDevice()
-    {
-        return m_sigDevice;
-    }
-    InputSignal& onInput()
-    {
-        return m_sigInput;
-    }
-    StartSignal& onStart()
-    {
-        return m_sigStart;
-    }
-    StopSignal& onStop()
-    {
-        return m_sigStop;
-    }
+    UsbDeviceSignal& onUsbDevice() { return m_sigUsbDevice; }
+    DeviceSignal& onDevice() { return m_sigDevice; }
+    InputSignal& onInput() { return m_sigInput; }
+    StartSignal& onStart() { return m_sigStart; }
+    StopSignal& onStop() { return m_sigStop; }
 
     // Whether inputs are being recorded.
     [[nodiscard]] bool recording() const;

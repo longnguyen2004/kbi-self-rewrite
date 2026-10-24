@@ -32,7 +32,8 @@ void InputTimeline::add(const std::string& deviceId, const InputEvent& event)
     const std::string keyName(keycodeName(event.code));
     const double start = static_cast<double>(keydownTime) / 1000000.0;
     const double end = static_cast<double>(event.timestamp) / 1000000.0;
-    m_keypresses.push_back(Keypress { .start = start, .end = end, .key = keyName, .deviceId = deviceId });
+    m_keypresses.push_back(
+        Keypress { .start = start, .end = end, .key = keyName, .deviceId = deviceId });
     if (std::find(m_keys.begin(), m_keys.end(), keyName) == m_keys.end())
         m_keys.push_back(keyName);
     m_endTimestamp = std::max(m_endTimestamp, end);

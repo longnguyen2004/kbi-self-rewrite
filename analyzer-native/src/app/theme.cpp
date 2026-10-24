@@ -36,19 +36,10 @@ void applyTheme(Theme theme)
     plotStyle.LegendPadding = ImVec2(6.0f, 6.0f);
 }
 
-Theme currentTheme()
-{
-    return gTheme;
-}
+Theme currentTheme() { return gTheme; }
 
-void toggleTheme()
-{
-    applyTheme(gTheme == Theme::Dark ? Theme::Light : Theme::Dark);
-}
+void toggleTheme() { applyTheme(gTheme == Theme::Dark ? Theme::Light : Theme::Dark); }
 
-std::string_view themeName(Theme theme)
-{
-    return theme == Theme::Dark ? "Dark" : "Light";
-}
+std::string_view themeName(Theme theme) { return theme == Theme::Dark ? "Dark" : "Light"; }
 
 } // namespace Kbi::Ui

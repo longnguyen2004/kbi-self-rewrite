@@ -24,13 +24,7 @@ namespace Kbi {
 std::string hidProductStringFromDevicePath(std::wstring_view wid)
 {
     wil::unique_hfile devHandle(CreateFileW(
-        wid.data(),
-        0,
-        FILE_SHARE_READ | FILE_SHARE_WRITE,
-        nullptr,
-        OPEN_EXISTING,
-        0,
-        nullptr));
+        wid.data(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr));
     if (!devHandle)
         return "Unknown";
 
@@ -55,14 +49,16 @@ std::string hidProductStringFromPnp(std::wstring_view wid)
     GUID hidGuid;
     HidD_GetHidGuid(&hidGuid);
 
-    HDEVINFO devInfoSet = SetupDiGetClassDevsW(&hidGuid, wid.data(), nullptr, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
+    HDEVINFO devInfoSet = SetupDiGetClassDevsW(
+        &hidGuid, wid.data(), nullptr, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
     if (devInfoSet == nullptr)
         return "Unknown";
 
     SP_DEVICE_INTERFACE_DATA deviceInterfaceData { .cbSize = 0 };
     deviceInterfaceData.cbSize = sizeof(SP_DEVICE_INTERFACE_DATA);
 
-    if (SetupDiEnumDeviceInterfaces(devInfoSet, nullptr, &hidGuid, 0, &deviceInterfaceData) == FALSE)
+    if (SetupDiEnumDeviceInterfaces(devInfoSet, nullptr, &hidGuid, 0, &deviceInterfaceData)
+        == FALSE)
         return "Unknown";
 
     DWORD requiredSize;
@@ -98,7 +94,8 @@ std::optional<std::string> findUsbDevice(std::wstring_view wid)
     DEVINST current;
     DEVINST parent;
     // Get device instance handle for the HID device
-    if (CM_Locate_DevNodeW(&current, const_cast<wchar_t*>(wid.data()), CM_LOCATE_DEVNODE_NORMAL) != CR_SUCCESS)
+    if (CM_Locate_DevNodeW(&current, const_cast<wchar_t*>(wid.data()), CM_LOCATE_DEVNODE_NORMAL)
+        != CR_SUCCESS)
         return {};
 
     // Get parent of the HID device
@@ -110,8 +107,8 @@ std::optional<std::string> findUsbDevice(std::wstring_view wid)
     DEVPROPTYPE propType;
     GUID busTypeGuid;
     ULONG size = sizeof(busTypeGuid);
-    if (CM_Get_DevNode_PropertyW(
-            current, &DEVPKEY_Device_BusTypeGuid, &propType, reinterpret_cast<PBYTE>(&busTypeGuid), &size, 0)
+    if (CM_Get_DevNode_PropertyW(current, &DEVPKEY_Device_BusTypeGuid, &propType,
+            reinterpret_cast<PBYTE>(&busTypeGuid), &size, 0)
             != CR_SUCCESS
         || propType != DEVPROP_TYPE_GUID)
         return {};
@@ -125,11 +122,12 @@ std::optional<std::string> findUsbDevice(std::wstring_view wid)
         DEVPROPTYPE propType;
         ULONG size = 0;
         CONFIGRET cret;
-        if (CM_Get_DevNode_PropertyW(parent, &DEVPKEY_Device_Service, &propType, nullptr, &size, 0) != CR_BUFFER_SMALL)
+        if (CM_Get_DevNode_PropertyW(parent, &DEVPKEY_Device_Service, &propType, nullptr, &size, 0)
+            != CR_BUFFER_SMALL)
             return {};
         std::wstring service(size / 2, 0);
-        if (CM_Get_DevNode_PropertyW(
-                parent, &DEVPKEY_Device_Service, &propType, reinterpret_cast<PBYTE>(service.data()), &size, 0)
+        if (CM_Get_DevNode_PropertyW(parent, &DEVPKEY_Device_Service, &propType,
+                reinterpret_cast<PBYTE>(service.data()), &size, 0)
                 != CR_SUCCESS
             || propType != DEVPROP_TYPE_STRING)
             return {};
@@ -159,7 +157,8 @@ std::optional<UsbDeviceInfo> usbDeviceInfoFromPath(std::wstring_view wid)
     DEVINST current;
     DEVINST parent;
     // Get device instance handle for the USB device
-    if (CM_Locate_DevNodeW(&current, const_cast<wchar_t*>(wid.data()), CM_LOCATE_DEVNODE_NORMAL) != CR_SUCCESS)
+    if (CM_Locate_DevNodeW(&current, const_cast<wchar_t*>(wid.data()), CM_LOCATE_DEVNODE_NORMAL)
+        != CR_SUCCESS)
         return {};
 
     // Get parent of the USB device (guaranteed to be the hub)
@@ -169,16 +168,17 @@ std::optional<UsbDeviceInfo> usbDeviceInfoFromPath(std::wstring_view wid)
     // Get the port info of the device
     DEVPROPTYPE propType;
     ULONG size = 0;
-    if (CM_Get_DevNode_PropertyW(current, &DEVPKEY_Device_LocationInfo, &propType, nullptr, &size, 0) != CR_BUFFER_SMALL)
+    if (CM_Get_DevNode_PropertyW(
+            current, &DEVPKEY_Device_LocationInfo, &propType, nullptr, &size, 0)
+        != CR_BUFFER_SMALL)
         return {};
     std::wstring locationInfo(size / 2, 0);
-    if (CM_Get_DevNode_PropertyW(
-            current, &DEVPKEY_Device_LocationInfo, &propType, reinterpret_cast<PBYTE>(locationInfo.data()), &size, 0)
+    if (CM_Get_DevNode_PropertyW(current, &DEVPKEY_Device_LocationInfo, &propType,
+            reinterpret_cast<PBYTE>(locationInfo.data()), &size, 0)
             != CR_SUCCESS
         || propType != DEVPROP_TYPE_STRING)
         return {};
-    locationInfo = locationInfo.substr(
-        locationInfo.find(L"Port_#") + 6, 4);
+    locationInfo = locationInfo.substr(locationInfo.find(L"Port_#") + 6, 4);
     int port = _wtoi(locationInfo.c_str());
     if (port == 0)
         return {};
@@ -196,15 +196,10 @@ std::optional<UsbDeviceInfo> usbDeviceInfoFromPath(std::wstring_view wid)
     }
 
     // Open a handle to the USB hub
-    auto devicePath = std::format(LR"(\\?\{}#{{f18a0e88-c30c-11d0-8815-00a0c906bed8}})", hubDeviceId);
+    auto devicePath
+        = std::format(LR"(\\?\{}#{{f18a0e88-c30c-11d0-8815-00a0c906bed8}})", hubDeviceId);
     wil::unique_hfile hHubDevice(CreateFileW(
-        devicePath.c_str(),
-        GENERIC_WRITE,
-        FILE_SHARE_WRITE,
-        nullptr,
-        OPEN_EXISTING,
-        0,
-        nullptr));
+        devicePath.c_str(), GENERIC_WRITE, FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr));
     if (!hHubDevice)
         return {};
 
@@ -216,13 +211,8 @@ std::optional<UsbDeviceInfo> usbDeviceInfoFromPath(std::wstring_view wid)
     std::fill(buffer.begin(), buffer.end(), 0);
     auto* connectionInfoEx = reinterpret_cast<PUSB_NODE_CONNECTION_INFORMATION_EX>(buffer.data());
     connectionInfoEx->ConnectionIndex = port;
-    auto success = DeviceIoControl(hHubDevice.get(),
-        IOCTL_USB_GET_NODE_CONNECTION_INFORMATION_EX,
-        connectionInfoEx,
-        confInfoExSize,
-        connectionInfoEx,
-        confInfoExSize,
-        &bytesReturned,
+    auto success = DeviceIoControl(hHubDevice.get(), IOCTL_USB_GET_NODE_CONNECTION_INFORMATION_EX,
+        connectionInfoEx, confInfoExSize, connectionInfoEx, confInfoExSize, &bytesReturned,
         nullptr);
     if (success == FALSE)
         return {};
@@ -230,8 +220,7 @@ std::optional<UsbDeviceInfo> usbDeviceInfoFromPath(std::wstring_view wid)
     auto deviceDescriptor = connectionInfoEx->DeviceDescriptor;
     auto* deviceDescriptorPtr = reinterpret_cast<unsigned char*>(&deviceDescriptor);
     std::vector<unsigned char> descriptors(
-        deviceDescriptorPtr,
-        deviceDescriptorPtr + deviceDescriptor.bLength);
+        deviceDescriptorPtr, deviceDescriptorPtr + deviceDescriptor.bLength);
 
     // Get configuration descriptor
     ULONG confDescReqSize = sizeof(USB_DESCRIPTOR_REQUEST) + sizeof(USB_CONFIGURATION_DESCRIPTOR);
@@ -244,14 +233,8 @@ std::optional<UsbDeviceInfo> usbDeviceInfoFromPath(std::wstring_view wid)
     confDescReq->SetupPacket.wLength = sizeof(USB_CONFIGURATION_DESCRIPTOR);
     confDescReq->SetupPacket.bmRequest = 0x80;
     confDescReq->SetupPacket.bRequest = USB_REQUEST_GET_DESCRIPTOR;
-    success = DeviceIoControl(hHubDevice.get(),
-        IOCTL_USB_GET_DESCRIPTOR_FROM_NODE_CONNECTION,
-        confDescReq,
-        confDescReqSize,
-        confDescReq,
-        confDescReqSize,
-        &bytesReturned,
-        nullptr);
+    success = DeviceIoControl(hHubDevice.get(), IOCTL_USB_GET_DESCRIPTOR_FROM_NODE_CONNECTION,
+        confDescReq, confDescReqSize, confDescReq, confDescReqSize, &bytesReturned, nullptr);
     if (success == FALSE)
         return {};
 
@@ -266,20 +249,12 @@ std::optional<UsbDeviceInfo> usbDeviceInfoFromPath(std::wstring_view wid)
     confDescReq->SetupPacket.wLength = confDesc->wTotalLength;
     confDescReq->SetupPacket.bmRequest = 0x80;
     confDescReq->SetupPacket.bRequest = USB_REQUEST_GET_DESCRIPTOR;
-    success = DeviceIoControl(hHubDevice.get(),
-        IOCTL_USB_GET_DESCRIPTOR_FROM_NODE_CONNECTION,
-        confDescReq,
-        confDescReqSize,
-        confDescReq,
-        confDescReqSize,
-        &bytesReturned,
-        nullptr);
+    success = DeviceIoControl(hHubDevice.get(), IOCTL_USB_GET_DESCRIPTOR_FROM_NODE_CONNECTION,
+        confDescReq, confDescReqSize, confDescReq, confDescReqSize, &bytesReturned, nullptr);
     if (success == FALSE)
         return {};
 
-    descriptors.insert(
-        descriptors.end(),
-        reinterpret_cast<unsigned char*>(confDesc),
+    descriptors.insert(descriptors.end(), reinterpret_cast<unsigned char*>(confDesc),
         reinterpret_cast<unsigned char*>(confDesc) + bytesReturned);
     return UsbDeviceInfo {
         .vid = deviceDescriptor.idVendor,

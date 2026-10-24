@@ -50,14 +50,13 @@ int main(int argc, char** argv)
     // to the terminal and into the log store, which is a singleton shared
     // with the "Logs" dialog of the app. The recorder gets the logger passed
     // by the app, then it reports in both.
-    const auto injector = di::make_injector(
-        di::bind<Kbi::Ui::LogStore>.in(di::singleton),
+    const auto injector = di::make_injector(di::bind<Kbi::Ui::LogStore>.in(di::singleton),
         di::bind<spdlog::logger>.to([](const auto& injector) -> std::shared_ptr<spdlog::logger> {
             auto consoleSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
             consoleSink->set_level(spdlog::level::info);
             auto logStore = injector.template create<std::shared_ptr<Kbi::Ui::LogStore>>();
-            return std::make_shared<spdlog::logger>("kbi",
-                spdlog::sinks_init_list { consoleSink, logStore });
+            return std::make_shared<spdlog::logger>(
+                "kbi", spdlog::sinks_init_list { consoleSink, logStore });
         }));
 
     // Wayland compositors work in scaled points, and when the fractional
@@ -77,8 +76,8 @@ int main(int argc, char** argv)
 
     const int width = 1600;
     const int height = 900;
-    SDL_Window* window = SDL_CreateWindow("Keyboard Inspector", width, height,
-        SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
+    SDL_Window* window = SDL_CreateWindow(
+        "Keyboard Inspector", width, height, SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
     if (window == nullptr) {
         std::println(stderr, "Failed to create the SDL window: {}", SDL_GetError());
         SDL_Quit();

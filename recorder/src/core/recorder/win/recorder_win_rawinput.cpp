@@ -18,11 +18,7 @@ const wchar_t* const className = L"ListenerWindow";
 
 } // namespace
 
-LRESULT CALLBACK wndProc(
-    HWND hwnd,
-    UINT uMsg,
-    WPARAM wParam,
-    LPARAM lParam)
+LRESULT CALLBACK wndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     switch (uMsg) {
     case WM_CREATE:
@@ -35,8 +31,7 @@ LRESULT CALLBACK wndProc(
         // The instance is stored in the user data of the window, which
         // Win32 only offers as an integer.
         // NOLINTNEXTLINE(performance-no-int-to-ptr)
-        auto* recorderInstance = reinterpret_cast<RecorderWinRawInput*>(
-            GetWindowLongPtrW(hwnd, 0));
+        auto* recorderInstance = reinterpret_cast<RecorderWinRawInput*>(GetWindowLongPtrW(hwnd, 0));
         recorderInstance->processRawInput(
             // The WM_INPUT message carries the HRAWINPUT in lParam.
             // NOLINTNEXTLINE(performance-no-int-to-ptr)
@@ -69,7 +64,9 @@ void RecorderWinRawInput::processRawInput(HRAWINPUT rawInput)
     UINT dwSize;
     GetRawInputData(rawInput, RID_INPUT, nullptr, &dwSize, sizeof(RAWINPUTHEADER));
     std::vector<BYTE> data(dwSize);
-    if (std::cmp_not_equal(GetRawInputData(rawInput, RID_INPUT, data.data(), &dwSize, sizeof(RAWINPUTHEADER)), dwSize))
+    if (std::cmp_not_equal(
+            GetRawInputData(rawInput, RID_INPUT, data.data(), &dwSize, sizeof(RAWINPUTHEADER)),
+            dwSize))
         return;
 
     auto* raw = reinterpret_cast<RAWINPUT*>(data.data());
@@ -79,8 +76,7 @@ void RecorderWinRawInput::processRawInput(HRAWINPUT rawInput)
     GetRawInputDeviceInfoW(raw->header.hDevice, RIDI_DEVICENAME, devicePath.data(), &strSize);
     if (raw->header.dwType == RIM_TYPEKEYBOARD) {
         auto devicePathStr = wstringToString(devicePath);
-        auto pnp = devicePathStr.substr(
-            4, /* Remove \\?\ */
+        auto pnp = devicePathStr.substr(4, /* Remove \\?\ */
             devicePathStr.find("#{") - 4 /* Remove GUID at end */
         );
         for (auto& c : pnp) {
@@ -92,7 +88,11 @@ void RecorderWinRawInput::processRawInput(HRAWINPUT rawInput)
         if (keyboard.MakeCode == KEYBOARD_OVERRUN_MAKE_CODE || keyboard.VKey >= UCHAR_MAX)
             return;
         auto [vid, pid] = vidPidFromPnp(pnp);
-        onInput()(pnp, vid, pid, Input { .timestamp = static_cast<std::uint64_t>(duration_cast<microseconds>(now - m_startRef).count()), .pressed = !released, .code = vkToKeycode(keyboard.VKey) });
+        onInput()(pnp, vid, pid,
+            Input { .timestamp
+                = static_cast<std::uint64_t>(duration_cast<microseconds>(now - m_startRef).count()),
+                .pressed = !released,
+                .code = vkToKeycode(keyboard.VKey) });
     }
 }
 
@@ -108,21 +108,11 @@ void RecorderWinRawInput::start(bool keyboard, bool mouse, bool gamepad)
             .lpszClassName = className,
         };
         RegisterClassW(&wndClass);
-        m_hwnd = CreateWindowExW(
-            0,
-            className,
-            nullptr,
-            0,
-            CW_USEDEFAULT,
-            CW_USEDEFAULT,
-            CW_USEDEFAULT,
-            CW_USEDEFAULT,
+        m_hwnd = CreateWindowExW(0, className, nullptr, 0, CW_USEDEFAULT, CW_USEDEFAULT,
+            CW_USEDEFAULT, CW_USEDEFAULT,
             // HWND_MESSAGE is a macro that casts -1 to a window handle.
             // NOLINTNEXTLINE(performance-no-int-to-ptr)
-            HWND_MESSAGE,
-            nullptr,
-            GetModuleHandleW(nullptr),
-            nullptr);
+            HWND_MESSAGE, nullptr, GetModuleHandleW(nullptr), nullptr);
         SetWindowLongPtrW(m_hwnd, 0, reinterpret_cast<LONG_PTR>(this));
         std::vector<RAWINPUTDEVICE> rawInputDevices;
         if (keyboard) {
@@ -144,9 +134,7 @@ void RecorderWinRawInput::start(bool keyboard, bool mouse, bool gamepad)
                 .hwndTarget = m_hwnd });
         }
         if (!RegisterRawInputDevices(
-                rawInputDevices.data(),
-                rawInputDevices.size(),
-                sizeof(RAWINPUTDEVICE)))
+                rawInputDevices.data(), rawInputDevices.size(), sizeof(RAWINPUTDEVICE)))
             LOG_LAST_ERROR();
         MSG msg;
         while (!stop.stop_requested()) {

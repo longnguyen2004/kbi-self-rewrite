@@ -32,8 +32,8 @@ IGameInput* gameInputInit()
     HMODULE gameInputDll = LoadLibraryW(L"gameinput.dll");
     THROW_LAST_ERROR_IF_NULL_MSG(gameInputDll, "Failed to load the GameInput dll");
 
-    auto createFunc = reinterpret_cast<GameInputCreate_t*>(
-        GetProcAddress(gameInputDll, "GameInputCreate"));
+    auto createFunc
+        = reinterpret_cast<GameInputCreate_t*>(GetProcAddress(gameInputDll, "GameInputCreate"));
     THROW_LAST_ERROR_IF_NULL_MSG(createFunc, "Failed to load the GameInput factory function");
 
     IUnknown* unknown = nullptr;
@@ -53,28 +53,27 @@ bool sortByScancode(const GameInputKeyState& a, const GameInputKeyState& b)
     return a.scanCode < b.scanCode;
 }
 
-void RecorderWinGameInput::updateKeyStates(
-    const std::string& pnp, std::uint16_t vid, std::uint16_t pid,
-    std::uint64_t timestamp, const KeyStateArray& state)
+void RecorderWinGameInput::updateKeyStates(const std::string& pnp, std::uint16_t vid,
+    std::uint16_t pid, std::uint64_t timestamp, const KeyStateArray& state)
 {
     auto& statePrev = m_keyStates[pnp];
     KeyStateArray pressed;
     KeyStateArray released;
-    std::set_difference(
-        statePrev.begin(), statePrev.end(),
-        state.begin(), state.end(),
-        std::back_inserter(released),
-        sortByScancode);
-    std::set_difference(
-        state.begin(), state.end(),
-        statePrev.begin(), statePrev.end(),
-        std::back_inserter(pressed),
-        sortByScancode);
+    std::set_difference(statePrev.begin(), statePrev.end(), state.begin(), state.end(),
+        std::back_inserter(released), sortByScancode);
+    std::set_difference(state.begin(), state.end(), statePrev.begin(), statePrev.end(),
+        std::back_inserter(pressed), sortByScancode);
     for (auto& i : pressed) {
-        onInput()(pnp, vid, pid, Input { .timestamp = timestamp - m_timestampRef, .pressed = true, .code = vkToKeycode(i.virtualKey) });
+        onInput()(pnp, vid, pid,
+            Input { .timestamp = timestamp - m_timestampRef,
+                .pressed = true,
+                .code = vkToKeycode(i.virtualKey) });
     }
     for (auto& i : released) {
-        onInput()(pnp, vid, pid, Input { .timestamp = timestamp - m_timestampRef, .pressed = false, .code = vkToKeycode(i.virtualKey) });
+        onInput()(pnp, vid, pid,
+            Input { .timestamp = timestamp - m_timestampRef,
+                .pressed = false,
+                .code = vkToKeycode(i.virtualKey) });
     }
     statePrev = state;
 }
@@ -86,9 +85,7 @@ RecorderWinGameInput::RecorderWinGameInput(std::shared_ptr<spdlog::logger> logge
 }
 
 void gameInputReadingCallback(
-    GameInputCallbackToken token,
-    void* context,
-    IGameInputReading* reading)
+    GameInputCallbackToken token, void* context, IGameInputReading* reading)
 {
     IGameInputDevice* device = nullptr;
     const GameInputDeviceInfo* deviceInfo = nullptr;

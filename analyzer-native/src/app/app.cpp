@@ -40,11 +40,9 @@ ImVec4 eventCountColor(double value)
     for (int i = 0; i < 3; ++i) {
         if (value > stops[i] && value <= stops[i + 1]) {
             const double t = (value - stops[i]) / (stops[i + 1] - stops[i]);
-            return {
-                colors[i].x + static_cast<float>(t) * (colors[i + 1].x - colors[i].x),
+            return { colors[i].x + static_cast<float>(t) * (colors[i + 1].x - colors[i].x),
                 colors[i].y + static_cast<float>(t) * (colors[i + 1].y - colors[i].y),
-                colors[i].z + static_cast<float>(t) * (colors[i + 1].z - colors[i].z), 1.0f
-            };
+                colors[i].z + static_cast<float>(t) * (colors[i + 1].z - colors[i].z), 1.0f };
         }
     }
     return colors[0];
@@ -56,6 +54,14 @@ App::App(std::shared_ptr<spdlog::logger> logger, std::shared_ptr<Ui::LogStore> l
     : m_logger(std::move(logger))
     , m_recorder(m_logger)
     , m_logStore(std::move(logStore))
+    , m_diffConsecutive("diff_consecutive", "Consecutive timestamp diffs", &m_diffSync)
+    , m_diffAll("diff_all", "All timestamp diffs", &m_diffSync)
+    , m_diffWrapped("diff_wrapped", "Timestamp fractional parts", &m_diffSync)
+    , m_freqConsecutive(
+          "freq_consecutive", "Consecutive timestamp diffs (frequency domain)", &m_freqSync)
+    , m_freqAll("freq_all", "All timestamp diffs (frequency domain)", &m_freqSync)
+    , m_freqWrapped("freq_wrapped", "Timestamp fractional parts (frequency domain)", &m_freqSync)
+    , m_timelineChart(m_timeline, m_deviceIds)
 {
     resetAnalysis();
 }
@@ -198,14 +204,16 @@ void App::setMode(Mode mode)
 
 void App::drawHeader()
 {
-    ImGui::BeginTable("##header", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings);
+    ImGui::BeginTable(
+        "##header", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings);
     ImGui::TableSetupColumn("##left", ImGuiTableColumnFlags_WidthStretch);
     ImGui::TableSetupColumn("##right", ImGuiTableColumnFlags_WidthFixed, 340.0f);
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
 
     const auto modeButton = [&](std::string_view label, Mode mode) {
-        const bool active = m_mode == mode || (mode == Mode::FromRecorder && m_mode == Mode::Recording);
+        const bool active
+            = m_mode == mode || (mode == Mode::FromRecorder && m_mode == Mode::Recording);
         if (active)
             ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
         // The button labels are literals, they are NUL-terminated.
@@ -240,7 +248,8 @@ void App::drawHeader()
 
 void App::drawOptions()
 {
-    ImGui::BeginTable("##options", 3, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings);
+    ImGui::BeginTable(
+        "##options", 3, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings);
     ImGui::TableSetupColumn("##left", ImGuiTableColumnFlags_WidthFixed, 260.0f);
     ImGui::TableSetupColumn("##middle", ImGuiTableColumnFlags_WidthFixed, 260.0f);
     ImGui::TableSetupColumn("##right", ImGuiTableColumnFlags_WidthStretch);
@@ -265,8 +274,7 @@ void App::drawOptions()
     }
     if (m_mode == Mode::Recording && m_analyzer.binRate() > 16000) {
         ImGui::SameLine();
-        ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.1f, 1.0f),
-            "!");
+        ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.1f, 1.0f), "!");
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip(
                 "It is not recommended to go above 16000Hz bin rate during live analysis");
@@ -292,28 +300,24 @@ void App::drawOptions()
 
 void App::drawCharts()
 {
-    ImGui::BeginChild("##charts", ImVec2(0.0f, 0.0f),
-        ImGuiChildFlags_None, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+    ImGui::BeginChild("##charts", ImVec2(0.0f, 0.0f), ImGuiChildFlags_None,
+        ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
-    const ImGuiTableFlags tableFlags = ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoSavedSettings;
+    const ImGuiTableFlags tableFlags
+        = ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoSavedSettings;
 
     ImGui::BeginTable("##diff_charts", 3, tableFlags);
     for (int i = 0; i < 3; ++i) {
         ImGui::TableNextColumn();
         switch (i) {
         case 0:
-            m_lineCharts.drawDiffChart("diff_consecutive", "Consecutive timestamp diffs",
-                m_analyzer.consecutiveDiff(), m_analyzer.consecutiveDiffMax(),
-                m_diffSync);
+            m_diffConsecutive.draw(m_analyzer.consecutiveDiff(), m_analyzer.consecutiveDiffMax());
             break;
         case 1:
-            m_lineCharts.drawDiffChart("diff_all", "All timestamp diffs", m_analyzer.allDiff(),
-                m_analyzer.allDiffMax(), m_diffSync);
+            m_diffAll.draw(m_analyzer.allDiff(), m_analyzer.allDiffMax());
             break;
         default:
-            m_lineCharts.drawDiffChart("diff_wrapped", "Timestamp fractional parts",
-                m_analyzer.wrappedTimestamp(),
-                m_analyzer.wrappedTimestampMax(), m_diffSync);
+            m_diffWrapped.draw(m_analyzer.wrappedTimestamp(), m_analyzer.wrappedTimestampMax());
             break;
         }
     }
@@ -333,27 +337,20 @@ void App::drawCharts()
             ImGui::TableNextColumn();
             switch (i) {
             case 0:
-                m_lineCharts.drawFreqChart("freq_consecutive",
-                    "Consecutive timestamp diffs (frequency domain)",
-                    consecutive.data, consecutive.max, m_analyzer.freqMaxHz(),
-                    m_freqSync);
+                m_freqConsecutive.draw(consecutive.data, consecutive.max, m_analyzer.freqMaxHz());
                 break;
             case 1:
-                m_lineCharts.drawFreqChart("freq_all", "All timestamp diffs (frequency domain)",
-                    all.data, all.max, m_analyzer.freqMaxHz(), m_freqSync);
+                m_freqAll.draw(all.data, all.max, m_analyzer.freqMaxHz());
                 break;
             default:
-                m_lineCharts.drawFreqChart("freq_wrapped",
-                    "Timestamp fractional parts (frequency domain)",
-                    wrapped.data, wrapped.max, m_analyzer.freqMaxHz(),
-                    m_freqSync);
+                m_freqWrapped.draw(wrapped.data, wrapped.max, m_analyzer.freqMaxHz());
                 break;
             }
         }
     }
     ImGui::EndTable();
 
-    m_timelineChart.drawInputTimeline("##input_timeline", m_timeline, m_deviceIds);
+    m_timelineChart.draw();
 
     ImGui::EndChild();
 }
@@ -379,7 +376,9 @@ void App::draw()
     ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
     ImGui::SetNextWindowSize(io.DisplaySize);
     ImGui::Begin("Keyboard Inspector", nullptr,
-        ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse |
+        ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
+            | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar
+            | ImGuiWindowFlags_NoScrollWithMouse |
             // The main window fills the screen, bringing it to the
             // front would hide the info window that is drawn after
             // it.

@@ -23,10 +23,7 @@ RecorderSource::RecorderSource(std::shared_ptr<spdlog::logger> logger)
 {
 }
 
-RecorderSource::~RecorderSource()
-{
-    stop();
-}
+RecorderSource::~RecorderSource() { stop(); }
 
 bool RecorderSource::start(std::string& error)
 {
@@ -52,41 +49,44 @@ bool RecorderSource::start(std::string& error)
 
     auto& recorder = *m_impl->recorder;
 
-    m_impl->usbConnection = recorder.onUsbDevice().connect([this](const std::string& id, const UsbDeviceInfo& info) {
-        Event event;
-        event.type = EventType::UsbDevice;
-        event.id = id;
-        event.usbDevice.vid = info.vid;
-        event.usbDevice.pid = info.pid;
-        event.usbDevice.speed = info.speed;
-        event.usbDevice.descriptors = info.descriptors;
-        std::scoped_lock lock(m_mutex);
-        m_queue.push_back(std::move(event));
-    });
+    m_impl->usbConnection
+        = recorder.onUsbDevice().connect([this](const std::string& id, const UsbDeviceInfo& info) {
+              Event event;
+              event.type = EventType::UsbDevice;
+              event.id = id;
+              event.usbDevice.vid = info.vid;
+              event.usbDevice.pid = info.pid;
+              event.usbDevice.speed = info.speed;
+              event.usbDevice.descriptors = info.descriptors;
+              std::scoped_lock lock(m_mutex);
+              m_queue.push_back(std::move(event));
+          });
 
-    m_impl->deviceConnection = recorder.onDevice().connect([this](const std::string& id, const Device& info) {
-        Event event;
-        event.type = EventType::Device;
-        event.id = id;
-        event.device.name = info.name;
-        event.device.vid = info.vid;
-        event.device.pid = info.pid;
-        if (info.usbDeviceId)
-            event.device.usbDevice = *info.usbDeviceId;
-        std::scoped_lock lock(m_mutex);
-        m_queue.push_back(std::move(event));
-    });
+    m_impl->deviceConnection
+        = recorder.onDevice().connect([this](const std::string& id, const Device& info) {
+              Event event;
+              event.type = EventType::Device;
+              event.id = id;
+              event.device.name = info.name;
+              event.device.vid = info.vid;
+              event.device.pid = info.pid;
+              if (info.usbDeviceId)
+                  event.device.usbDevice = *info.usbDeviceId;
+              std::scoped_lock lock(m_mutex);
+              m_queue.push_back(std::move(event));
+          });
 
-    m_impl->inputConnection = recorder.onInput().connect([this](const std::string& id, const Input& info) {
-        Event event;
-        event.type = EventType::Input;
-        event.id = id;
-        event.input.timestamp = info.timestamp;
-        event.input.pressed = info.pressed;
-        event.input.code = static_cast<int>(info.code);
-        std::scoped_lock lock(m_mutex);
-        m_queue.push_back(std::move(event));
-    });
+    m_impl->inputConnection
+        = recorder.onInput().connect([this](const std::string& id, const Input& info) {
+              Event event;
+              event.type = EventType::Input;
+              event.id = id;
+              event.input.timestamp = info.timestamp;
+              event.input.pressed = info.pressed;
+              event.input.code = static_cast<int>(info.code);
+              std::scoped_lock lock(m_mutex);
+              m_queue.push_back(std::move(event));
+          });
 
     recorder.start(true, false, false);
     return true;
@@ -104,10 +104,7 @@ void RecorderSource::stop()
     m_impl->recorder.reset();
 }
 
-bool RecorderSource::recording() const
-{
-    return m_impl->recorder && m_impl->recorder->recording();
-}
+bool RecorderSource::recording() const { return m_impl->recorder && m_impl->recorder->recording(); }
 
 const SystemInfo& RecorderSource::systemInfo() const
 {

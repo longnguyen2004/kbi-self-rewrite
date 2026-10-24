@@ -21,9 +21,7 @@
 
 namespace Kbi::App {
 
-enum class Mode { FromFile,
-    FromRecorder,
-    Recording };
+enum class Mode { FromFile, FromRecorder, Recording };
 
 // The application shell: mode selection, the analysis options and the charts.
 class App {
@@ -77,10 +75,16 @@ private:
     PostprocessOptions m_postprocess;
     Ui::ChartSync m_diffSync;
     Ui::ChartSync m_freqSync;
-    Ui::LineChartRenderer m_lineCharts;
-    Ui::TimelineChartRenderer m_timelineChart;
+    Ui::DiffChart m_diffConsecutive;
+    Ui::DiffChart m_diffAll;
+    Ui::DiffChart m_diffWrapped;
+    Ui::FreqChart m_freqConsecutive;
+    Ui::FreqChart m_freqAll;
+    Ui::FreqChart m_freqWrapped;
 
     std::vector<std::string> m_deviceIds;
+
+    Ui::TimelineChart m_timelineChart;
 };
 
 } // namespace Kbi::app

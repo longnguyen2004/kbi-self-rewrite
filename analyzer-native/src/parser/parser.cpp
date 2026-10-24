@@ -17,8 +17,7 @@ namespace {
 
 namespace json = boost::json;
 
-std::string getString(const json::object& object, std::string_view key,
-    std::string fallback = {})
+std::string getString(const json::object& object, std::string_view key, std::string fallback = {})
 {
     const auto* const it = object.find(key);
     if (it == object.end() || !it->value().is_string())
@@ -205,7 +204,8 @@ std::optional<Result> parseResultFile(const std::string& path)
 
     // Skip leading whitespace to decide between JSON and the binary format.
     std::size_t start = 0;
-    while (start < contents->size() && (std::isspace(static_cast<unsigned char>((*contents)[start])) != 0))
+    while (start < contents->size()
+        && (std::isspace(static_cast<unsigned char>((*contents)[start])) != 0))
         ++start;
 
     if (start < contents->size() && (*contents)[start] == '{')

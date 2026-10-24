@@ -38,10 +38,7 @@ void init()
     termiosNew.c_lflag &= ~(ICANON | ECHO);
     tcsetattr(0, TCSANOW, &termiosNew);
 }
-void reset()
-{
-    tcsetattr(0, TCSANOW, &termiosOld);
-}
+void reset() { tcsetattr(0, TCSANOW, &termiosOld); }
 int getchLinux()
 {
     init();

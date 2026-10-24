@@ -38,8 +38,7 @@ bool saveScreenshot(SDL_Renderer& renderer, const std::string& path)
         return false;
     }
 
-    stream << "P6\n"
-           << surface->w << " " << surface->h << "\n255\n";
+    stream << "P6\n" << surface->w << " " << surface->h << "\n255\n";
     // SDL hands the rows over top-down, no flip is needed.
     for (int y = 0; y < surface->h; ++y) {
         const auto* row = static_cast<const char*>(surface->pixels)

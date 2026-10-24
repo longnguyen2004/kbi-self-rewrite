@@ -35,13 +35,9 @@ public:
             return nullptr;
 
         const auto begin = std::lower_bound(m_points.begin(), m_points.end(), x - radius,
-            [](const SnapPoint& point, double value) {
-                return point.x < value;
-            });
+            [](const SnapPoint& point, double value) { return point.x < value; });
         const auto end = std::upper_bound(m_points.begin(), m_points.end(), x + radius,
-            [](double value, const SnapPoint& point) {
-                return value < point.x;
-            });
+            [](double value, const SnapPoint& point) { return value < point.x; });
 
         const SnapPoint* best = nullptr;
         double bestDistance = radius * radius;

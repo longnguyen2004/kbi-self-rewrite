@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/input_timeline.h"
-#include "ui/chart.h"
+#include "ui/charts.h"
 #include "ui/charts_common.h"
 
 #include <string>

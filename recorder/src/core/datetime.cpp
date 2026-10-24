@@ -17,14 +17,16 @@ constexpr std::int64_t kNetEpochDays = 719'162;
 
 } // namespace
 
-std::uint64_t toNetDatetimeTicks(std::chrono::system_clock::time_point timePoint,
-    std::uint64_t kind)
+std::uint64_t toNetDatetimeTicks(
+    std::chrono::system_clock::time_point timePoint, std::uint64_t kind)
 {
     // The offset is converted step by step, its number of nanoseconds does not
     // fit into an int64.
-    constexpr auto offsetTicks = std::chrono::duration_cast<net_ticks>(std::chrono::seconds(kNetEpochDays * 86'400));
+    constexpr auto offsetTicks
+        = std::chrono::duration_cast<net_ticks>(std::chrono::seconds(kNetEpochDays * 86'400));
 
-    const auto ticks = std::chrono::duration_cast<net_ticks>(timePoint.time_since_epoch()).count() + offsetTicks.count();
+    const auto ticks = std::chrono::duration_cast<net_ticks>(timePoint.time_since_epoch()).count()
+        + offsetTicks.count();
 
     // The time itself is stored in the lower 62 bits, the two upper bits hold
     // the DateTimeKind.

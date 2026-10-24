@@ -45,26 +45,29 @@ WebSocketController::WebSocketController(Recorder& recorder, std::shared_ptr<spd
 {
     m_server.setOnClientMessageCallback(
         [this](const std::shared_ptr<ix::ConnectionState>& connectionState,
-            ix::WebSocket& webSocket,
-            const ix::WebSocketMessagePtr& msg) {
+            ix::WebSocket& webSocket, const ix::WebSocketMessagePtr& msg) {
             if (msg->type == ix::WebSocketMessageType::Open) {
                 auto uri = msg->openInfo.uri;
                 auto idOpt = parseIdFromUri(uri);
                 if (!idOpt.has_value()) {
-                    m_logger->warn("WebSocket connection rejected: missing or invalid id in uri '{}'", uri);
-                    webSocket.close(ix::WebSocketCloseConstants::kProtocolErrorCode, "ID must be present and be a positive number");
+                    m_logger->warn(
+                        "WebSocket connection rejected: missing or invalid id in uri '{}'", uri);
+                    webSocket.close(ix::WebSocketCloseConstants::kProtocolErrorCode,
+                        "ID must be present and be a positive number");
                     return;
                 }
                 unsigned long idNum = *idOpt;
                 if (idNum == 0) {
                     m_logger->warn("WebSocket connection rejected: id must be positive");
-                    webSocket.close(ix::WebSocketCloseConstants::kProtocolErrorCode, "ID must be positive");
+                    webSocket.close(
+                        ix::WebSocketCloseConstants::kProtocolErrorCode, "ID must be positive");
                     return;
                 }
                 unsigned long expected = 0;
                 if (!m_clientId.compare_exchange_strong(expected, idNum)) {
                     m_logger->warn("WebSocket connection rejected: only one client allowed");
-                    webSocket.close(ix::WebSocketCloseConstants::kProtocolErrorCode, "Only one client can be connected at a time");
+                    webSocket.close(ix::WebSocketCloseConstants::kProtocolErrorCode,
+                        "Only one client can be connected at a time");
                     return;
                 }
                 {
@@ -107,18 +110,16 @@ void WebSocketController::run()
             auto payload = std::format(R"({{"type":"usb_device","id":"{}","data":{}}})", id, json);
             broadcast(m_server, payload);
         });
-    auto conn2 = m_recorder.onDevice().connect(
-        [this](const std::string& id, const Device& device) {
-            auto json = m_serializer.serialize(device);
-            auto payload = std::format(R"({{"type":"device","id":"{}","data":{}}})", id, json);
-            broadcast(m_server, payload);
-        });
-    auto conn3 = m_recorder.onInput().connect(
-        [this](const std::string& id, const Input& input) {
-            auto json = m_serializer.serialize(input);
-            auto payload = std::format(R"({{"type":"input","id":"{}","data":{}}})", id, json);
-            broadcast(m_server, payload);
-        });
+    auto conn2 = m_recorder.onDevice().connect([this](const std::string& id, const Device& device) {
+        auto json = m_serializer.serialize(device);
+        auto payload = std::format(R"({{"type":"device","id":"{}","data":{}}})", id, json);
+        broadcast(m_server, payload);
+    });
+    auto conn3 = m_recorder.onInput().connect([this](const std::string& id, const Input& input) {
+        auto json = m_serializer.serialize(input);
+        auto payload = std::format(R"({{"type":"input","id":"{}","data":{}}})", id, json);
+        broadcast(m_server, payload);
+    });
 
     m_server.wait();
 

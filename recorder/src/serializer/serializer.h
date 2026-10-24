@@ -12,18 +12,18 @@ namespace Kbi {
 
 #define SERIALIZER_CLASS_TO_DECLARE (UsbDeviceInfo)(Device)(Input)(Recorder)(SystemInfo)
 
-#define DECLARE_OSTREAM_SERIALIZER(r, pure, type) \
+#define DECLARE_OSTREAM_SERIALIZER(r, pure, type)                                                  \
     virtual void serialize(const type& a, std::ostream& out) BOOST_PP_IF(pure, = 0, );
-#define DECLARE_STRING_SERIALIZER(r, pure, type) \
+#define DECLARE_STRING_SERIALIZER(r, pure, type)                                                   \
     virtual std::string serialize(const type& val) BOOST_PP_IF(pure, = 0, );
-#define DECLARE_BUFFER_SERIALIZER(r, pure, type) \
+#define DECLARE_BUFFER_SERIALIZER(r, pure, type)                                                   \
     virtual void serialize(const type& val, std::span<char> out) BOOST_PP_IF(pure, = 0, );
 
-#define DECLARE_OSTREAM_SERIALIZER_ALL(pure) \
+#define DECLARE_OSTREAM_SERIALIZER_ALL(pure)                                                       \
     BOOST_PP_SEQ_FOR_EACH(DECLARE_OSTREAM_SERIALIZER, pure, SERIALIZER_CLASS_TO_DECLARE)
-#define DECLARE_STRING_SERIALIZER_ALL(pure) \
+#define DECLARE_STRING_SERIALIZER_ALL(pure)                                                        \
     BOOST_PP_SEQ_FOR_EACH(DECLARE_STRING_SERIALIZER, pure, SERIALIZER_CLASS_TO_DECLARE)
-#define DECLARE_BUFFER_SERIALIZER_ALL(pure) \
+#define DECLARE_BUFFER_SERIALIZER_ALL(pure)                                                        \
     BOOST_PP_SEQ_FOR_EACH(DECLARE_BUFFER_SERIALIZER, pure, SERIALIZER_CLASS_TO_DECLARE)
 
 class Serializer {
@@ -38,8 +38,7 @@ public:
     DECLARE_OSTREAM_SERIALIZER_ALL(0)
     DECLARE_STRING_SERIALIZER_ALL(0)
 
-#define DECLARE_TO_JSON(r, _, type) \
-    boost::json::value toJson(const type& val);
+#define DECLARE_TO_JSON(r, _, type) boost::json::value toJson(const type& val);
 
     BOOST_PP_SEQ_FOR_EACH(DECLARE_TO_JSON, _, SERIALIZER_CLASS_TO_DECLARE)
 

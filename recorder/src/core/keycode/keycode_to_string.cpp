@@ -237,11 +237,14 @@ constexpr std::array<std::string_view, 36> gamepadButtonsStrings = {
 std::string_view keycodeToString(Keycode keycode)
 {
     if (keycode >= Keycode::Button1)
-        return gamepadButtonsStrings[static_cast<int>(keycode) - static_cast<int>(Keycode::Button1)];
+        return gamepadButtonsStrings[static_cast<int>(keycode)
+            - static_cast<int>(Keycode::Button1)];
     if (keycode >= Keycode::LeftClick)
-        return mouseButtonsStrings[static_cast<int>(keycode) - static_cast<int>(Keycode::LeftClick)];
+        return mouseButtonsStrings[static_cast<int>(keycode)
+            - static_cast<int>(Keycode::LeftClick)];
     if (keycode >= Keycode::LeftControl)
-        return hidKeycodeModifierStrings[static_cast<int>(keycode) - static_cast<int>(Keycode::LeftControl)];
+        return hidKeycodeModifierStrings[static_cast<int>(keycode)
+            - static_cast<int>(Keycode::LeftControl)];
     return hidKeycodeStrings[static_cast<int>(keycode)];
 }
 

@@ -46,11 +46,17 @@ public:
     [[nodiscard]] int binRate() const { return m_binRate; }
     void setBinRate(int binRate);
 
-    [[nodiscard]] const std::vector<double>& consecutiveDiff() const { return m_consecutiveDiffCount; }
+    [[nodiscard]] const std::vector<double>& consecutiveDiff() const
+    {
+        return m_consecutiveDiffCount;
+    }
     [[nodiscard]] double consecutiveDiffMax() const { return m_consecutiveDiffCountMax; }
     [[nodiscard]] const std::vector<double>& allDiff() const { return m_allDiffCount; }
     [[nodiscard]] double allDiffMax() const { return m_allDiffCountMax; }
-    [[nodiscard]] const std::vector<double>& wrappedTimestamp() const { return m_wrappedTimestampCount; }
+    [[nodiscard]] const std::vector<double>& wrappedTimestamp() const
+    {
+        return m_wrappedTimestampCount;
+    }
     [[nodiscard]] double wrappedTimestampMax() const { return m_wrappedTimestampCountMax; }
 
     // Most recent frequency-domain snapshot; may be null before the first
