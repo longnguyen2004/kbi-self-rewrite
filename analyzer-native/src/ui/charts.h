@@ -9,6 +9,16 @@
 
 namespace Kbi::Ui {
 
+// The user interaction of a chart, in a form that does not depend on ImGui.
+struct ChartInteraction {
+    bool dragging = false;
+    float dragDeltaX = 0.0f; // pixels
+    float wheel = 0.0f; // scroll steps
+    double mouseX = 0.0; // mouse position in data units
+    bool doubleClicked = false;
+    float plotWidth = 0.0f; // pixels
+};
+
 // Zoom state shared by a group of charts that are synchronized along the x
 // axis (the three diff charts, and the three frequency charts).
 struct ChartSync {
@@ -20,38 +30,27 @@ struct ChartSync {
     bool initialized = false;
     // Whether the view follows the end of a growing recording.
     bool followEnd = false;
+
+    // Applies an interaction to the visible range. The range is clamped to
+    // the extent of the data.
+    void updateRange(const ChartInteraction& interaction);
 };
 
-// The user interaction of a chart, in a form that does not depend on ImGui.
-struct ChartInteraction {
-    bool dragging = false;
-    float dragDeltaX = 0.0f; // pixels
-    float wheel = 0.0f; // scroll steps
-    double mouseX = 0.0; // mouse position in data units
-    bool doubleClicked = false;
-    float plotWidth = 0.0f; // pixels
-};
+// The common base of every chart. It owns the zoom state, so that it does not
+// have to be passed around.
+class Chart {
+public:
+    virtual ~Chart() = default;
 
-// Applies an interaction to the visible range of a chart. The range is
-// clamped to the extent of the data.
-void updateRange(ChartSync& sync, const ChartInteraction& interaction);
+    virtual void draw() { }
 
-// What the tooltip of a chart shows.
-enum class TooltipStyle {
-    // The x axis is a duration, the y axis a number of events.
-    Difference,
-    // The x axis is a frequency, the y axis a magnitude.
-    Frequency,
-};
+    ChartSync& sync() { return *m_sync; }
 
-// How the ticks of the x axis are generated.
-enum class TickStyle {
-    // Steps of 0.125, 0.25, 0.5, 1, 2, 5, ... milliseconds.
-    Milliseconds,
-    // Steps of 125Hz, 250Hz, 500Hz, ... hertz.
-    Hertz,
-    // The default ticks of ImPlot.
-    Automatic,
+    virtual void resetZoom() { *m_sync = ChartSync {}; }
+
+protected:
+    ChartSync m_ownedSync;
+    ChartSync* m_sync = &m_ownedSync;
 };
 
 } // namespace Kbi::Ui

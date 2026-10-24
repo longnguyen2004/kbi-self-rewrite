@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/input_timeline.h"
-#include "ui/charts.h"
+#include "ui/chart.h"
 #include "ui/charts_common.h"
 
 #include <string>
@@ -11,20 +11,21 @@
 namespace Kbi::Ui {
 
 // Draws the Gantt style chart of the keypress intervals.
-class TimelineChartRenderer {
+class TimelineChart : public Chart {
 public:
-    void drawInputTimeline(std::string_view id,
-        const InputTimeline& timeline,
-        const std::vector<std::string>& deviceIds);
+    TimelineChart(const InputTimeline& timeline, const std::vector<std::string>& deviceIds);
+
+    void draw() override;
 
     // Resets the zoom state.
-    void resetZoom();
+    void resetZoom() override;
 
     // Sets the visible range of the input timeline.
     void setTimelineRange(double xMin, double xMax);
 
 private:
-    ChartSync m_timelineSync;
+    const InputTimeline& m_timeline;
+    const std::vector<std::string>& m_deviceIds;
 };
 
 } // namespace Kbi::Ui

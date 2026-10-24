@@ -32,10 +32,18 @@ constexpr std::array<ImVec4, 6> kDevicePalette = {
 
 } // namespace
 
-void TimelineChartRenderer::drawInputTimeline(std::string_view id,
-    const InputTimeline& timeline,
-    const std::vector<std::string>& deviceIds)
+TimelineChart::TimelineChart(
+    const InputTimeline& timeline, const std::vector<std::string>& deviceIds)
+    : m_timeline(timeline)
+    , m_deviceIds(deviceIds)
 {
+}
+
+void TimelineChart::draw()
+{
+    const InputTimeline& timeline = m_timeline;
+    const std::vector<std::string>& deviceIds = m_deviceIds;
+    const std::string_view id = "##input_timeline";
     // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
     ImGui::PushID(id.data());
 
@@ -46,7 +54,8 @@ void TimelineChartRenderer::drawInputTimeline(std::string_view id,
     // Map every device to a colour, in the order the devices were seen.
     std::map<std::string, ImU32> deviceColors;
     for (std::size_t i = 0; i < deviceIds.size(); ++i)
-        deviceColors[deviceIds[i]] = ImGui::ColorConvertFloat4ToU32(kDevicePalette[i % kDevicePalette.size()]);
+        deviceColors[deviceIds[i]]
+            = ImGui::ColorConvertFloat4ToU32(kDevicePalette[i % kDevicePalette.size()]);
 
     // The index of every key on the y axis.
     std::map<std::string, double> keyIndices;
@@ -68,7 +77,7 @@ void TimelineChartRenderer::drawInputTimeline(std::string_view id,
 
     const double endTimestamp = timeline.endTimestamp();
 
-    ChartSync& sync = m_timelineSync;
+    ChartSync& sync = *m_sync;
     const double previousExtentMax = sync.extentMax;
     sync.extentMin = 0.0;
     sync.extentMax = std::max(endTimestamp, 1.0);
@@ -85,8 +94,8 @@ void TimelineChartRenderer::drawInputTimeline(std::string_view id,
     sync.xMax = std::clamp(sync.xMax, sync.extentMin, sync.extentMax);
 
     // The timeline takes up all the space that is left.
-    if (!ImPlot::BeginPlot("##plot", ImVec2(-1.0f, -1.0f),
-            ImPlotFlags_NoTitle | ImPlotFlags_NoInputs)) {
+    if (!ImPlot::BeginPlot(
+            "##plot", ImVec2(-1.0f, -1.0f), ImPlotFlags_NoTitle | ImPlotFlags_NoInputs)) {
         ImPlot::EndPlot();
         ImGui::PopID();
         return;
@@ -95,8 +104,7 @@ void TimelineChartRenderer::drawInputTimeline(std::string_view id,
     ImPlot::SetupAxis(ImAxis_X1, "s");
     ImPlot::SetupAxisLimits(ImAxis_X1, sync.xMin, sync.xMax, ImPlotCond_Always);
     ImPlot::SetupAxisLimits(ImAxis_Y1, -0.5,
-        std::max(static_cast<double>(keySet.size()) - 0.5, 0.5),
-        ImPlotCond_Always);
+        std::max(static_cast<double>(keySet.size()) - 0.5, 0.5), ImPlotCond_Always);
 
     if (!keySet.empty()) {
         std::vector<double> tickValues;
@@ -107,8 +115,8 @@ void TimelineChartRenderer::drawInputTimeline(std::string_view id,
             tickValues.push_back(static_cast<double>(tickValues.size()));
             tickLabels.push_back(key.c_str());
         }
-        ImPlot::SetupAxisTicks(ImAxis_Y1, tickValues.data(), static_cast<int>(tickValues.size()),
-            tickLabels.data());
+        ImPlot::SetupAxisTicks(
+            ImAxis_Y1, tickValues.data(), static_cast<int>(tickValues.size()), tickLabels.data());
     }
 
     const PlotArea area = currentPlotArea(sync.xMin, sync.xMax);
@@ -199,8 +207,7 @@ void TimelineChartRenderer::drawInputTimeline(std::string_view id,
         if (hit != nullptr) {
             const double duration = std::max(0.0, hit->end - hit->start);
             showTooltip(mouse,
-                { std::format("device: {}", hit->deviceId),
-                    std::format("key: {}", hit->key),
+                { std::format("device: {}", hit->deviceId), std::format("key: {}", hit->key),
                     std::format("start: {:.3f}s", hit->start),
                     std::format("end: {:.3f}s", hit->end),
                     std::format("duration: {:.3f}s", duration) });
@@ -210,18 +217,15 @@ void TimelineChartRenderer::drawInputTimeline(std::string_view id,
     ImGui::PopID();
 }
 
-void TimelineChartRenderer::resetZoom()
-{
-    m_timelineSync = ChartSync {};
-}
+void TimelineChart::resetZoom() { *m_sync = ChartSync {}; }
 
-void TimelineChartRenderer::setTimelineRange(double xMin, double xMax)
+void TimelineChart::setTimelineRange(double xMin, double xMax)
 {
-    m_timelineSync.initialized = true;
-    m_timelineSync.xMin = xMin;
-    m_timelineSync.xMax = xMax;
+    m_sync->initialized = true;
+    m_sync->xMin = xMin;
+    m_sync->xMax = xMax;
     // The range was set explicitly, it does not follow the end of a recording.
-    m_timelineSync.followEnd = false;
+    m_sync->followEnd = false;
 }
 
 } // namespace Kbi::ui

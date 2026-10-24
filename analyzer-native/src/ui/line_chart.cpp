@@ -1,19 +1,18 @@
 #include "ui/line_chart.h"
-#include "ui/charts.h"
-#include "ui/charts_common.h"
 
 #include "core/decimate.h"
-#include "ui/point_snapper.h"
 
 #include <imgui.h>
 #include <implot.h>
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <format>
+#include <functional>
 #include <map>
 #include <string>
 #include <string_view>
@@ -25,8 +24,6 @@ namespace {
 constexpr ImVec4 kDiffColor(65.0f / 255.0f, 140.0f / 255.0f, 240.0f / 255.0f, 1.0f);
 constexpr ImVec4 kFreqColor(240.0f / 255.0f, 120.0f / 255.0f, 0.0f, 1.0f);
 
-// The tick positions of the difference charts: the range is covered with
-// steps of 0.125, 0.25, 0.5, 1, 2, 5, ... units.
 std::vector<double> millisecondTicks(double min, double max)
 {
     const double range = max - min;
@@ -55,7 +52,9 @@ std::vector<double> millisecondTicks(double min, double max)
     const double firstIndex = std::floor(min / step + 1.0);
     const double lastIndex = std::ceil(max / step - 1.0);
     const double quantizedMin = firstIndex * step;
-    const std::size_t tickCount = lastIndex < firstIndex ? 0 : static_cast<std::size_t>(std::llround(lastIndex - firstIndex)) + 1;
+    const std::size_t tickCount = lastIndex < firstIndex
+        ? 0
+        : static_cast<std::size_t>(std::llround(lastIndex - firstIndex)) + 1;
 
     std::vector<double> ticks;
     ticks.push_back(min);
@@ -65,15 +64,17 @@ std::vector<double> millisecondTicks(double min, double max)
     return ticks;
 }
 
-// The tick positions of the frequency charts: 125Hz, 250Hz, 500Hz, ...
 std::vector<double> hertzTicks(double min, double max)
 {
     const auto steps = static_cast<std::uint64_t>(std::floor((max - min) / 1000.0));
-    const double step = std::clamp(125.0 * static_cast<double>(std::bit_ceil(steps)), 125.0, 8000.0);
+    const double step
+        = std::clamp(125.0 * static_cast<double>(std::bit_ceil(steps)), 125.0, 8000.0);
     const double firstIndex = std::floor(min / step + 1.0);
     const double lastIndex = std::ceil(max / step - 1.0);
     const double quantizedMin = firstIndex * step;
-    const std::size_t tickCount = lastIndex < firstIndex ? 0 : static_cast<std::size_t>(std::llround(lastIndex - firstIndex)) + 1;
+    const std::size_t tickCount = lastIndex < firstIndex
+        ? 0
+        : static_cast<std::size_t>(std::llround(lastIndex - firstIndex)) + 1;
 
     std::vector<double> ticks;
     ticks.push_back(min);
@@ -85,18 +86,63 @@ std::vector<double> hertzTicks(double min, double max)
 
 } // namespace
 
-void LineChartRenderer::drawLineChart(std::string_view id,
-    std::string_view title,
-    const std::vector<double>& data,
-    double yMax,
-    ChartSync& sync,
-    const ImVec4& color,
-    std::string_view xLabel,
-    std::string_view yLabel,
-    double initialSpan,
-    TickStyle tickStyle,
-    TooltipStyle tooltipStyle)
+LineChart::LineChart(std::string id, std::string title, ImVec4 color, std::string xLabel,
+    std::string yLabel, double initialSpan, TickStyle tickStyle, TooltipCallback tooltip,
+    ChartSync* sharedSync, double extentMax)
+    : m_id(std::move(id))
+    , m_title(std::move(title))
+    , m_color(color)
+    , m_xLabel(std::move(xLabel))
+    , m_yLabel(std::move(yLabel))
+    , m_initialSpan(initialSpan)
+    , m_tickStyle(tickStyle)
+    , m_tooltip(std::move(tooltip))
+    , m_extentMax(extentMax)
 {
+    if (sharedSync != nullptr)
+        m_sync = sharedSync;
+}
+
+DiffChart::DiffChart(std::string id, std::string title, ChartSync* sharedSync)
+    : LineChart(
+          std::move(id), std::move(title), kDiffColor, "ms", "events", 25.0,
+          TickStyle::Milliseconds,
+          [](const ChartPoint& point) {
+              return std::vector<std::string> {
+                  std::format("x: {:.3f}ms", point.x),
+                  std::format("y: {} events", point.y),
+              };
+          },
+          sharedSync, 1000.0)
+{
+}
+
+FreqChart::FreqChart(std::string id, std::string title, ChartSync* sharedSync)
+    : LineChart(
+          std::move(id), std::move(title), kFreqColor, "Hz", "magnitude", 0.0, TickStyle::Hertz,
+          [](const ChartPoint& point) {
+              return std::vector<std::string> {
+                  std::format("freq: {}Hz", std::lround(point.x)),
+                  std::format("mag: {:.3f}", point.y),
+              };
+          },
+          sharedSync, 0.0)
+{
+}
+
+void FreqChart::draw(const std::vector<double>& data, double yMax, double maxFrequency)
+{
+    m_extentMax = maxFrequency;
+    m_initialSpan = maxFrequency;
+    LineChart::draw(data, yMax);
+}
+
+void LineChart::draw(const std::vector<double>& data, double yMax)
+{
+    ChartSync& sync = this->sync();
+    sync.extentMin = 0.0;
+    sync.extentMax = m_extentMax;
+
     const double extentMin = sync.extentMin;
     const double extentMax = sync.extentMax;
     const double extentSpan = std::max(extentMax - extentMin, 1e-12);
@@ -105,53 +151,42 @@ void LineChartRenderer::drawLineChart(std::string_view id,
         sync.initialized = true;
         sync.dataLength = data.size();
         sync.xMin = extentMin;
-        sync.xMax = extentMin + std::min(initialSpan, extentSpan);
+        sync.xMax
+            = extentMin + std::min(m_initialSpan > 0.0 ? m_initialSpan : extentSpan, extentSpan);
     }
     sync.xMin = std::clamp(sync.xMin, extentMin, extentMax);
     sync.xMax = std::clamp(sync.xMax, extentMin, extentMax);
     if (sync.xMax <= sync.xMin)
         sync.xMax = std::min(extentMax, sync.xMin + std::max(extentSpan * 1e-9, 1e-12));
 
-    // ImGui and ImPlot take C strings. The ids, titles and axis labels are
-    // always string literals, so they are guaranteed to be NUL-terminated.
-    // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
-    ImGui::PushID(id.data());
-    if (!title.empty())
-        // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
-        ImGui::TextUnformatted(title.data());
+    ImGui::PushID(m_id.c_str());
+    if (!m_title.empty())
+        ImGui::TextUnformatted(m_title.c_str());
 
-    // ImPlot's own input handling is disabled, the interactions below are
-    // implemented explicitly so that they behave the same in every chart.
-    if (!ImPlot::BeginPlot("##plot", ImVec2(-1.0f, m_chartHeight),
-            ImPlotFlags_NoTitle | ImPlotFlags_NoInputs)) {
+    if (!ImPlot::BeginPlot(
+            "##plot", ImVec2(-1.0f, m_chartHeight), ImPlotFlags_NoTitle | ImPlotFlags_NoInputs)) {
         ImPlot::EndPlot();
         ImGui::PopID();
         return;
     }
 
-    // The y axis goes from zero to the maximum of the data, like in the web
-    // analyzer. Only an empty chart falls back to a range of one.
     const double yRange = yMax > 0.0 ? yMax : 1.0;
 
-    // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
-    ImPlot::SetupAxis(ImAxis_X1, xLabel.data());
-    // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
-    ImPlot::SetupAxis(ImAxis_Y1, yLabel.data());
+    ImPlot::SetupAxis(ImAxis_X1, m_xLabel.c_str());
+    ImPlot::SetupAxis(ImAxis_Y1, m_yLabel.c_str());
     ImPlot::SetupAxisLimits(ImAxis_X1, sync.xMin, sync.xMax, ImPlotCond_Always);
     ImPlot::SetupAxisLimits(ImAxis_Y1, 0.0, yRange, ImPlotCond_Always);
 
-    // Custom ticks, generated the same way as in the web analyzer.
-    if (tickStyle != TickStyle::Automatic) {
-        const std::vector<double> generated = tickStyle == TickStyle::Milliseconds
+    if (m_tickStyle != TickStyle::Automatic) {
+        const std::vector<double> generated = m_tickStyle == TickStyle::Milliseconds
             ? millisecondTicks(sync.xMin, sync.xMax)
             : hertzTicks(sync.xMin, sync.xMax);
         std::vector<double> values;
         std::vector<std::string> labelStorage;
         for (const double value : generated) {
             std::string label;
-            if (tickStyle == TickStyle::Milliseconds) {
+            if (m_tickStyle == TickStyle::Milliseconds) {
                 const double fractional = value - std::floor(value);
-                // Only multiples of an eighth are labelled.
                 if (std::floor(fractional * 8.0) - fractional * 8.0 != 0.0)
                     continue;
                 if (fractional == 0.0)
@@ -170,8 +205,8 @@ void LineChartRenderer::drawLineChart(std::string_view id,
         labels.reserve(labelStorage.size());
         for (const std::string& label : labelStorage)
             labels.push_back(label.c_str());
-        ImPlot::SetupAxisTicks(ImAxis_X1, values.data(), static_cast<int>(values.size()),
-            labels.data());
+        ImPlot::SetupAxisTicks(
+            ImAxis_X1, values.data(), static_cast<int>(values.size()), labels.data());
     }
 
     const PlotArea area = currentPlotArea(sync.xMin, sync.xMax);
@@ -191,7 +226,7 @@ void LineChartRenderer::drawLineChart(std::string_view id,
             ys.push_back(point.y);
         }
         ImPlotSpec spec;
-        spec.LineColor = color;
+        spec.LineColor = m_color;
         spec.LineWeight = 1.0f;
         spec.Flags = static_cast<ImPlotItemFlags>(ImPlotItemFlags_NoLegend);
         ImPlot::PlotLine("##series", xs.data(), ys.data(), static_cast<int>(xs.size()), spec);
@@ -199,7 +234,6 @@ void LineChartRenderer::drawLineChart(std::string_view id,
 
     handleInteraction(sync, area);
 
-    // The pixel positions of the data points, used by the tooltip.
     std::vector<SnapPoint> snapPoints;
     snapPoints.reserve(points.size());
     for (std::size_t i = 0; i < points.size(); ++i) {
@@ -211,61 +245,27 @@ void LineChartRenderer::drawLineChart(std::string_view id,
 
     ImPlot::EndPlot();
 
-    // The tooltip of the point under the cursor.
     if (area.hovered) {
         const ImVec2 mouse = ImGui::GetMousePos();
         if (const SnapPoint* snapped = m_snapper.find(mouse.x, mouse.y, kTooltipRadius)) {
             const ChartPoint& point = points[static_cast<std::size_t>(snapped->index)];
-            std::vector<std::string> lines;
-            if (tooltipStyle == TooltipStyle::Difference) {
-                lines.push_back(std::format("x: {:.3f}ms", point.x));
-                lines.push_back(std::format("y: {} events", point.y));
-            } else {
-                lines.push_back(std::format("freq: {}Hz", std::lround(point.x)));
-                lines.push_back(std::format("mag: {:.3f}", point.y));
-            }
+            const std::vector<std::string> lines = m_tooltip(point);
             showTooltip({ static_cast<float>(snapped->x), static_cast<float>(snapped->y) }, lines);
-            // A small marker shows where the snap point that triggered the
-            // tooltip is, so it is clear which data point is reported.
             ImDrawList* markerList = ImGui::GetWindowDrawList();
             markerList->PushClipRect(ImVec2(area.position.x, area.position.y),
                 ImVec2(area.position.x + area.size.x, area.position.y + area.size.y), true);
-            const ImU32 markerColor = ImGui::ColorConvertFloat4ToU32(color);
-            markerList->AddCircleFilled(ImVec2(static_cast<float>(snapped->x), static_cast<float>(snapped->y)),
-                4.0f, markerColor);
-            markerList->AddCircle(ImVec2(static_cast<float>(snapped->x), static_cast<float>(snapped->y)),
-                4.0f, IM_COL32(0, 0, 0, 200), 12, 1.5f);
+            const ImU32 markerColor = ImGui::ColorConvertFloat4ToU32(m_color);
+            markerList->AddCircleFilled(
+                ImVec2(static_cast<float>(snapped->x), static_cast<float>(snapped->y)), 4.0f,
+                markerColor);
+            markerList->AddCircle(
+                ImVec2(static_cast<float>(snapped->x), static_cast<float>(snapped->y)), 4.0f,
+                IM_COL32(0, 0, 0, 200), 12, 1.5f);
             markerList->PopClipRect();
         }
     }
 
     ImGui::PopID();
-}
-
-void LineChartRenderer::drawDiffChart(std::string_view id,
-    std::string_view title,
-    const std::vector<double>& data,
-    double yMax,
-    ChartSync& sync)
-{
-    // The histograms cover a one second window, expressed in milliseconds.
-    sync.extentMin = 0.0;
-    sync.extentMax = 1000.0;
-    drawLineChart(id, title, data, yMax, sync, kDiffColor, "ms", "events", 25.0,
-        TickStyle::Milliseconds, TooltipStyle::Difference);
-}
-
-void LineChartRenderer::drawFreqChart(std::string_view id,
-    std::string_view title,
-    const std::vector<double>& data,
-    double yMax,
-    double maxFrequency,
-    ChartSync& sync)
-{
-    sync.extentMin = 0.0;
-    sync.extentMax = maxFrequency;
-    drawLineChart(id, title, data, yMax, sync, kFreqColor, "Hz", "magnitude", maxFrequency,
-        TickStyle::Hertz, TooltipStyle::Frequency);
 }
 
 } // namespace Kbi::ui
