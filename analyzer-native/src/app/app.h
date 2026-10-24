@@ -8,8 +8,10 @@
 #include "recorder/recorder_source.h"
 #include "ui/charts.h"
 #include "ui/info_window.h"
+#include "ui/line_chart.h"
 #include "ui/log_store.h"
 #include "ui/log_window.h"
+#include "ui/timeline_chart.h"
 
 #include <spdlog/fwd.h>
 
@@ -75,7 +77,8 @@ private:
     PostprocessOptions m_postprocess;
     Ui::ChartSync m_diffSync;
     Ui::ChartSync m_freqSync;
-    Ui::ChartRenderer m_charts;
+    Ui::LineChartRenderer m_lineCharts;
+    Ui::TimelineChartRenderer m_timelineChart;
 
     std::vector<std::string> m_deviceIds;
 };

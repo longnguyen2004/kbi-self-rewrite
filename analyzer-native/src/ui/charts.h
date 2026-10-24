@@ -1,9 +1,6 @@
 #pragma once
 
-#include "core/input_timeline.h"
-#include "ui/point_snapper.h"
-
-#include <imgui.h>
+#include "ui/charts_common.h"
 
 #include <cstddef>
 #include <string>
@@ -55,56 +52,6 @@ enum class TickStyle {
     Hertz,
     // The default ticks of ImPlot.
     Automatic,
-};
-
-// Draws the analysis charts with ImPlot.
-class ChartRenderer {
-public:
-    // Time domain histogram of the timestamp differences.
-    // The x axis is in milliseconds, the y axis is the number of events.
-    void drawDiffChart(std::string_view id,
-        std::string_view title,
-        const std::vector<double>& data,
-        double yMax,
-        ChartSync& sync);
-
-    // Frequency domain magnitude of the histograms. The x axis is in Hz.
-    void drawFreqChart(std::string_view id,
-        std::string_view title,
-        const std::vector<double>& data,
-        double yMax,
-        double maxFrequency,
-        ChartSync& sync);
-
-    // Gantt style chart of the keypress intervals.
-    void drawInputTimeline(std::string_view id,
-        const InputTimeline& timeline,
-        const std::vector<std::string>& deviceIds);
-
-    void setChartHeight(float height) { m_chartHeight = height; }
-
-    // Resets the zoom state of every chart.
-    void resetZoom();
-
-    // Sets the visible range of the input timeline.
-    void setTimelineRange(double xMin, double xMax);
-
-private:
-    void drawLineChart(std::string_view id,
-        std::string_view title,
-        const std::vector<double>& data,
-        double yMax,
-        ChartSync& sync,
-        const ImVec4& color,
-        std::string_view xLabel,
-        std::string_view yLabel,
-        double initialSpan,
-        TickStyle tickStyle,
-        TooltipStyle tooltipStyle);
-
-    float m_chartHeight = 220.0f;
-    ChartSync m_timelineSync;
-    PointSnapper m_snapper;
 };
 
 } // namespace Kbi::Ui

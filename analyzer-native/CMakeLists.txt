@@ -59,8 +59,10 @@ add_executable(analyzer-native
 
     src/recorder/recorder_source.cpp
 
-    src/ui/charts.cpp
+    src/ui/charts_common.cpp
     src/ui/info_window.cpp
+    src/ui/line_chart.cpp
+    src/ui/timeline_chart.cpp
     src/ui/log_window.cpp
 )
 
@@ -111,7 +113,7 @@ add_executable(analyzer-native-tests
     src/parser/parser.cpp
     src/parser/parser_kbi_legacy.cpp
     src/parser/usb_descriptors.cpp
-    src/ui/charts.cpp
+    src/ui/charts_common.cpp
     src/ui/log_store.h
 )
 target_include_directories(analyzer-native-tests PRIVATE src)

@@ -70,7 +70,7 @@ void App::resetAnalysis()
     m_infoWindow.reset();
     m_diffSync = Ui::ChartSync {};
     m_freqSync = Ui::ChartSync {};
-    m_charts.resetZoom();
+    m_timelineChart.resetZoom();
 }
 
 // The directory the file dialog opens in.
@@ -124,7 +124,7 @@ void App::openFile(const std::string& path)
     resetAnalysis();
     ingest(*parsed);
     // The timeline starts at the beginning of the recording.
-    m_charts.setTimelineRange(0.0, 10.0);
+    m_timelineChart.setTimelineRange(0.0, 10.0);
     m_lastPath = path;
     m_status = std::format("Loaded {}", path);
     m_logger->info("Loaded {}", path);
@@ -302,16 +302,16 @@ void App::drawCharts()
         ImGui::TableNextColumn();
         switch (i) {
         case 0:
-            m_charts.drawDiffChart("diff_consecutive", "Consecutive timestamp diffs",
+            m_lineCharts.drawDiffChart("diff_consecutive", "Consecutive timestamp diffs",
                 m_analyzer.consecutiveDiff(), m_analyzer.consecutiveDiffMax(),
                 m_diffSync);
             break;
         case 1:
-            m_charts.drawDiffChart("diff_all", "All timestamp diffs", m_analyzer.allDiff(),
+            m_lineCharts.drawDiffChart("diff_all", "All timestamp diffs", m_analyzer.allDiff(),
                 m_analyzer.allDiffMax(), m_diffSync);
             break;
         default:
-            m_charts.drawDiffChart("diff_wrapped", "Timestamp fractional parts",
+            m_lineCharts.drawDiffChart("diff_wrapped", "Timestamp fractional parts",
                 m_analyzer.wrappedTimestamp(),
                 m_analyzer.wrappedTimestampMax(), m_diffSync);
             break;
@@ -333,17 +333,17 @@ void App::drawCharts()
             ImGui::TableNextColumn();
             switch (i) {
             case 0:
-                m_charts.drawFreqChart("freq_consecutive",
+                m_lineCharts.drawFreqChart("freq_consecutive",
                     "Consecutive timestamp diffs (frequency domain)",
                     consecutive.data, consecutive.max, m_analyzer.freqMaxHz(),
                     m_freqSync);
                 break;
             case 1:
-                m_charts.drawFreqChart("freq_all", "All timestamp diffs (frequency domain)",
+                m_lineCharts.drawFreqChart("freq_all", "All timestamp diffs (frequency domain)",
                     all.data, all.max, m_analyzer.freqMaxHz(), m_freqSync);
                 break;
             default:
-                m_charts.drawFreqChart("freq_wrapped",
+                m_lineCharts.drawFreqChart("freq_wrapped",
                     "Timestamp fractional parts (frequency domain)",
                     wrapped.data, wrapped.max, m_analyzer.freqMaxHz(),
                     m_freqSync);
@@ -353,7 +353,7 @@ void App::drawCharts()
     }
     ImGui::EndTable();
 
-    m_charts.drawInputTimeline("##input_timeline", m_timeline, m_deviceIds);
+    m_timelineChart.drawInputTimeline("##input_timeline", m_timeline, m_deviceIds);
 
     ImGui::EndChild();
 }
