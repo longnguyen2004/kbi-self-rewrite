@@ -402,7 +402,18 @@ void ChartRenderer::drawLineChart(std::string_view id,
                 lines.push_back(std::format("freq: {}Hz", std::lround(point.x)));
                 lines.push_back(std::format("mag: {:.3f}", point.y));
             }
-            showTooltip(mouse, lines);
+            showTooltip({ static_cast<float>(snapped->x), static_cast<float>(snapped->y) }, lines);
+            // A small marker shows where the snap point that triggered the
+            // tooltip is, so it is clear which data point is reported.
+            ImDrawList* markerList = ImGui::GetWindowDrawList();
+            markerList->PushClipRect(ImVec2(area.position.x, area.position.y),
+                ImVec2(area.position.x + area.size.x, area.position.y + area.size.y), true);
+            const ImU32 markerColor = ImGui::ColorConvertFloat4ToU32(color);
+            markerList->AddCircleFilled(ImVec2(static_cast<float>(snapped->x), static_cast<float>(snapped->y)),
+                4.0f, markerColor);
+            markerList->AddCircle(ImVec2(static_cast<float>(snapped->x), static_cast<float>(snapped->y)),
+                4.0f, IM_COL32(0, 0, 0, 200), 12, 1.5f);
+            markerList->PopClipRect();
         }
     }
 
