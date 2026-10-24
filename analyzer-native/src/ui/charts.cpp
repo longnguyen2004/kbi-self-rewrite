@@ -402,8 +402,7 @@ void ChartRenderer::drawLineChart(std::string_view id,
                 lines.push_back(std::format("freq: {}Hz", std::lround(point.x)));
                 lines.push_back(std::format("mag: {:.3f}", point.y));
             }
-            showTooltip(ImVec2(static_cast<float>(snapped->x), static_cast<float>(snapped->y)),
-                lines);
+            showTooltip(mouse, lines);
         }
     }
 
@@ -533,19 +532,6 @@ void ChartRenderer::drawInputTimeline(std::string_view id,
 
     handleInteraction(sync, area);
 
-    // The pixel positions of the keypresses, used by the tooltip.
-    std::vector<SnapPoint> snapPoints;
-    snapPoints.reserve(drawn.size());
-    for (std::size_t i = 0; i < drawn.size(); ++i) {
-        const Keypress& keypress = drawn[i].get();
-        const double center = (keypress.start + keypress.end) / 2.0;
-        const auto index = keyIndices.find(keypress.key);
-        snapPoints.push_back(SnapPoint { .x = toPixelX(area, sync.xMin, sync.xMax, center),
-            .y = toPixelY(area, -0.5, keyCount - 0.5, index->second),
-            .index = static_cast<int>(i) });
-    }
-    m_snapper.set(std::move(snapPoints));
-
     ImPlot::EndPlot();
 
     // The bars fill the row of their key, with a small margin on both sides.
@@ -587,17 +573,53 @@ void ChartRenderer::drawInputTimeline(std::string_view id,
         drawList->PopClipRect();
     }
 
-    // The tooltip of the keypress under the cursor.
+    // The tooltip of the keypress under the cursor. A bar is hit when the
+    // cursor lies inside its rectangle, which is more precise than snapping.
     if (area.hovered) {
         const ImVec2 mouse = ImGui::GetMousePos();
-        if (const SnapPoint* snapped = m_snapper.find(mouse.x, mouse.y, kTooltipRadius)) {
-            const Keypress& keypress = drawn[static_cast<std::size_t>(snapped->index)].get();
-            const double duration = std::max(0.0, keypress.end - keypress.start);
-            showTooltip(ImVec2(static_cast<float>(snapped->x), static_cast<float>(snapped->y)),
-                { std::format("device: {}", keypress.deviceId),
-                    std::format("key: {}", keypress.key),
-                    std::format("start: {:.3f}s", keypress.start),
-                    std::format("end: {:.3f}s", keypress.end),
+        const Keypress* hit = nullptr;
+        double bestDistance = 0.0;
+        bool haveHit = false;
+        for (const auto& entry : drawn) {
+            const Keypress& keypress = entry.get();
+            const auto index = keyIndices.find(keypress.key);
+            if (index == keyIndices.end())
+                continue;
+
+            const double rowHeight = keyCount > 0.0 ? area.size.y / keyCount : 0.0;
+            const double margin = std::min(kBarMargin, rowHeight / 4.0);
+            const double x0 = toPixelX(area, sync.xMin, sync.xMax, keypress.start);
+            const double x1 = toPixelX(area, sync.xMin, sync.xMax, keypress.end);
+            const double yTop = toPixelY(area, -0.5, keyCount - 0.5, index->second + 0.5);
+            const double yBottom = toPixelY(area, -0.5, keyCount - 0.5, index->second - 0.5);
+
+            const double left = x0;
+            const double right = std::max(x1, x0 + 1.0);
+            const double top = yTop + margin;
+            const double bottom = yBottom - margin;
+
+            if (mouse.x < left || mouse.x > right || mouse.y < top || mouse.y > bottom)
+                continue;
+
+            const double cx = (left + right) / 2.0;
+            const double cy = (top + bottom) / 2.0;
+            const double dx = mouse.x - cx;
+            const double dy = mouse.y - cy;
+            const double distance = dx * dx + dy * dy;
+            if (!haveHit || distance < bestDistance) {
+                bestDistance = distance;
+                haveHit = true;
+                hit = &keypress;
+            }
+        }
+
+        if (hit != nullptr) {
+            const double duration = std::max(0.0, hit->end - hit->start);
+            showTooltip(mouse,
+                { std::format("device: {}", hit->deviceId),
+                    std::format("key: {}", hit->key),
+                    std::format("start: {:.3f}s", hit->start),
+                    std::format("end: {:.3f}s", hit->end),
                     std::format("duration: {:.3f}s", duration) });
         }
     }
