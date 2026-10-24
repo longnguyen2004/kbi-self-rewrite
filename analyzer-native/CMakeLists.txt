@@ -34,9 +34,9 @@ find_package(imgui CONFIG REQUIRED)
 find_package(implot CONFIG REQUIRED)
 find_package(boost_json CONFIG REQUIRED)
 find_package(pffft CONFIG REQUIRED)
+find_package(SDL3 CONFIG REQUIRED)
 find_package(simdutf CONFIG REQUIRED)
 find_package(tinyfiledialogs CONFIG REQUIRED)
-find_package(OpenGL REQUIRED)
 
 add_executable(analyzer-native
     src/main.cpp
@@ -72,9 +72,9 @@ target_link_libraries(analyzer-native PRIVATE
     implot::implot
     Boost::json
     pffft::pffft
+    SDL3::SDL3
     simdutf::simdutf
     tinyfiledialogs::tinyfiledialogs
-    OpenGL::GL
 )
 
 if (UNIX AND NOT APPLE)

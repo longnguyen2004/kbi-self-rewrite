@@ -87,7 +87,7 @@ python3 tests/reference_analyzer.py tests/data/test_recording.json /tmp/dump.txt
 
 ```
 src/
-  main.cpp                 GLFW + OpenGL 3 backend, main loop
+  main.cpp                 SDL3 + SDL Renderer backend, main loop
   app/                     application shell, file dialog, theme, screenshot
   core/                    analyzer, FFT, decimation, timeline, keycodes
   parser/                  JSON, legacy .kbi and USB descriptor parsers

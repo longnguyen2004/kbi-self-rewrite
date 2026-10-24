@@ -2,10 +2,12 @@
 
 #include <string>
 
+struct SDL_Renderer;
+
 namespace Kbi::App {
 
-// Captures the current framebuffer and writes it as a PPM image.
+// Captures the current frame of the renderer and writes it as a PPM image.
 // Returns false when the capture failed.
-bool saveScreenshot(const std::string& path);
+bool saveScreenshot(SDL_Renderer& renderer, const std::string& path);
 
-} // namespace Kbi::app
+} // namespace Kbi::App

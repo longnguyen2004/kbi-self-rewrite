@@ -3,20 +3,16 @@
 #include "app/theme.h"
 #include "ui/log_store.h"
 
-#include <boost/di.hpp>
 #include <imgui.h>
-#include <imgui_impl_glfw.h>
-#include <imgui_impl_opengl3.h>
+#include <imgui_impl_sdl3.h>
+#include <imgui_impl_sdlrenderer3.h>
 #include <implot.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 
-// Use the same OpenGL loader as the ImGui backend so that every GL call goes
-// through the same dispatch table.
-#include "imgui_impl_opengl3_loader.h"
+#include <SDL3/SDL.h>
 
-#define GLFW_INCLUDE_NONE
-#include <GLFW/glfw3.h>
+#include <boost/di.hpp>
 
 #include <cstdio>
 #include <format>
@@ -24,15 +20,6 @@
 #include <string>
 
 namespace di = boost::di;
-
-namespace {
-
-void glfwErrorCallback(int error, const char* description)
-{
-    std::println(stderr, "GLFW error {}: {}", error, description);
-}
-
-} // namespace
 
 int main(int argc, char** argv)
 {
@@ -73,29 +60,38 @@ int main(int argc, char** argv)
                 spdlog::sinks_init_list { consoleSink, logStore });
         }));
 
-    glfwSetErrorCallback(glfwErrorCallback);
-    if (glfwInit() == 0) {
-        std::println(stderr, "Failed to initialize GLFW");
+    // Wayland compositors work in scaled points, and when the fractional
+    // scaling handshake does not complete they upscale the backbuffer from
+    // its logical size, which makes the whole program blurry. Working in
+    // pixel coordinates keeps the backbuffer 1:1 with the screen pixels on
+    // every compositor, rendering the UI at the same size as the X11 driver.
+    SDL_SetHint(SDL_HINT_VIDEO_WAYLAND_SCALE_TO_DISPLAY, "1");
+    if (!SDL_SetAppMetadata("Keyboard Inspector", "1.0.0", "com.keyboard-inspector.analyzer")) {
+        std::println(stderr, "Failed to set the SDL app metadata: {}", SDL_GetError());
         return 1;
     }
-
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#if defined(__APPLE__)
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
-#endif
+    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
+        std::println(stderr, "Failed to initialize SDL: {}", SDL_GetError());
+        return 1;
+    }
 
     const int width = 1600;
     const int height = 900;
-    GLFWwindow* window = glfwCreateWindow(width, height, "Keyboard Inspector", nullptr, nullptr);
+    SDL_Window* window = SDL_CreateWindow("Keyboard Inspector", width, height,
+        SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
     if (window == nullptr) {
-        std::println(stderr, "Failed to create the GLFW window");
-        glfwTerminate();
+        std::println(stderr, "Failed to create the SDL window: {}", SDL_GetError());
+        SDL_Quit();
         return 1;
     }
-    glfwMakeContextCurrent(window);
-    glfwSwapInterval(1);
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, nullptr);
+    if (renderer == nullptr) {
+        std::println(stderr, "Failed to create the SDL renderer: {}", SDL_GetError());
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return 1;
+    }
+    SDL_SetRenderVSync(renderer, 1);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -103,8 +99,8 @@ int main(int argc, char** argv)
     ImPlot::CreateContext();
     Kbi::Ui::applyTheme(Kbi::Ui::Theme::Dark);
 
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init("#version 150");
+    ImGui_ImplSDL3_InitForSDLRenderer(window, renderer);
+    ImGui_ImplSDLRenderer3_Init(renderer);
 
     auto app = injector.create<std::unique_ptr<Kbi::App::App>>();
     if (!openPath.empty())
@@ -115,43 +111,67 @@ int main(int argc, char** argv)
         app->setInfoVisible(true);
 
     int frame = 0;
-    while (glfwWindowShouldClose(window) == 0) {
-        glfwPollEvents();
+    bool done = false;
+    while (!done) {
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            ImGui_ImplSDL3_ProcessEvent(&event);
+            if (event.type == SDL_EVENT_QUIT)
+                done = true;
+            if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED
+                && event.window.windowID == SDL_GetWindowID(window))
+                done = true;
+        }
+        if ((SDL_GetWindowFlags(window) & SDL_WINDOW_MINIMIZED) != 0) {
+            SDL_Delay(10);
+            continue;
+        }
 
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
+        ImGui_ImplSDLRenderer3_NewFrame();
+        ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
+
+        // The SDL renderer backend samples every texture with nearest
+        // filtering unless a draw callback of the frame asks for linear
+        // sampling. The chart lines are anti-aliased through a pre-rendered
+        // texture that needs linear sampling, so request it before anything
+        // else is drawn.
+        ImGui::GetBackgroundDrawList()->AddCallback(
+            ImGui::GetPlatformIO().DrawCallback_SetSamplerLinear, nullptr);
 
         app->draw();
 
         ImGui::Render();
-        int framebufferWidth = 0;
-        int framebufferHeight = 0;
-        glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);
-        glViewport(0, 0, framebufferWidth, framebufferHeight);
-        glClearColor(0.06f, 0.06f, 0.07f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        // The SDL renderer works in logical points, scale the draw data into
+        // the window's pixel density.
+        const ImGuiIO& io = ImGui::GetIO();
+        SDL_SetRenderScale(renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
+
+        SDL_SetRenderDrawColorFloat(renderer, 0.06f, 0.06f, 0.07f, 1.0f);
+        SDL_RenderClear(renderer);
+        ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
 
         if (ImGui::IsKeyPressed(ImGuiKey_F12))
-            Kbi::App::saveScreenshot("screenshot.ppm");
+            Kbi::App::saveScreenshot(*renderer, "screenshot.ppm");
 
         ++frame;
         if (!screenshotPath.empty() && frame >= screenshotFrame) {
-            if (!Kbi::App::saveScreenshot(screenshotPath))
+            if (!Kbi::App::saveScreenshot(*renderer, screenshotPath))
                 std::println(stderr, "Failed to write {}", screenshotPath);
-            break;
+            done = true;
         }
 
-        glfwSwapBuffers(window);
+        SDL_RenderPresent(renderer);
     }
 
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
+    ImGui_ImplSDLRenderer3_Shutdown();
+    ImGui_ImplSDL3_Shutdown();
     ImPlot::DestroyContext();
     ImGui::DestroyContext();
-    glfwDestroyWindow(window);
-    glfwTerminate();
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
 
     return 0;
 }

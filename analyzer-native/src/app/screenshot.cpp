@@ -1,55 +1,53 @@
 #include "app/screenshot.h"
 
-// Use the same OpenGL loader as the ImGui backend, so the calls go through
-// the same dispatch table as the rendering.
-#include "imgui_impl_opengl3_loader.h"
+#include <SDL3/SDL.h>
 
-#include <array>
 #include <cstdio>
 #include <format>
 #include <fstream>
 #include <print>
-#include <vector>
-
-// The ImGui loader only declares the enums it needs.
-#ifndef GL_RGB
-#define GL_RGB 0x1907
-#endif
-#ifndef GL_PACK_ALIGNMENT
-#define GL_PACK_ALIGNMENT 0x0D05
-#endif
+#include <string>
 
 namespace Kbi::App {
 
-bool saveScreenshot(const std::string& path)
+bool saveScreenshot(SDL_Renderer& renderer, const std::string& path)
 {
-    std::array<GLint, 4> viewport = { 0, 0, 0, 0 };
-    glGetIntegerv(GL_VIEWPORT, viewport.data());
-    const int width = viewport[2];
-    const int height = viewport[3];
-    if (width <= 0 || height <= 0) {
-        std::println(stderr, "Invalid viewport {}x{}", width, height);
+    // The read covers the whole output in pixels, so undo the DPI scale of
+    // the drawing first. The rendered frame itself is not affected.
+    SDL_SetRenderScale(&renderer, 1.0f, 1.0f);
+    SDL_Surface* raw = SDL_RenderReadPixels(&renderer, nullptr);
+    if (raw == nullptr) {
+        std::println(stderr, "Failed to read the frame: {} (renderer: {})", SDL_GetError(),
+            SDL_GetRendererName(&renderer));
         return false;
     }
 
-    std::vector<unsigned char> pixels(static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 3);
-    glPixelStorei(GL_PACK_ALIGNMENT, 1);
-    glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
+    // The PPM format stores plain RGB, the renderer hands out whatever pixel
+    // format its backbuffer has.
+    SDL_Surface* surface = SDL_ConvertSurface(raw, SDL_PIXELFORMAT_RGB24);
+    SDL_DestroySurface(raw);
+    if (surface == nullptr) {
+        std::println(stderr, "Failed to convert the frame: {}", SDL_GetError());
+        return false;
+    }
 
     std::ofstream stream(path, std::ios::out | std::ios::binary | std::ios::trunc);
     if (!stream) {
         std::println(stderr, "Could not open {} for writing", path);
+        SDL_DestroySurface(surface);
         return false;
     }
 
     stream << "P6\n"
-           << width << " " << height << "\n255\n";
-    // GL reads bottom-up, write the rows top-down.
-    for (int y = height - 1; y >= 0; --y) {
-        const unsigned char* row = pixels.data() + static_cast<std::size_t>(y) * static_cast<std::size_t>(width) * 3;
-        stream.write(reinterpret_cast<const char*>(row), static_cast<std::streamsize>(width) * 3);
+           << surface->w << " " << surface->h << "\n255\n";
+    // SDL hands the rows over top-down, no flip is needed.
+    for (int y = 0; y < surface->h; ++y) {
+        const auto* row = static_cast<const char*>(surface->pixels)
+            + static_cast<std::ptrdiff_t>(y) * surface->pitch;
+        stream.write(row, static_cast<std::streamsize>(surface->w) * 3);
     }
+    SDL_DestroySurface(surface);
     return true;
 }
 
-} // namespace Kbi::app
+} // namespace Kbi::App
