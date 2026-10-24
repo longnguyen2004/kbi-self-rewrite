@@ -36,7 +36,7 @@ find_package(boost_json CONFIG REQUIRED)
 find_package(pffft CONFIG REQUIRED)
 find_package(SDL3 CONFIG REQUIRED)
 find_package(simdutf CONFIG REQUIRED)
-find_package(tinyfiledialogs CONFIG REQUIRED)
+
 
 add_executable(analyzer-native
     src/main.cpp
@@ -74,7 +74,6 @@ target_link_libraries(analyzer-native PRIVATE
     pffft::pffft
     SDL3::SDL3
     simdutf::simdutf
-    tinyfiledialogs::tinyfiledialogs
 )
 
 if (UNIX AND NOT APPLE)
