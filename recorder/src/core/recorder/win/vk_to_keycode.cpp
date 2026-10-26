@@ -129,10 +129,10 @@ constexpr auto vkToKeycodeArr = [] {
 
 Keycode vkToKeycode(int vk)
 {
-    if (vk < 0 || vk >= vkToKeycodeArr.size()) {
+    if (vk < 0 || vk >= static_cast<int>(vkToKeycodeArr.size())) {
         return Keycode::None;
     }
-    return vkToKeycodeArr[vk];
+    return vkToKeycodeArr[static_cast<std::size_t>(vk)];
 }
 
 } // namespace Kbi

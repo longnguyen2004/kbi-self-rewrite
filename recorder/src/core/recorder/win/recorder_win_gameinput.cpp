@@ -11,6 +11,7 @@
 #include <type_traits>
 #include <utility>
 #include <wil/com.h>
+#include <wil/resource.h>
 #include <wil/win32_result_macros.h>
 #include <windows.h>
 
@@ -18,6 +19,8 @@ namespace Kbi {
 
 using namespace GameInput::v3;
 using namespace std::chrono;
+
+namespace {
 
 IGameInput* gameInputInit()
 {
@@ -29,11 +32,14 @@ IGameInput* gameInputInit()
     if (gameinput)
         return gameinput.get();
 
-    HMODULE gameInputDll = LoadLibraryW(L"gameinput.dll");
-    THROW_LAST_ERROR_IF_NULL_MSG(gameInputDll, "Failed to load the GameInput dll");
+    // The module must stay loaded for as long as the COM object is alive, so
+    // it is kept in a static RAII owner instead of a leaking raw handle
+    // (R.12).
+    static wil::unique_hmodule gameInputDll(LoadLibraryW(L"gameinput.dll"));
+    THROW_LAST_ERROR_IF_NULL_MSG(gameInputDll.get(), "Failed to load the GameInput dll");
 
-    auto createFunc
-        = reinterpret_cast<GameInputCreate_t*>(GetProcAddress(gameInputDll, "GameInputCreate"));
+    auto createFunc = reinterpret_cast<GameInputCreate_t*>(
+        GetProcAddress(gameInputDll.get(), "GameInputCreate"));
     THROW_LAST_ERROR_IF_NULL_MSG(createFunc, "Failed to load the GameInput factory function");
 
     IUnknown* unknown = nullptr;
@@ -48,56 +54,28 @@ IGameInput* gameInputInit()
     return gameinput.get();
 }
 
-bool sortByScancode(const GameInputKeyState& a, const GameInputKeyState& b)
-{
+constexpr auto sortByScancode = [](const GameInputKeyState& a, const GameInputKeyState& b) {
     return a.scanCode < b.scanCode;
-}
-
-void RecorderWinGameInput::updateKeyStates(const std::string& pnp, std::uint16_t vid,
-    std::uint16_t pid, std::uint64_t timestamp, const KeyStateArray& state)
-{
-    auto& statePrev = m_keyStates[pnp];
-    KeyStateArray pressed;
-    KeyStateArray released;
-    std::set_difference(statePrev.begin(), statePrev.end(), state.begin(), state.end(),
-        std::back_inserter(released), sortByScancode);
-    std::set_difference(state.begin(), state.end(), statePrev.begin(), statePrev.end(),
-        std::back_inserter(pressed), sortByScancode);
-    for (auto& i : pressed) {
-        onInput()(pnp, vid, pid,
-            Input { .timestamp = timestamp - m_timestampRef,
-                .pressed = true,
-                .code = vkToKeycode(i.virtualKey) });
-    }
-    for (auto& i : released) {
-        onInput()(pnp, vid, pid,
-            Input { .timestamp = timestamp - m_timestampRef,
-                .pressed = false,
-                .code = vkToKeycode(i.virtualKey) });
-    }
-    statePrev = state;
-}
-
-RecorderWinGameInput::RecorderWinGameInput(std::shared_ptr<spdlog::logger> logger)
-    : Recorder::Impl(std::move(logger))
-{
-    m_gameinput = gameInputInit();
-}
+};
 
 void gameInputReadingCallback(
-    GameInputCallbackToken token, void* context, IGameInputReading* reading)
+    GameInputCallbackToken /*token*/, void* context, IGameInputReading* reading)
 {
     IGameInputDevice* device = nullptr;
+    if (FAILED(reading->GetDevice(&device)) || !device)
+        return;
     const GameInputDeviceInfo* deviceInfo = nullptr;
-    reading->GetDevice(&device);
-    device->GetDeviceInfo(&deviceInfo);
+    if (FAILED(device->GetDeviceInfo(&deviceInfo)) || !deviceInfo) {
+        device->Release();
+        return;
+    }
 
-    std::string pnp = deviceInfo->pnpPath;
-    std::uint16_t vid = deviceInfo->vendorId;
-    std::uint16_t pid = deviceInfo->productId;
+    const std::string pnp = deviceInfo->pnpPath;
+    const std::uint16_t vid = deviceInfo->vendorId;
+    const std::uint16_t pid = deviceInfo->productId;
 
-    auto timestamp = reading->GetTimestamp();
-    auto inputKind = reading->GetInputKind();
+    const auto timestamp = reading->GetTimestamp();
+    const auto inputKind = reading->GetInputKind();
     if (inputKind & GameInputKind::GameInputKindKeyboard) {
         KeyStateArray state;
         auto stateLen = reading->GetKeyCount();
@@ -109,6 +87,39 @@ void gameInputReadingCallback(
     }
 
     device->Release();
+}
+
+} // namespace
+
+void RecorderWinGameInput::updateKeyStates(const std::string& pnp, std::uint16_t vid,
+    std::uint16_t pid, std::uint64_t timestamp, const KeyStateArray& state)
+{
+    auto& statePrev = m_keyStates[pnp];
+    KeyStateArray pressed;
+    KeyStateArray released;
+    std::set_difference(statePrev.begin(), statePrev.end(), state.begin(), state.end(),
+        std::back_inserter(released), sortByScancode);
+    std::set_difference(state.begin(), state.end(), statePrev.begin(), statePrev.end(),
+        std::back_inserter(pressed), sortByScancode);
+    for (const auto& i : pressed) {
+        onInput()(pnp, vid, pid,
+            Input { .timestamp = timestamp - m_timestampRef,
+                .pressed = true,
+                .code = vkToKeycode(i.virtualKey) });
+    }
+    for (const auto& i : released) {
+        onInput()(pnp, vid, pid,
+            Input { .timestamp = timestamp - m_timestampRef,
+                .pressed = false,
+                .code = vkToKeycode(i.virtualKey) });
+    }
+    statePrev = state;
+}
+
+RecorderWinGameInput::RecorderWinGameInput(std::shared_ptr<spdlog::logger> logger)
+    : Recorder::Impl(std::move(logger)),
+      m_gameinput(gameInputInit())
+{
 }
 
 void RecorderWinGameInput::start(bool keyboard, bool mouse, bool gamepad)
@@ -152,6 +163,14 @@ void RecorderWinGameInput::stop()
     m_dispatcherThread.request_stop();
     if (m_dispatcherThread.joinable())
         m_dispatcherThread.join();
+}
+
+RecorderWinGameInput::~RecorderWinGameInput()
+{
+    // Unregister the reading callback and stop the dispatcher thread even if
+    // the recorder is destroyed without an explicit stop() (R.1); stop() is
+    // idempotent.
+    stop();
 }
 
 std::string RecorderWinGameInput::deviceName(std::string_view pnp) const

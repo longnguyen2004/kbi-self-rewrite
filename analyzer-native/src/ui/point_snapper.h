@@ -57,4 +57,4 @@ private:
     std::vector<SnapPoint> m_points;
 };
 
-} // namespace Kbi::ui
+} // namespace Kbi::Ui

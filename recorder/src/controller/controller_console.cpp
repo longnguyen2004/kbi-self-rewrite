@@ -12,8 +12,6 @@
 #include <thread>
 #include <utility>
 
-using namespace std::literals;
-
 #if defined(__linux__)
 #include <sys/fsuid.h>
 #endif
@@ -22,6 +20,8 @@ using namespace std::literals;
 #include <conio.h>
 #endif
 
+using namespace std::literals;
+
 #ifdef __linux__
 // https://gist.github.com/ninovsnino/f910701ea912f03b73a1d0895d213b0e
 #include <cstdio>
@@ -29,16 +29,23 @@ using namespace std::literals;
 
 namespace {
 
-struct termios termiosOld, termiosNew;
+// The terminal state lives in function-local statics instead of namespace
+// scope variables (I.2, R.6).
+struct termios& termiosOld()
+{
+    static struct termios state {};
+    return state;
+}
 
 void init()
 {
-    tcgetattr(0, &termiosOld);
-    termiosNew = termiosOld;
+    struct termios termiosNew {};
+    tcgetattr(0, &termiosOld());
+    termiosNew = termiosOld();
     termiosNew.c_lflag &= ~(ICANON | ECHO);
     tcsetattr(0, TCSANOW, &termiosNew);
 }
-void reset() { tcsetattr(0, TCSANOW, &termiosOld); }
+void reset() { tcsetattr(0, TCSANOW, &termiosOld()); }
 int getchLinux()
 {
     init();
@@ -53,6 +60,8 @@ int getchLinux()
 
 namespace Kbi {
 
+namespace {
+
 int portableGetch()
 {
 #if defined(_WIN32)
@@ -62,6 +71,8 @@ int portableGetch()
 #endif
     return -1;
 }
+
+} // namespace
 
 ConsoleController::ConsoleController(Recorder& recorder, std::shared_ptr<spdlog::logger> logger)
     : Controller(recorder, std::move(logger))
@@ -73,7 +84,7 @@ void ConsoleController::run()
     auto& rec = m_recorder;
     rec.start();
     std::println("Keep spamming, press Esc to end...");
-    std::thread statThread([&] {
+    std::jthread statThread([&] {
         while (rec.recording()) {
             std::print("\rDevices: {}, Inputs: {}", rec.deviceCount(), rec.inputCount());
             std::fflush(stdout);
@@ -110,13 +121,24 @@ void ConsoleController::run()
     }
     setfsuid(uid);
 #endif
-    std::fstream fout("out.kbi", std::ios::out | std::ios::binary | std::ios::trunc);
+    // Signal failure of the exports instead of silently producing empty or
+    // corrupt files (E.2).
     ExporterMatKbi exporter(rec);
-    exporter.exportTo(fout);
+    if (std::fstream fout("out.kbi", std::ios::out | std::ios::binary | std::ios::trunc); fout) {
+        exporter.exportTo(fout);
+        if (!fout)
+            std::println(stderr, "Failed to write out.kbi");
+    } else
+        std::println(stderr, "Failed to open out.kbi");
 
-    std::fstream foutJson("out.json", std::ios::out | std::ios::binary | std::ios::trunc);
-    JsonTextSerializer ser;
-    ser.serialize(rec, foutJson);
+    if (std::fstream foutJson("out.json", std::ios::out | std::ios::binary | std::ios::trunc);
+        foutJson) {
+        JsonTextSerializer ser;
+        ser.serialize(rec, foutJson);
+        if (!foutJson)
+            std::println(stderr, "Failed to write out.json");
+    } else
+        std::println(stderr, "Failed to open out.json");
 #ifdef __linux__
     setfsuid(geteuid());
 #endif

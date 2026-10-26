@@ -32,7 +32,7 @@ std::string hidProductStringFromDevicePath(std::wstring_view wid)
     if (HidD_GetProductString(devHandle.get(), productString.data(), productString.size()) == FALSE)
         return "Unknown";
 
-    auto len = productString.find(L'\0');
+    const auto len = productString.find(L'\0');
     if (len != std::wstring::npos)
         productString.resize(len);
 
@@ -49,21 +49,23 @@ std::string hidProductStringFromPnp(std::wstring_view wid)
     GUID hidGuid;
     HidD_GetHidGuid(&hidGuid);
 
-    HDEVINFO devInfoSet = SetupDiGetClassDevsW(
-        &hidGuid, wid.data(), nullptr, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
-    if (devInfoSet == nullptr)
+    // The RAII wrapper destroys the device info set on every exit path (R.1).
+    // SetupDiGetClassDevsW returns INVALID_HANDLE_VALUE on failure.
+    wil::unique_hdevinfo devInfoSet(SetupDiGetClassDevsW(
+        &hidGuid, wid.data(), nullptr, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE));
+    if (!devInfoSet)
         return "Unknown";
 
     SP_DEVICE_INTERFACE_DATA deviceInterfaceData { .cbSize = 0 };
     deviceInterfaceData.cbSize = sizeof(SP_DEVICE_INTERFACE_DATA);
 
-    if (SetupDiEnumDeviceInterfaces(devInfoSet, nullptr, &hidGuid, 0, &deviceInterfaceData)
+    if (SetupDiEnumDeviceInterfaces(devInfoSet.get(), nullptr, &hidGuid, 0, &deviceInterfaceData)
         == FALSE)
         return "Unknown";
 
     DWORD requiredSize;
     if (SetupDiGetDeviceInterfaceDetailW(
-            devInfoSet, &deviceInterfaceData, nullptr, 0, &requiredSize, nullptr)
+            devInfoSet.get(), &deviceInterfaceData, nullptr, 0, &requiredSize, nullptr)
             == FALSE
         && GetLastError() != ERROR_INSUFFICIENT_BUFFER)
         return "Unknown";
@@ -72,7 +74,7 @@ std::string hidProductStringFromPnp(std::wstring_view wid)
     auto* detailDataPtr = reinterpret_cast<PSP_DEVICE_INTERFACE_DETAIL_DATA_W>(detailData.data());
     detailDataPtr->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA_W);
     if (SetupDiGetDeviceInterfaceDetailW(
-            devInfoSet, &deviceInterfaceData, detailDataPtr, requiredSize, nullptr, nullptr)
+            devInfoSet.get(), &deviceInterfaceData, detailDataPtr, requiredSize, nullptr, nullptr)
         == FALSE)
         return "Unknown";
 
@@ -93,9 +95,11 @@ std::optional<std::string> findUsbDevice(std::wstring_view wid)
 {
     DEVINST current;
     DEVINST parent;
+    // CM_Locate_DevNodeW takes a mutable string pointer on older SDKs; copy
+    // into a local buffer instead of casting away const (ES.50).
+    std::wstring idBuffer(wid);
     // Get device instance handle for the HID device
-    if (CM_Locate_DevNodeW(&current, const_cast<wchar_t*>(wid.data()), CM_LOCATE_DEVNODE_NORMAL)
-        != CR_SUCCESS)
+    if (CM_Locate_DevNodeW(&current, idBuffer.data(), CM_LOCATE_DEVNODE_NORMAL) != CR_SUCCESS)
         return {};
 
     // Get parent of the HID device
@@ -156,9 +160,11 @@ std::optional<UsbDeviceInfo> usbDeviceInfoFromPath(std::wstring_view wid)
 {
     DEVINST current;
     DEVINST parent;
+    // CM_Locate_DevNodeW takes a mutable string pointer on older SDKs; copy
+    // into a local buffer instead of casting away const (ES.50).
+    std::wstring idBuffer(wid);
     // Get device instance handle for the USB device
-    if (CM_Locate_DevNodeW(&current, const_cast<wchar_t*>(wid.data()), CM_LOCATE_DEVNODE_NORMAL)
-        != CR_SUCCESS)
+    if (CM_Locate_DevNodeW(&current, idBuffer.data(), CM_LOCATE_DEVNODE_NORMAL) != CR_SUCCESS)
         return {};
 
     // Get parent of the USB device (guaranteed to be the hub)
@@ -179,7 +185,7 @@ std::optional<UsbDeviceInfo> usbDeviceInfoFromPath(std::wstring_view wid)
         || propType != DEVPROP_TYPE_STRING)
         return {};
     locationInfo = locationInfo.substr(locationInfo.find(L"Port_#") + 6, 4);
-    int port = _wtoi(locationInfo.c_str());
+    const int port = _wtoi(locationInfo.c_str());
     if (port == 0)
         return {};
 
@@ -196,7 +202,7 @@ std::optional<UsbDeviceInfo> usbDeviceInfoFromPath(std::wstring_view wid)
     }
 
     // Open a handle to the USB hub
-    auto devicePath
+    const auto devicePath
         = std::format(LR"(\\?\{}#{{f18a0e88-c30c-11d0-8815-00a0c906bed8}})", hubDeviceId);
     wil::unique_hfile hHubDevice(CreateFileW(
         devicePath.c_str(), GENERIC_WRITE, FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr));
@@ -206,7 +212,8 @@ std::optional<UsbDeviceInfo> usbDeviceInfoFromPath(std::wstring_view wid)
     std::vector<char> buffer;
     ULONG bytesReturned;
     // Get device descriptor and device speed
-    ULONG confInfoExSize = sizeof(USB_NODE_CONNECTION_INFORMATION_EX) + sizeof(USB_PIPE_INFO) * 30;
+    const ULONG confInfoExSize
+        = sizeof(USB_NODE_CONNECTION_INFORMATION_EX) + sizeof(USB_PIPE_INFO) * 30;
     buffer.resize(confInfoExSize);
     std::fill(buffer.begin(), buffer.end(), 0);
     auto* connectionInfoEx = reinterpret_cast<PUSB_NODE_CONNECTION_INFORMATION_EX>(buffer.data());
@@ -216,10 +223,10 @@ std::optional<UsbDeviceInfo> usbDeviceInfoFromPath(std::wstring_view wid)
         nullptr);
     if (success == FALSE)
         return {};
-    auto speed = connectionInfoEx->Speed;
-    auto deviceDescriptor = connectionInfoEx->DeviceDescriptor;
-    auto* deviceDescriptorPtr = reinterpret_cast<unsigned char*>(&deviceDescriptor);
-    std::vector<unsigned char> descriptors(
+    const auto speed = connectionInfoEx->Speed;
+    const auto deviceDescriptor = connectionInfoEx->DeviceDescriptor;
+    const auto* deviceDescriptorPtr = reinterpret_cast<const unsigned char*>(&deviceDescriptor);
+    const std::vector<unsigned char> descriptors(
         deviceDescriptorPtr, deviceDescriptorPtr + deviceDescriptor.bLength);
 
     // Get configuration descriptor
@@ -267,15 +274,6 @@ std::optional<UsbDeviceInfo> usbDeviceInfoFromPath(std::wstring_view wid)
 std::optional<UsbDeviceInfo> usbDeviceInfoFromPath(std::string_view id)
 {
     return usbDeviceInfoFromPath(stringToWstring(id));
-}
-
-void deviceInfoFromPnp(std::string_view id)
-{
-    auto wid = stringToWstring(id);
-    std::string name;
-    if (id.starts_with("HID"))
-        name = hidProductStringFromPnp(wid);
-    usbDeviceInfoFromPath(wid);
 }
 
 } // namespace Kbi

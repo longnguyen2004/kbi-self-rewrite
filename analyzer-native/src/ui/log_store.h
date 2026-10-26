@@ -4,6 +4,7 @@
 #include <spdlog/sinks/base_sink.h>
 
 #include <chrono>
+#include <concepts>
 #include <cstddef>
 #include <mutex>
 #include <string>
@@ -25,7 +26,8 @@ public:
     };
 
     // The number of messages that are kept.
-    std::size_t capacity = 5000;
+    [[nodiscard]] std::size_t capacity() const { return m_capacity; }
+    void setCapacity(std::size_t capacity) { m_capacity = capacity; }
 
     void clear()
     {
@@ -35,7 +37,9 @@ public:
 
     // The captured entries, oldest first, visited while the sink's lock is
     // held so that recorder threads cannot add messages in the middle.
-    template<typename Visitor> void withEntries(Visitor&& visitor)
+    template<typename Visitor>
+        requires std::invocable<Visitor, std::vector<Entry>&>
+    void withEntries(Visitor&& visitor)
     {
         std::scoped_lock lock(mutex_);
         visitor(m_entries);
@@ -50,14 +54,15 @@ protected:
         entry.text.assign(msg.payload.data(), msg.payload.size());
 
         m_entries.push_back(std::move(entry));
-        if (m_entries.size() > capacity)
+        if (m_entries.size() > m_capacity)
             m_entries.erase(
-                m_entries.begin(), m_entries.end() - static_cast<std::ptrdiff_t>(capacity));
+                m_entries.begin(), m_entries.end() - static_cast<std::ptrdiff_t>(m_capacity));
     }
 
     void flush_() override { }
 
 private:
+    std::size_t m_capacity = 5000;
     std::vector<Entry> m_entries;
 };
 

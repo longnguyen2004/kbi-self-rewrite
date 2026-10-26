@@ -29,13 +29,17 @@ enum class TickStyle {
 // passed around every frame.
 class LineChart : public Chart {
 public:
-    using TooltipCallback = std::function<std::vector<std::string>(const ChartPoint&)>;
+    using TooltipCallback = std::function<std::vector<std::string>(ChartPoint)>;
 
     LineChart(std::string id, std::string title, ImVec4 color, std::string xLabel,
         std::string yLabel, double initialSpan, TickStyle tickStyle, TooltipCallback tooltip,
         ChartSync* sharedSync = nullptr, double extentMax = 0.0);
 
     void setChartHeight(float height) { m_chartHeight = height; }
+
+    // The parameterless draw of the base stays part of the overload set
+    // (C.138).
+    using Chart::draw;
 
     void draw(const std::vector<double>& data, double yMax);
 
@@ -65,6 +69,9 @@ public:
 class FreqChart : public LineChart {
 public:
     FreqChart(std::string id, std::string title, ChartSync* sharedSync = nullptr);
+
+    // Keep the base overload sets visible (C.138).
+    using LineChart::draw;
 
     void draw(const std::vector<double>& data, double yMax, double maxFrequency);
 };

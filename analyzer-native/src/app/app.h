@@ -87,4 +87,4 @@ private:
     Ui::TimelineChart m_timelineChart;
 };
 
-} // namespace Kbi::app
+} // namespace Kbi::App

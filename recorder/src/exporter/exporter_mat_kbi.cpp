@@ -4,19 +4,24 @@
 #include <array>
 #include <boost/endian.hpp>
 #include <chrono>
-#include <functional>
+#include <cstdint>
 #include <iterator>
-#include <list>
+#include <map>
 #include <numeric>
 #include <stdexcept>
 #include <string>
 #include <string_view>
-#include <unordered_map>
+#include <vector>
 
 namespace Kbi {
 
 using namespace boost::endian;
 using namespace std::chrono;
+
+namespace {
+
+// Microseconds per second; input timestamps are in microseconds.
+constexpr double kMicrosPerSecond = 1'000'000.0;
 
 // A single .kbi input, its key name and the index of its device.
 struct KbiInput {
@@ -35,38 +40,31 @@ struct KbiInputInfo {
     bool visible;
 };
 
-namespace {
-
 const std::array<char, 4> kbiHeader = { 'K', 'B', 'I', 0 };
 constexpr std::string_view creator = "kbi_cpp_recorder";
-
-} // namespace
-
-} // namespace Kbi
-
-template<> struct std::hash<Kbi::KbiInput> {
-    std::size_t operator()(const Kbi::KbiInput& input) const
-    {
-        return std::hash<std::string>()(input.key) ^ std::hash<std::int64_t>()(input.source);
-    }
-};
-
-namespace Kbi {
 
 bool operator==(const KbiInput& a, const KbiInput& b)
 {
     return a.key == b.key && a.source == b.source;
 }
 
+bool operator<(const KbiInput& a, const KbiInput& b)
+{
+    return a.key != b.key ? a.key < b.key : a.source < b.source;
+}
+
 void writeUleb128(std::ostream& out, std::uint64_t x)
 {
-    do {
-        char byte = x & 0x7F;
+    // ULEB128 always writes at least one byte (ES.75 — no do-statement).
+    while (true) {
+        auto byte = x & 0x7FU;
         x >>= 7;
         if (x != 0)
-            byte |= 0x80;
-        out.put(byte);
-    } while (x != 0);
+            byte |= 0x80U;
+        out.put(static_cast<char>(byte));
+        if (x == 0)
+            break;
+    }
 }
 
 void writeBool(std::ostream& out, bool x) { out.put(x ? 1 : 0); }
@@ -101,7 +99,7 @@ void writeUint64(std::ostream& out, std::uint64_t x)
 
 void writeDouble(std::ostream& out, double x)
 {
-    auto xBits = std::bit_cast<std::uint64_t>(x);
+    const auto xBits = std::bit_cast<std::uint64_t>(x);
     writeUint64(out, xBits);
 }
 
@@ -111,15 +109,13 @@ void writeString(std::ostream& out, std::string_view str)
     out.write(str.data(), str.size());
 }
 
-template<typename Iterator>
+template<typename Iterator, typename Serializer>
     requires std::forward_iterator<Iterator>
-void writeList(std::ostream& out, Iterator start, Iterator end,
-    const std::function<void(
-        std::ostream&, const typename std::iterator_traits<Iterator>::value_type&)>& serializer)
+void writeList(std::ostream& out, Iterator start, Iterator end, Serializer serializer)
 {
-    auto count = std::distance(start, end);
+    const auto count = static_cast<std::int32_t>(std::distance(start, end));
     writeInt32(out, count);
-    for (auto it = start; it != end; it++)
+    for (auto it = start; it != end; ++it)
         serializer(out, *it);
 }
 
@@ -135,7 +131,9 @@ void writeKbiInput(std::ostream& out, const KbiInput& input)
     writeInt64(out, input.source);
 }
 
-void ExporterMatKbi::exportTo(std::ostream& out)
+} // namespace
+
+void ExporterMatKbi::exportTo(std::ostream& out) const
 {
     using DeviceMap = Recorder::DeviceMap;
     using InputMap = Recorder::InputMap;
@@ -179,15 +177,15 @@ void ExporterMatKbi::exportTo(std::ostream& out)
     devices.cvisit_all([&](const DeviceMap::value_type& device) { indexMap[device.first] = i++; });
 
     // Create events and input info lists
-    std::list<KbiEvent> kbiEvents;
-    std::unordered_map<KbiInput, KbiInputInfo> kbiInputInfo;
+    std::vector<KbiEvent> kbiEvents;
+    std::map<KbiInput, KbiInputInfo> kbiInputInfo;
 
     inputs.visit_all([&](const InputMap::value_type& device) {
         const auto& [id, events] = device;
         for (const auto& event : events) {
             KbiInput input { .key = std::string { keycodeToString(event.code) },
                 .source = indexMap[id] };
-            kbiEvents.emplace_back(event.timestamp / 1000000.0, event.pressed, input);
+            kbiEvents.emplace_back(event.timestamp / kMicrosPerSecond, event.pressed, input);
             kbiInputInfo.try_emplace(input, 0xFFA9A9A9, true // Default color and visibility
             );
         }
@@ -200,7 +198,7 @@ void ExporterMatKbi::exportTo(std::ostream& out)
         });
 
     // Write sources
-    std::list<DeviceMap::value_type> devicesList;
+    std::vector<DeviceMap::value_type> devicesList;
     devices.cvisit_all([&](const DeviceMap::value_type& device) { devicesList.push_back(device); });
     writeList(out, devicesList.begin(), devicesList.end(),
         [&](std::ostream& out, const std::pair<std::string, Device>& device) {
@@ -218,7 +216,7 @@ void ExporterMatKbi::exportTo(std::ostream& out)
 
     // Write input info
     writeList(out, kbiInputInfo.begin(), kbiInputInfo.end(),
-        [](std::ostream& out, const std::pair<KbiInput, KbiInputInfo>& pair) {
+        [](std::ostream& out, const std::pair<const KbiInput, KbiInputInfo>& pair) {
             const auto& [input, info] = pair;
             writeKbiInput(out, input);
             writeInt32(out, info.color);

@@ -23,6 +23,13 @@ namespace {
 
 constexpr std::array<int, 8> kBinRates = { 1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000 };
 
+// The bin rate the analyzer defaults to; live analysis above it is not
+// recommended (see the tooltip in drawControls).
+constexpr int kDefaultBinRate = 16000;
+
+// The initial time span of the timeline chart, in seconds.
+constexpr double kInitialTimelineSpanS = 10.0;
+
 // Piecewise linear interpolation between the event count colors.
 ImVec4 eventCountColor(double value)
 {
@@ -130,7 +137,7 @@ void App::openFile(const std::string& path)
     resetAnalysis();
     ingest(*parsed);
     // The timeline starts at the beginning of the recording.
-    m_timelineChart.setTimelineRange(0.0, 10.0);
+    m_timelineChart.setTimelineRange(0.0, kInitialTimelineSpanS);
     m_lastPath = path;
     m_status = std::format("Loaded {}", path);
     m_logger->info("Loaded {}", path);
@@ -272,7 +279,7 @@ void App::drawOptions()
         }
         ImGui::EndCombo();
     }
-    if (m_mode == Mode::Recording && m_analyzer.binRate() > 16000) {
+    if (m_mode == Mode::Recording && m_analyzer.binRate() > kDefaultBinRate) {
         ImGui::SameLine();
         ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.1f, 1.0f), "!");
         if (ImGui::IsItemHovered()) {
@@ -303,7 +310,7 @@ void App::drawCharts()
     ImGui::BeginChild("##charts", ImVec2(0.0f, 0.0f), ImGuiChildFlags_None,
         ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
-    const ImGuiTableFlags tableFlags
+    constexpr ImGuiTableFlags tableFlags
         = ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoSavedSettings;
 
     ImGui::BeginTable("##diff_charts", 3, tableFlags);
@@ -424,4 +431,4 @@ void App::draw()
         m_logWindow.draw(m_showLogs, *m_logStore);
 }
 
-} // namespace Kbi::app
+} // namespace Kbi::App

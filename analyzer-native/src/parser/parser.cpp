@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cctype>
 #include <fstream>
+#include <limits>
 #include <sstream>
 #include <string>
 
@@ -33,10 +34,19 @@ std::optional<std::int64_t> getInt(const json::object& object, std::string_view 
     const json::value& value = it->value();
     if (value.is_int64())
         return value.as_int64();
-    if (value.is_uint64())
-        return static_cast<std::int64_t>(value.as_uint64());
-    if (value.is_double())
-        return static_cast<std::int64_t>(value.as_double());
+    if (value.is_uint64()) {
+        const auto asUint64 = value.as_uint64();
+        if (asUint64 > static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max()))
+            return std::nullopt;
+        return static_cast<std::int64_t>(asUint64);
+    }
+    if (value.is_double()) {
+        const double asDouble = value.as_double();
+        if (asDouble < static_cast<double>(std::numeric_limits<std::int64_t>::min())
+            || asDouble > static_cast<double>(std::numeric_limits<std::int64_t>::max()))
+            return std::nullopt;
+        return static_cast<std::int64_t>(asDouble);
+    }
     return std::nullopt;
 }
 
@@ -94,9 +104,9 @@ void parseUsbDevices(const json::object& object, Result& result)
             continue;
         const json::object& entry = node.as_object();
         UsbDevice device;
-        if (const auto vid = getInt(entry, "vid"))
+        if (const auto vid = getInt(entry, "vid"); vid && *vid >= 0 && *vid <= 0xFFFF)
             device.vid = static_cast<std::uint16_t>(*vid);
-        if (const auto pid = getInt(entry, "pid"))
+        if (const auto pid = getInt(entry, "pid"); pid && *pid >= 0 && *pid <= 0xFFFF)
             device.pid = static_cast<std::uint16_t>(*pid);
         if (const auto speed = getInt(entry, "speed"))
             device.speed = parseSpeed(*speed);
@@ -121,9 +131,9 @@ void parseDevices(const json::object& object, Result& result)
         const json::object& entry = node.as_object();
         ResultDevice device;
         device.name = getString(entry, "name");
-        if (const auto vid = getInt(entry, "vid"))
+        if (const auto vid = getInt(entry, "vid"); vid && *vid >= 0 && *vid <= 0xFFFF)
             device.vid = static_cast<std::uint16_t>(*vid);
-        if (const auto pid = getInt(entry, "pid"))
+        if (const auto pid = getInt(entry, "pid"); pid && *pid >= 0 && *pid <= 0xFFFF)
             device.pid = static_cast<std::uint16_t>(*pid);
         if (const auto* const usb = entry.find("usb_device");
             usb != entry.end() && usb->value().is_string())

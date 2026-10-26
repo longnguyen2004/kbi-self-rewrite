@@ -54,15 +54,23 @@ std::string queryCim(std::wstring_view column, std::wstring_view table)
 
     wil::com_ptr_t<IWbemClassObject> pClassObject = nullptr;
     ULONG uReturn = 0;
-    while (pEnumerator->Next(WBEM_INFINITE, 1, &pClassObject, &uReturn), uReturn != 0) {
+    for (;;) {
+        if (FAILED(pEnumerator->Next(WBEM_INFINITE, 1, &pClassObject, &uReturn)) || uReturn == 0)
+            break;
         VARIANT vtProp;
-        if (FAILED(pClassObject->Get(column.data(), 0, &vtProp, 0, 0)))
+        VariantInit(&vtProp);
+        if (FAILED(pClassObject->Get(column.data(), 0, &vtProp, 0, 0))) {
+            VariantClear(&vtProp);
             continue;
-        auto str = vtProp.bstrVal;
-        auto len = SysStringLen(str);
-        auto lenUtf8 = simdutf::utf8_length_from_utf16(reinterpret_cast<const char16_t*>(str), len);
+        }
+        const auto str = vtProp.bstrVal;
+        const auto len = SysStringLen(str);
+        const auto lenUtf8
+            = simdutf::utf8_length_from_utf16(reinterpret_cast<const char16_t*>(str), len);
         std::string value(lenUtf8, 0);
         simdutf::convert_utf16_to_utf8(reinterpret_cast<const char16_t*>(str), len, value.data());
+        // The VARIANT owns the BSTR; release it before returning (R.1).
+        VariantClear(&vtProp);
         return value;
     }
     return "";
@@ -76,7 +84,7 @@ const std::string& windowsEdition()
     edition = "Unknown";
     try {
         edition = queryCim(L"Caption", L"Win32_OperatingSystem");
-    } catch (std::exception) {
+    } catch (const std::exception&) {
     }
     return edition;
 }
@@ -89,7 +97,7 @@ const std::string& cpuName()
     name = "Unknown";
     try {
         name = queryCim(L"Name", L"Win32_Processor");
-    } catch (std::exception) {
+    } catch (const std::exception&) {
     }
     return name;
 }
@@ -109,7 +117,7 @@ const std::string& architecture()
     arch = "aarch64";
 #endif
 
-    auto kernel32 = GetModuleHandleW(L"kernel32");
+    const auto kernel32 = GetModuleHandleW(L"kernel32");
     BOOL (*IsWow64Process2)(HANDLE hProcess, USHORT* pProcessMachine, USHORT* pNativeMachine);
     *reinterpret_cast<FARPROC*>(&IsWow64Process2) = GetProcAddress(kernel32, "IsWow64Process2");
     [&]() {
@@ -151,7 +159,8 @@ const std::string& windowsVersion()
     NTSTATUS(WINAPI * RtlGetVersion)(LPOSVERSIONINFOEXW);
     OSVERSIONINFOEXW osInfo;
 
-    *(FARPROC*)&RtlGetVersion = GetProcAddress(GetModuleHandleA(L"ntdll"), "RtlGetVersion");
+    *reinterpret_cast<FARPROC*>(&RtlGetVersion)
+        = GetProcAddress(GetModuleHandleA(L"ntdll"), "RtlGetVersion");
     if (RtlGetVersion != nullptr) {
         osInfo.dwOSVersionInfoSize = sizeof(osInfo);
         if (RtlGetVersion(&osInfo) >= 0)
@@ -231,12 +240,13 @@ SystemInfo systemInfo()
         while (std::getline(osRelease, line)) {
             if (line.starts_with("NAME=")) {
                 distroName = line.substr(5);
-                if (distroName[0] == '"')
+                if (distroName.size() >= 2 && distroName.front() == '"'
+                    && distroName.back() == '"')
                     distroName = distroName.substr(1, distroName.size() - 2);
             } else if (line.starts_with("VERSION=")) {
                 distroVer = line.substr(8);
-                if (distroVer[0] == '"')
-                    distroVer = distroName.substr(1, distroVer.size() - 2);
+                if (distroVer.size() >= 2 && distroVer.front() == '"' && distroVer.back() == '"')
+                    distroVer = distroVer.substr(1, distroVer.size() - 2);
             }
         }
     }
@@ -246,7 +256,7 @@ SystemInfo systemInfo()
     std::string currentClocksource;
     std::getline(clocksource, currentClocksource);
 
-    std::int64_t res = -1;
+    constexpr std::int64_t res = -1;
     // (this doesn't work because clock_getres always return 1ns for high res clocks)
     // timespec tp;
     // if (clock_getres(CLOCK_MONOTONIC, &tp) == 0);

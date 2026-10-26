@@ -9,13 +9,13 @@ namespace io = boost::iostreams;
 namespace Kbi {
 
 #define DEFINE_SERIALIZE_WRAPPER(r, _, type)                                                       \
-    std::string Serializer::serialize(const type& a)                                               \
+    std::string Serializer::serialize(const type& a) const                                         \
     {                                                                                              \
         std::ostringstream os;                                                                     \
         serialize(a, os);                                                                          \
         return os.str();                                                                           \
     }                                                                                              \
-    void Serializer::serialize(const type& a, std::span<char> out)                                 \
+    void Serializer::serialize(const type& a, std::span<char> out) const                           \
     {                                                                                              \
         io::stream<io::array_sink> os(out.data(), out.size());                                     \
         serialize(a, os);                                                                          \

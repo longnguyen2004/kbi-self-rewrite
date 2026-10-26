@@ -13,7 +13,8 @@ public:
         : m_recorder(recorder)
     {
     }
-    virtual void exportTo(std::ostream& out) = 0;
+    virtual ~Exporter() = default;
+    virtual void exportTo(std::ostream& out) const = 0;
 
 protected:
     const Recorder& m_recorder;
@@ -26,7 +27,7 @@ public:
         : Exporter(recorder)
     {
     }
-    void exportTo(std::ostream& out) override;
+    void exportTo(std::ostream& out) const override;
 };
 
 } // namespace Kbi

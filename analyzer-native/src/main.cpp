@@ -21,6 +21,17 @@
 
 namespace di = boost::di;
 
+namespace {
+
+// The frame at which the --screenshot capture is taken.
+constexpr int kScreenshotFrame = 30;
+
+// How long to sleep per iteration while the window is minimized, in
+// milliseconds.
+constexpr Uint32 kMinimizedDelayMs = 10;
+
+} // namespace
+
 int main(int argc, char** argv)
 {
     std::string screenshotPath;
@@ -28,21 +39,29 @@ int main(int argc, char** argv)
     bool record = false;
     bool showInfo = false;
     int screenshotFrame = 0;
-    for (int i = 1; i < argc; ++i) {
+    // Argument values are consumed with explicit index steps; the loop
+    // control variable is only advanced at the bottom of the loop (ES.86).
+    int i = 1;
+    while (i < argc) {
         const std::string argument = argv[i];
         if (argument == "--screenshot" && i + 1 < argc) {
-            screenshotPath = argv[++i];
-            screenshotFrame = 30;
+            screenshotPath = argv[i + 1];
+            screenshotFrame = kScreenshotFrame;
+            i += 2;
         } else if (argument == "--open" && i + 1 < argc) {
-            openPath = argv[++i];
-        } else if (argument == "--record") {
-            record = true;
-        } else if (argument == "--info") {
-            showInfo = true;
-        } else if (argument == "--help") {
-            std::println("Usage: analyzer-native [--open <recording>] [--record] [--info] "
-                         "[--screenshot <file.ppm>]");
-            return 0;
+            openPath = argv[i + 1];
+            i += 2;
+        } else {
+            if (argument == "--record")
+                record = true;
+            else if (argument == "--info")
+                showInfo = true;
+            else if (argument == "--help") {
+                std::println("Usage: analyzer-native [--open <recording>] [--record] [--info] "
+                             "[--screenshot <file.ppm>]");
+                return 0;
+            }
+            ++i;
         }
     }
 
@@ -74,17 +93,17 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    const int width = 1600;
-    const int height = 900;
+    constexpr int width = 1600;
+    constexpr int height = 900;
     SDL_Window* window = SDL_CreateWindow(
         "Keyboard Inspector", width, height, SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
-    if (window == nullptr) {
+    if (!window) {
         std::println(stderr, "Failed to create the SDL window: {}", SDL_GetError());
         SDL_Quit();
         return 1;
     }
     SDL_Renderer* renderer = SDL_CreateRenderer(window, nullptr);
-    if (renderer == nullptr) {
+    if (!renderer) {
         std::println(stderr, "Failed to create the SDL renderer: {}", SDL_GetError());
         SDL_DestroyWindow(window);
         SDL_Quit();
@@ -122,7 +141,7 @@ int main(int argc, char** argv)
                 done = true;
         }
         if ((SDL_GetWindowFlags(window) & SDL_WINDOW_MINIMIZED) != 0) {
-            SDL_Delay(10);
+            SDL_Delay(kMinimizedDelayMs);
             continue;
         }
 

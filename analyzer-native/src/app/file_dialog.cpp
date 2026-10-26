@@ -29,7 +29,7 @@ void SDLCALL onFileSelected(void* userdata, const char* const* filelist, int /*f
 
 std::optional<std::string> openRecordingDialog(const std::string& startDirectory)
 {
-    static const SDL_DialogFileFilter filters[] = {
+    static constexpr SDL_DialogFileFilter filters[] = {
         { "recording files", "json;kbi" },
     };
 

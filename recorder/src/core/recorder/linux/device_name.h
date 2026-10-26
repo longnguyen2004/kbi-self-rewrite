@@ -3,6 +3,7 @@
 #include <device.h>
 #include <optional>
 #include <string>
+#include <string_view>
 
 namespace Kbi {
 

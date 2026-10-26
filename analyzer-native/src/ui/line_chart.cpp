@@ -99,7 +99,7 @@ LineChart::LineChart(std::string id, std::string title, ImVec4 color, std::strin
     , m_tooltip(std::move(tooltip))
     , m_extentMax(extentMax)
 {
-    if (sharedSync != nullptr)
+    if (sharedSync)
         m_sync = sharedSync;
 }
 
@@ -107,7 +107,7 @@ DiffChart::DiffChart(std::string id, std::string title, ChartSync* sharedSync)
     : LineChart(
           std::move(id), std::move(title), kDiffColor, "ms", "events", 25.0,
           TickStyle::Milliseconds,
-          [](const ChartPoint& point) {
+          [](ChartPoint point) {
               return std::vector<std::string> {
                   std::format("x: {:.3f}ms", point.x),
                   std::format("y: {} events", point.y),
@@ -120,7 +120,7 @@ DiffChart::DiffChart(std::string id, std::string title, ChartSync* sharedSync)
 FreqChart::FreqChart(std::string id, std::string title, ChartSync* sharedSync)
     : LineChart(
           std::move(id), std::move(title), kFreqColor, "Hz", "magnitude", 0.0, TickStyle::Hertz,
-          [](const ChartPoint& point) {
+          [](ChartPoint point) {
               return std::vector<std::string> {
                   std::format("freq: {}Hz", std::lround(point.x)),
                   std::format("mag: {:.3f}", point.y),
@@ -236,10 +236,11 @@ void LineChart::draw(const std::vector<double>& data, double yMax)
 
     std::vector<SnapPoint> snapPoints;
     snapPoints.reserve(points.size());
-    for (std::size_t i = 0; i < points.size(); ++i) {
-        snapPoints.push_back(SnapPoint { .x = toPixelX(area, sync.xMin, sync.xMax, points[i].x),
-            .y = toPixelY(area, 0.0, yRange, points[i].y),
-            .index = static_cast<int>(i) });
+    for (std::ptrdiff_t i = 0; i < static_cast<std::ptrdiff_t>(points.size()); ++i) {
+        snapPoints.push_back(
+            SnapPoint { .x = toPixelX(area, sync.xMin, sync.xMax, points[static_cast<std::size_t>(i)].x),
+                .y = toPixelY(area, 0.0, yRange, points[static_cast<std::size_t>(i)].y),
+                .index = static_cast<int>(i) });
     }
     m_snapper.set(std::move(snapPoints));
 
@@ -268,4 +269,4 @@ void LineChart::draw(const std::vector<double>& data, double yMax)
     ImGui::PopID();
 }
 
-} // namespace Kbi::ui
+} // namespace Kbi::Ui

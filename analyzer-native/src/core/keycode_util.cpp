@@ -3,6 +3,7 @@
 #include <keycode.h>
 
 #include <array>
+#include <optional>
 #include <unordered_map>
 #include <utility>
 
@@ -10,7 +11,7 @@ namespace Kbi {
 namespace {
 
 // Windows virtual-key codes, inlined from WinUser.h.
-enum : int {
+enum WindowsVk : int {
     VkBack = 0x08,
     VkTab = 0x09,
     VkReturn = 0x0d,
@@ -93,7 +94,7 @@ enum : int {
     VkOem7 = 0xde,
 };
 
-std::array<int, 256> buildVkTable()
+constexpr std::array<int, 256> buildVkTable()
 {
     std::array<int, 256> table {};
     table.fill(static_cast<int>(Keycode::None));
@@ -228,7 +229,10 @@ std::array<int, 256> buildVkTable()
 
 const std::array<int, 256>& vkTable()
 {
-    static const std::array<int, 256> table = buildVkTable();
+    // The table is built entirely from compile-time constants, so it needs no
+    // dynamic initialization (Per.11, Con.5) — matching vk_to_keycode.cpp and
+    // evdev_to_keycode.cpp.
+    static constexpr std::array<int, 256> table = buildVkTable();
     return table;
 }
 
@@ -374,26 +378,34 @@ const std::unordered_map<std::string_view, int>& keyNameTable()
 
 } // namespace
 
+// Converts a key code into a `Keycode` if it lies in one of the ranges
+// `keycodeToString` supports (Enum.4 — a single defined conversion operation
+// instead of repeated range-checking casts).
+std::optional<Keycode> toKeycode(int code)
+{
+    const auto inRange = [code](Keycode from, Keycode to) {
+        return code >= static_cast<int>(from) && code <= static_cast<int>(to);
+    };
+    if (inRange(Keycode::Button1, Keycode::HatW)
+        || inRange(Keycode::LeftClick, Keycode::MouseForward)
+        || inRange(Keycode::LeftControl, Keycode::RightGui)
+        || (code >= 0 && code <= static_cast<int>(Keycode::ExSel)))
+        return static_cast<Keycode>(code);
+    return std::nullopt;
+}
+
 std::string_view keycodeName(int code)
 {
     if (code < 0)
         return "Unknown";
-    if (code >= static_cast<int>(Keycode::Button1) && code <= static_cast<int>(Keycode::HatW))
-        return keycodeToString(static_cast<Keycode>(code));
-    if (code >= static_cast<int>(Keycode::LeftClick)
-        && code <= static_cast<int>(Keycode::MouseForward))
-        return keycodeToString(static_cast<Keycode>(code));
-    if (code >= static_cast<int>(Keycode::LeftControl)
-        && code <= static_cast<int>(Keycode::RightGui))
-        return keycodeToString(static_cast<Keycode>(code));
-    if (code >= 0 && code <= static_cast<int>(Keycode::ExSel))
-        return keycodeToString(static_cast<Keycode>(code));
+    if (const auto keycode = toKeycode(code))
+        return keycodeToString(*keycode);
     return "Unknown";
 }
 
 int vkToKeycode(int vk)
 {
-    if (vk < 0 || std::cmp_greater_equal(vk, vkTable().size()))
+    if (vk < 0 || vk >= static_cast<int>(vkTable().size()))
         return static_cast<int>(Keycode::None);
     return vkTable()[static_cast<std::size_t>(vk)];
 }

@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <deque>
 #include <memory>
+#include <optional>
 #include <spdlog/fwd.h>
 #include <string>
 #include <string_view>
@@ -24,10 +25,10 @@ struct Input {
 };
 
 enum class RecorderBackend {
-    Auto = 0,
-    WindowsGameInput = 1,
-    WindowsRawInput = 2,
-    LinuxEvdev = 3,
+    Auto,
+    WindowsGameInput,
+    WindowsRawInput,
+    LinuxEvdev,
 };
 
 class Recorder {
@@ -46,6 +47,11 @@ public:
     explicit Recorder(RecorderBackend backend = RecorderBackend::Auto,
         const std::shared_ptr<spdlog::logger>& logger = nullptr);
     ~Recorder();
+
+    Recorder(const Recorder&) = delete;
+    Recorder& operator=(const Recorder&) = delete;
+    Recorder(Recorder&&) = delete;
+    Recorder& operator=(Recorder&&) = delete;
 
     UsbDeviceSignal& onUsbDevice() { return m_sigUsbDevice; }
     DeviceSignal& onDevice() { return m_sigDevice; }
@@ -79,7 +85,7 @@ public:
     [[nodiscard]] std::size_t inputCount() const;
 
 private:
-    bool m_running = false;
+    std::atomic<bool> m_running{false};
 
     std::unique_ptr<Impl> m_pImpl;
     std::shared_ptr<spdlog::logger> m_logger;
@@ -95,7 +101,8 @@ private:
     StopSignal m_sigStop;
 
     std::chrono::system_clock::time_point m_startWallclock;
-    std::chrono::steady_clock::time_point m_startTime, m_endTime;
+    std::chrono::steady_clock::time_point m_startTime;
+    std::chrono::steady_clock::time_point m_endTime;
 };
 
 } // namespace Kbi

@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <memory>
 #include <new>
+#include <type_traits>
 #include <vector>
 
 namespace Kbi::Fft {
@@ -20,17 +21,22 @@ struct PffftSetupDeleter {
 using PffftSetup = std::unique_ptr<PFFFT_Setup, PffftSetupDeleter>;
 
 // The buffers of PFFFT have to be aligned, 16 bytes on x86 and powerpc.
-template<typename T> struct PffftAllocator {
+// The element types are constrained to object types (T.10).
+template<typename T>
+    requires std::is_object_v<T>
+struct PffftAllocator {
     using value_type = T;
 
     PffftAllocator() = default;
 
-    template<typename U> explicit PffftAllocator(const PffftAllocator<U>& /*unused*/) { }
+    template<typename U>
+        requires std::is_object_v<U>
+    explicit PffftAllocator(const PffftAllocator<U>& /*unused*/) { }
 
     [[nodiscard]] T* allocate(std::size_t count)
     {
         void* memory = pffft_aligned_malloc(count * sizeof(T));
-        if (memory == nullptr)
+        if (!memory)
             throw std::bad_alloc();
         return static_cast<T*>(memory);
     }

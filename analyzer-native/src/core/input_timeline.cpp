@@ -7,6 +7,9 @@
 
 namespace Kbi {
 
+// Microseconds per second; timestamps are in microseconds.
+constexpr double kMicrosPerSecond = 1'000'000.0;
+
 void InputTimeline::reset()
 {
     m_keypresses.clear();
@@ -26,12 +29,12 @@ void InputTimeline::add(const std::string& deviceId, const InputEvent& event)
     const auto it = m_keyDownMap.find(mapKey);
     if (it == m_keyDownMap.end())
         return;
-    const std::uint64_t keydownTime = it->second;
+    const std::uint64_t keydownTime = static_cast<std::uint64_t>(it->second);
     m_keyDownMap.erase(it);
 
     const std::string keyName(keycodeName(event.code));
-    const double start = static_cast<double>(keydownTime) / 1000000.0;
-    const double end = static_cast<double>(event.timestamp) / 1000000.0;
+    const double start = static_cast<double>(keydownTime) / kMicrosPerSecond;
+    const double end = static_cast<double>(event.timestamp) / kMicrosPerSecond;
     m_keypresses.push_back(
         Keypress { .start = start, .end = end, .key = keyName, .deviceId = deviceId });
     if (std::find(m_keys.begin(), m_keys.end(), keyName) == m_keys.end())

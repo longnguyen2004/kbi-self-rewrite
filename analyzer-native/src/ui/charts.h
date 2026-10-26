@@ -40,6 +40,7 @@ struct ChartSync {
 // have to be passed around.
 class Chart {
 public:
+    Chart() = default;
     virtual ~Chart() = default;
 
     virtual void draw() { }
@@ -47,6 +48,11 @@ public:
     ChartSync& sync() { return *m_sync; }
 
     virtual void resetZoom() { *m_sync = ChartSync {}; }
+
+    Chart(const Chart&) = delete;
+    Chart& operator=(const Chart&) = delete;
+    Chart(Chart&&) = delete;
+    Chart& operator=(Chart&&) = delete;
 
 protected:
     ChartSync m_ownedSync;

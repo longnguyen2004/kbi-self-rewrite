@@ -1,12 +1,26 @@
+#pragma once
+
 #include "../recorder_impl.h"
 #include <boost/unordered/concurrent_flat_map.hpp>
 #include <libevdev/libevdev.h>
+#include <memory>
+#include <optional>
+#include <string>
+#include <string_view>
 #include <thread>
 
 namespace Kbi {
 
+// Frees an open libevdev device, including the file descriptor it owns.
+struct EvdevCloser {
+    void operator()(libevdev* device) const;
+};
+
+// Owning handle to an open libevdev device (R.20).
+using EvdevPtr = std::unique_ptr<libevdev, EvdevCloser>;
+
 struct InternalDevice {
-    libevdev* eventDevice = nullptr;
+    EvdevPtr eventDevice;
     std::string syspath;
     bool remove = false;
 };
@@ -14,6 +28,7 @@ struct InternalDevice {
 class RecorderLinuxLibevdev : public Recorder::Impl {
 public:
     explicit RecorderLinuxLibevdev(std::shared_ptr<spdlog::logger> logger);
+    ~RecorderLinuxLibevdev() override;
     void start(bool keyboard, bool mouse, bool gamepad) override;
     void stop() override;
     std::string deviceName(std::string_view syspath) const override;

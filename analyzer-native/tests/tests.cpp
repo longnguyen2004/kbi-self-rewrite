@@ -30,7 +30,13 @@
 
 namespace {
 
-int gFailures = 0;
+// The failure count lives in a function-local static instead of a
+// namespace-scope variable (I.2, R.6).
+int& failures()
+{
+    static int count = 0;
+    return count;
+}
 
 void check(bool condition, const std::string& what)
 {
@@ -38,7 +44,7 @@ void check(bool condition, const std::string& what)
         std::println("  ok   {}", what);
     } else {
         std::println("  FAIL {}", what);
-        ++gFailures;
+        ++failures();
     }
 }
 
@@ -47,14 +53,15 @@ void check(bool condition, const std::string& what)
 std::vector<std::complex<double>> naiveDft(const std::vector<double>& input, std::size_t size)
 {
     std::vector<std::complex<double>> result(size);
-    for (std::size_t k = 0; k < size; ++k) {
+    for (std::ptrdiff_t k = 0; k < static_cast<std::ptrdiff_t>(size); ++k) {
         std::complex<double> sum(0.0, 0.0);
         for (std::size_t j = 0; j < input.size(); ++j) {
             const double angle
-                = -2.0 * std::numbers::pi * static_cast<double>(k * j) / static_cast<double>(size);
+                = -2.0 * std::numbers::pi
+                * static_cast<double>(static_cast<std::size_t>(k) * j) / static_cast<double>(size);
             sum += input[j] * std::complex<double>(std::cos(angle), std::sin(angle));
         }
-        result[k] = sum;
+        result[static_cast<std::size_t>(k)] = sum;
     }
     return result;
 }
@@ -81,9 +88,10 @@ void testFft()
         const auto reference = naiveDft(input, m);
 
         double worst = 0.0;
-        for (std::size_t k = 0; k < m / 2 + 1; ++k) {
-            const std::complex<double> got(spectrum.values[k * 2], spectrum.values[k * 2 + 1]);
-            worst = std::max(worst, std::abs(got - reference[k]));
+        for (std::ptrdiff_t k = 0; k < static_cast<std::ptrdiff_t>(m / 2 + 1); ++k) {
+            const std::complex<double> got(spectrum.values[static_cast<std::size_t>(k * 2)],
+                spectrum.values[static_cast<std::size_t>(k * 2 + 1)]);
+            worst = std::max(worst, std::abs(got - reference[static_cast<std::size_t>(k)]));
         }
         // PFFFT works in single precision.
         check(worst < 1e-4,
@@ -91,7 +99,7 @@ void testFft()
     }
 
     // A pure tone must show up as a single bin.
-    const std::size_t m = 16384;
+    constexpr std::size_t m = 16384;
     std::vector<double> tone(m);
     for (std::size_t i = 0; i < m; ++i) {
         tone[i] = std::cos(
@@ -100,11 +108,12 @@ void testFft()
     const auto spectrum = Kbi::Fft::realDft(tone);
     std::size_t peak = 0;
     double peakValue = 0.0;
-    for (std::size_t k = 0; k < spectrum.values.size() / 2; ++k) {
-        const double magnitude = std::hypot(spectrum.values[k * 2], spectrum.values[k * 2 + 1]);
+    for (std::ptrdiff_t k = 0; k < static_cast<std::ptrdiff_t>(spectrum.values.size() / 2); ++k) {
+        const double magnitude = std::hypot(spectrum.values[static_cast<std::size_t>(k * 2)],
+            spectrum.values[static_cast<std::size_t>(k * 2 + 1)]);
         if (magnitude > peakValue) {
             peakValue = magnitude;
-            peak = k;
+            peak = static_cast<std::size_t>(k);
         }
     }
     check(peak == 100, std::format("a 100Hz tone peaks at bin 100 (got {})", peak));
@@ -213,7 +222,7 @@ void testAnalyzer()
     analyzer.setBinRate(8000);
     check(analyzer.binRate() == 8000, "bin rate changed");
     check(analyzer.eventCount() == 200, "event count after the bin rate change");
-    const double newInterval = 1000000.0 / 8000.0;
+    constexpr double newInterval = 1000000.0 / 8000.0;
     const auto newIndex = static_cast<std::size_t>(std::llround(10000.0 / newInterval));
     check(analyzer.consecutiveDiff()[newIndex] == 199.0,
         "consecutive diff histogram after the bin rate change");
@@ -234,8 +243,8 @@ void testDecimate()
     std::println("decimate");
 
     std::vector<double> data(1001);
-    for (std::size_t i = 0; i < data.size(); ++i)
-        data[i] = static_cast<double>(i % 7);
+    for (std::ptrdiff_t i = 0; i < static_cast<std::ptrdiff_t>(data.size()); ++i)
+        data[static_cast<std::size_t>(i)] = static_cast<double>(i % 7);
 
     const auto points = Kbi::decimate(data, 0.0, 1000.0, 0.0, 1000.0, 100);
     check(points.size() <= 100, "at most one point per pixel column");
@@ -259,7 +268,7 @@ void testDecimate()
 void testPostprocess()
 {
     std::println("postprocess");
-    std::vector<double> data(100, 1.0);
+    const std::vector<double> data(100, 1.0);
     const auto withLowCut = Kbi::postprocessWithMax(data, { true });
     check(withLowCut.data[0] < 0.01, "the low cut removes the dc component");
     check(withLowCut.data[99] == 1.0, "the low cut leaves the high bins alone");
@@ -522,7 +531,7 @@ void testPointSnapper()
 
     const Kbi::Ui::SnapPoint* snapped = snapper.find(11.0, 5.0, 40.0);
     check(snapped != nullptr, "a point is found");
-    if (snapped != nullptr) {
+    if (snapped) {
         check(snapped->index == 0, "the closest point is found");
         check(snapped->x == 10.0, "the position of the point is kept");
     }
@@ -567,7 +576,7 @@ void testDatetime()
 
     // 2026-09-26T18:39:27.211Z, the time of the "SayoDevice 7K mechanical.kbi"
     // recording.
-    const std::uint64_t ticks = 639'260'447'672'114'184;
+    constexpr std::uint64_t ticks = 639'260'447'672'114'184;
     const auto timePoint = Kbi::fromNetDatetimeTicks(ticks);
     check(Kbi::formatIso8601Utc(timePoint, true) == "2026-09-26T18:39:27.211Z",
         "the .NET ticks are converted correctly (" + Kbi::formatIso8601Utc(timePoint, true) + ")");
@@ -630,7 +639,7 @@ void testLegacyParser(const std::string& path)
     check(result->devices.size() == 2, "the device list is parsed");
     const Kbi::ResultDevice* keyboardDevice = result->findDevice("HID_VID_3149&PID_5041&MI_00");
     check(keyboardDevice != nullptr, "the keyboard device is parsed");
-    if (keyboardDevice != nullptr) {
+    if (keyboardDevice) {
         check(keyboardDevice->name == "MonsGeek Keyboard", "the device name is parsed");
         check(keyboardDevice->vid == 0x3149, "the vendor id is scraped from the device id");
         check(keyboardDevice->pid == 0x5041, "the product id is scraped from the device id");
@@ -731,10 +740,10 @@ int main(int argc, char** argv)
     if (argc > 2)
         testLegacyParser(argv[2]);
 
-    if (gFailures == 0) {
+    if (failures() == 0) {
         std::println("\nAll tests passed.");
         return 0;
     }
-    std::println("\n{} test(s) failed.", gFailures);
+    std::println("\n{} test(s) failed.", failures());
     return 1;
 }

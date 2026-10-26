@@ -46,7 +46,7 @@ PlotArea currentPlotArea(double xMin, double xMax);
 double toPixelX(const PlotArea& area, double xMin, double xMax, double x);
 double toPixelY(const PlotArea& area, double yMin, double yMax, double y);
 
-void showTooltip(const ImVec2& anchor, const std::vector<std::string>& lines);
+void showTooltip(ImVec2 anchor, const std::vector<std::string>& lines);
 void handleInteraction(ChartSync& sync, const PlotArea& area);
 
 } // namespace Kbi::Ui

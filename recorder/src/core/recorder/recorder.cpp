@@ -16,10 +16,9 @@ namespace Kbi {
 using namespace std::literals;
 
 Recorder::Recorder(RecorderBackend backend, const std::shared_ptr<spdlog::logger>& logger)
-    : m_logger(logger ? logger : spdlog::default_logger())
+    : m_logger(logger ? logger : spdlog::default_logger()),
+      m_systemInfo(systemInfo())
 {
-    m_systemInfo = systemInfo();
-
 #ifdef _WIN32
     if (!m_pImpl
         && (backend == RecorderBackend::Auto || backend == RecorderBackend::WindowsGameInput)) {
@@ -97,7 +96,7 @@ Recorder::Recorder(RecorderBackend backend, const std::shared_ptr<spdlog::logger
 
 Recorder::~Recorder() = default;
 
-bool Recorder::recording() const { return m_running; }
+bool Recorder::recording() const { return m_running.load(std::memory_order_relaxed); }
 
 void Recorder::start(bool keyboard, bool mouse, bool gamepad)
 {
@@ -128,7 +127,7 @@ std::chrono::system_clock::time_point Recorder::startTime() const { return m_sta
 
 std::chrono::steady_clock::duration Recorder::elapsed() const
 {
-    auto end = recording() ? std::chrono::steady_clock::now() : m_endTime;
+    const auto end = recording() ? std::chrono::steady_clock::now() : m_endTime;
     return end - m_startTime;
 }
 

@@ -10,6 +10,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace Kbi {
@@ -26,6 +27,8 @@ public:
 
     RecorderSource(const RecorderSource&) = delete;
     RecorderSource& operator=(const RecorderSource&) = delete;
+    RecorderSource(RecorderSource&&) = delete;
+    RecorderSource& operator=(RecorderSource&&) = delete;
 
     // Starts recording. On failure `error` receives a human readable reason.
     bool start(std::string& error);

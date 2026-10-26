@@ -5,17 +5,16 @@
 
 namespace Kbi {
 
-PostprocessResult postprocessWithMax(
-    const std::vector<double>& arr, const PostprocessOptions& options)
+PostprocessResult postprocessWithMax(const std::vector<double>& arr, PostprocessOptions options)
 {
     PostprocessResult result;
     result.data = arr;
 
     if (options.lowCut) {
-        const std::size_t limit = std::min<std::size_t>(70, result.data.size());
-        for (std::size_t i = 0; i < limit; ++i) {
+        const auto limit = static_cast<int>(std::min<std::size_t>(70, result.data.size()));
+        for (int i = 0; i < limit; ++i) {
             const double x = static_cast<double>(i);
-            result.data[i] /= 1.0 + std::exp(-(x - 25.0) / 4.0);
+            result.data[static_cast<std::size_t>(i)] /= 1.0 + std::exp(-(x - 25.0) / 4.0);
         }
     }
 

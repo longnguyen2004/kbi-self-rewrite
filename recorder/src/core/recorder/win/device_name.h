@@ -19,6 +19,5 @@ namespace Kbi {
 [[nodiscard]] std::optional<UsbDeviceInfo> usbDeviceInfoFromPath(std::string_view id);
 
 [[nodiscard]] std::string deviceNameFromPnp(std::string_view id);
-void deviceInfoFromPnp(std::string_view id);
 
 } // namespace Kbi

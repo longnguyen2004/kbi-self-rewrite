@@ -35,48 +35,31 @@ void NeutralinoController::sendEvent(std::string_view event, const json::value& 
 
 void NeutralinoController::run()
 {
-    const auto& sysInfo = m_recorder.systemInfo();
-    JsonTextSerializer serializer;
-    auto conn1
-        = m_recorder.onUsbDevice().connect([&](const std::string& id, const UsbDeviceInfo& device) {
-              try {
-                  auto json = serializer.toJson(device);
-                  sendEvent("usbDevice", json::object { { id, json } });
-              } catch (const std::exception& e) {
-                  m_logger->error("Neutralino event serialization failed: {}", e.what());
-              }
+    auto conn1 = m_recorder.onUsbDevice().connect(
+        [this](const std::string& id, const UsbDeviceInfo& device) {
+            sendSerialized("usbDevice", id, device);
+        });
+    auto conn2 = m_recorder.onDevice().connect([this](const std::string& id, const Device& device) {
+        sendSerialized("device", id, device);
+    });
+    auto conn3
+        = m_recorder.onInput().connect([this](const std::string& id, const Input& input) {
+              sendSerialized("input", id, input);
           });
-    auto conn2 = m_recorder.onDevice().connect([&](const std::string& id, const Device& device) {
-        try {
-            auto json = serializer.toJson(device);
-            sendEvent("device", json::object { { id, json } });
-        } catch (const std::exception& e) {
-            m_logger->error("Neutralino event serialization failed: {}", e.what());
-        }
-    });
-    auto conn3 = m_recorder.onInput().connect([&](const std::string& id, const Input& input) {
-        try {
-            auto json = serializer.toJson(input);
-            sendEvent("input", json::object { { id, json } });
-        } catch (const std::exception& e) {
-            m_logger->error("Neutralino event serialization failed: {}", e.what());
-        }
-    });
 
     m_logger->info("Waiting for Neutralino connection info");
-    std::error_code ec;
-    auto connInfo = json::parse(std::cin).as_object();
-    auto nlPort = connInfo.at("nlPort").as_string();
-    auto nlToken = connInfo.at("nlToken").as_string();
-    auto nlConnectToken = connInfo.at("nlConnectToken").as_string();
-    auto nlExtensionId = connInfo.at("nlExtensionId").as_string();
+    const auto connInfo = json::parse(std::cin).as_object();
+    const auto nlPort = connInfo.at("nlPort").as_string();
+    const auto nlToken = connInfo.at("nlToken").as_string();
+    const auto nlConnectToken = connInfo.at("nlConnectToken").as_string();
+    const auto nlExtensionId = connInfo.at("nlExtensionId").as_string();
     m_logger->info("Received Neutralino connection info: {}", json::serialize(connInfo));
     m_accessToken = nlToken;
 
     m_logger->info("Connecting to Neutralino server");
     m_ws.setUrl(std::format("ws://localhost:{}?extensionId={}&connectToken={}", nlPort.c_str(),
         nlExtensionId.c_str(), nlConnectToken.c_str()));
-    m_ws.setOnMessageCallback([&](const ix::WebSocketMessagePtr& msg) {
+    m_ws.setOnMessageCallback([this](const ix::WebSocketMessagePtr& msg) {
         if (msg->type == ix::WebSocketMessageType::Message) {
             json::object msgJson;
             try {
@@ -91,7 +74,7 @@ void NeutralinoController::run()
                 return;
             auto event = maybeEvent.value().as_string();
             if (event == "start") {
-                sendEvent("systemInfo", serializer.toJson(sysInfo));
+                sendEvent("systemInfo", m_serializer.toJson(m_recorder.systemInfo()));
                 m_recorder.start();
             } else if (event == "stop")
                 m_recorder.stop();

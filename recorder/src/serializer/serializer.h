@@ -10,35 +10,40 @@
 
 namespace Kbi {
 
+// The `spec` macro argument carries the trailing declaration specifier of the
+// generated functions: `= 0` for the pure virtual interface functions and
+// `override` in the derived classes (C.128).
 #define SERIALIZER_CLASS_TO_DECLARE (UsbDeviceInfo)(Device)(Input)(Recorder)(SystemInfo)
 
-#define DECLARE_OSTREAM_SERIALIZER(r, pure, type)                                                  \
-    virtual void serialize(const type& a, std::ostream& out) BOOST_PP_IF(pure, = 0, );
-#define DECLARE_STRING_SERIALIZER(r, pure, type)                                                   \
-    virtual std::string serialize(const type& val) BOOST_PP_IF(pure, = 0, );
-#define DECLARE_BUFFER_SERIALIZER(r, pure, type)                                                   \
-    virtual void serialize(const type& val, std::span<char> out) BOOST_PP_IF(pure, = 0, );
+#define DECLARE_OSTREAM_SERIALIZER(r, spec, type) \
+    virtual void serialize(const type& a, std::ostream& out) const spec;
+#define DECLARE_STRING_SERIALIZER(r, spec, type) \
+    virtual std::string serialize(const type& val) const spec;
+#define DECLARE_BUFFER_SERIALIZER(r, spec, type) \
+    virtual void serialize(const type& val, std::span<char> out) const spec;
 
-#define DECLARE_OSTREAM_SERIALIZER_ALL(pure)                                                       \
-    BOOST_PP_SEQ_FOR_EACH(DECLARE_OSTREAM_SERIALIZER, pure, SERIALIZER_CLASS_TO_DECLARE)
-#define DECLARE_STRING_SERIALIZER_ALL(pure)                                                        \
-    BOOST_PP_SEQ_FOR_EACH(DECLARE_STRING_SERIALIZER, pure, SERIALIZER_CLASS_TO_DECLARE)
-#define DECLARE_BUFFER_SERIALIZER_ALL(pure)                                                        \
-    BOOST_PP_SEQ_FOR_EACH(DECLARE_BUFFER_SERIALIZER, pure, SERIALIZER_CLASS_TO_DECLARE)
+#define DECLARE_OSTREAM_SERIALIZER_ALL(spec) \
+    BOOST_PP_SEQ_FOR_EACH(DECLARE_OSTREAM_SERIALIZER, spec, SERIALIZER_CLASS_TO_DECLARE)
+#define DECLARE_STRING_SERIALIZER_ALL(spec) \
+    BOOST_PP_SEQ_FOR_EACH(DECLARE_STRING_SERIALIZER, spec, SERIALIZER_CLASS_TO_DECLARE)
+#define DECLARE_BUFFER_SERIALIZER_ALL(spec) \
+    BOOST_PP_SEQ_FOR_EACH(DECLARE_BUFFER_SERIALIZER, spec, SERIALIZER_CLASS_TO_DECLARE)
 
 class Serializer {
 public:
-    DECLARE_OSTREAM_SERIALIZER_ALL(1)
-    DECLARE_STRING_SERIALIZER_ALL(0)
-    DECLARE_BUFFER_SERIALIZER_ALL(0)
+    virtual ~Serializer() = default;
+
+    DECLARE_OSTREAM_SERIALIZER_ALL(= 0)
+    DECLARE_STRING_SERIALIZER_ALL()
+    DECLARE_BUFFER_SERIALIZER_ALL()
 };
 
 class JsonTextSerializer : public Serializer {
 public:
-    DECLARE_OSTREAM_SERIALIZER_ALL(0)
-    DECLARE_STRING_SERIALIZER_ALL(0)
+    DECLARE_OSTREAM_SERIALIZER_ALL(override)
+    DECLARE_STRING_SERIALIZER_ALL(override)
 
-#define DECLARE_TO_JSON(r, _, type) boost::json::value toJson(const type& val);
+#define DECLARE_TO_JSON(r, _, type) boost::json::value toJson(const type& val) const;
 
     BOOST_PP_SEQ_FOR_EACH(DECLARE_TO_JSON, _, SERIALIZER_CLASS_TO_DECLARE)
 
@@ -47,7 +52,7 @@ public:
 
 class CborSerializer : public Serializer {
 public:
-    DECLARE_OSTREAM_SERIALIZER_ALL(0)
+    DECLARE_OSTREAM_SERIALIZER_ALL(override)
 };
 
 } // namespace Kbi

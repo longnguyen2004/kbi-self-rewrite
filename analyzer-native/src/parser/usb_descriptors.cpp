@@ -1,3 +1,4 @@
+#include "core/hex_util.h"
 #include "parser/usb_descriptors.h"
 
 #include <algorithm>
@@ -16,21 +17,12 @@
 namespace Kbi {
 namespace {
 
+// Microseconds per second, used for the USB frame/polling-rate conversions.
+constexpr double kMicrosPerSecond = 1'000'000.0;
+
 std::string hexByte(unsigned value, int minLength = 2)
 {
     return std::format("0x{:0{}X}", value, minLength);
-}
-
-std::string hexBytes(const std::vector<unsigned char>& bytes)
-{
-    std::string out;
-    out.reserve(bytes.size() * 3);
-    for (std::size_t i = 0; i < bytes.size(); ++i) {
-        if (i != 0u)
-            out += ' ';
-        out += std::format("{:02X}", bytes[i]);
-    }
-    return out;
 }
 
 std::string hex4(std::uint16_t value) { return std::format("{:04x}", value); }
@@ -54,8 +46,10 @@ std::string utf16leToUtf8(std::span<const unsigned char> data)
 {
     const std::size_t units = data.size() / 2;
     std::vector<char16_t> utf16(units);
-    for (std::size_t i = 0; i < units; ++i)
-        utf16[i] = static_cast<char16_t>(data[i * 2] | (data[i * 2 + 1] << 8));
+    for (std::ptrdiff_t i = 0; i < static_cast<std::ptrdiff_t>(units); ++i)
+        utf16[static_cast<std::size_t>(i)]
+            = static_cast<char16_t>(data[static_cast<std::size_t>(i * 2)]
+                | (data[static_cast<std::size_t>(i * 2 + 1)] << 8));
 
     const simdutf::result size
         = simdutf::utf8_length_from_utf16le_with_replacement(utf16.data(), units);
@@ -551,8 +545,8 @@ std::vector<ParsedDescriptor> parseUsbDescriptors(const std::vector<unsigned cha
                     field("Polling Interval (Effective)",
                         formatDuration(static_cast<double>(effective) * frameDuration)),
                     field("Polling Rate",
-                        formatNumber(1000000.0 / static_cast<double>(effective)
-                            / static_cast<double>(frameDuration))
+                        formatNumber(kMicrosPerSecond / static_cast<double>(effective)
+                                / static_cast<double>(frameDuration))
                             + "Hz"),
                 };
             }

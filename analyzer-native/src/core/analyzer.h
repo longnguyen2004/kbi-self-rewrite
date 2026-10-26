@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <memory>
 #include <mutex>
+#include <stop_token>
 #include <thread>
 #include <vector>
 
@@ -36,6 +37,8 @@ public:
 
     Analyzer(const Analyzer&) = delete;
     Analyzer& operator=(const Analyzer&) = delete;
+    Analyzer(Analyzer&&) = delete;
+    Analyzer& operator=(Analyzer&&) = delete;
 
     // Feeds a batch of timestamps (microseconds) into the histograms.
     void add(const std::vector<double>& timestamps);
@@ -73,7 +76,7 @@ public:
     void terminate();
 
 private:
-    void workerLoop();
+    void workerLoop(std::stop_token stop);
     void recompute();
 
     int m_binRate = 16000;
@@ -90,7 +93,7 @@ private:
     std::size_t m_eventCount = 0;
 
     // Worker thread state.
-    std::thread m_thread;
+    std::jthread m_thread;
     mutable std::mutex m_mutex;
     std::condition_variable m_cv;
     bool m_stop = false;

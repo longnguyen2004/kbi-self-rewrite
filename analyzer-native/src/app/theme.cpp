@@ -6,13 +6,19 @@
 namespace Kbi::Ui {
 namespace {
 
-Theme gTheme = Theme::Dark;
+// The current theme lives in a function-local static instead of a
+// namespace-scope variable (I.2, R.6).
+Theme& activeTheme()
+{
+    static Theme theme = Theme::Dark;
+    return theme;
+}
 
 } // namespace
 
 void applyTheme(Theme theme)
 {
-    gTheme = theme;
+    activeTheme() = theme;
 
     if (theme == Theme::Dark) {
         ImGui::StyleColorsDark();
@@ -36,9 +42,9 @@ void applyTheme(Theme theme)
     plotStyle.LegendPadding = ImVec2(6.0f, 6.0f);
 }
 
-Theme currentTheme() { return gTheme; }
+Theme currentTheme() { return activeTheme(); }
 
-void toggleTheme() { applyTheme(gTheme == Theme::Dark ? Theme::Light : Theme::Dark); }
+void toggleTheme() { applyTheme(activeTheme() == Theme::Dark ? Theme::Light : Theme::Dark); }
 
 std::string_view themeName(Theme theme) { return theme == Theme::Dark ? "Dark" : "Light"; }
 

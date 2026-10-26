@@ -5,6 +5,7 @@
 #include <datetime.h>
 
 #include <array>
+#include <algorithm>
 #include <charconv>
 #include <cstring>
 #include <optional>
@@ -14,11 +15,18 @@
 namespace Kbi {
 namespace {
 
+// Microseconds per second; the legacy format stores fractional seconds.
+constexpr double kMicrosPerSecond = 1'000'000.0;
+
 struct Reader {
     const std::vector<unsigned char>& buf;
     std::size_t offset = 0;
 
-    bool has(std::size_t count) const { return offset + count <= buf.size(); }
+    // Overflow-free bounds check: offset + count could wrap around (ES.103).
+    bool has(std::size_t count) const
+    {
+        return count <= buf.size() && offset <= buf.size() - count;
+    }
 };
 
 std::optional<std::uint64_t> readUleb128(Reader& r)
@@ -243,16 +251,17 @@ std::optional<Result> parseKbiLegacyV3(Reader& r)
     result.info = RecordingInfo {};
     result.time = formatIso8601Utc(fromNetDatetimeTicks(*time), true);
 
-    std::vector<std::string> sourceIds(sources.size());
-    for (std::size_t i = 0; i < sources.size(); ++i) {
-        const LegacyDevice& source = sources[i];
-        sourceIds[i] = source.deviceId;
+    std::vector<std::string> sourceIds;
+    sourceIds.reserve(sources.size());
+    for (const LegacyDevice& source : sources) {
+        sourceIds.push_back(source.deviceId);
 
         ResultDevice device;
         device.name = source.name;
         const std::size_t vidPos = findToken(source.deviceId, "VID_");
         const std::size_t pidPos = findToken(source.deviceId, "PID_");
         if (vidPos != std::string::npos)
+            // Four hex digits can never exceed 16 bits.
             device.vid = static_cast<std::uint16_t>(parseHex4(source.deviceId, vidPos));
         if (pidPos != std::string::npos)
             device.pid = static_cast<std::uint16_t>(parseHex4(source.deviceId, pidPos));
@@ -260,22 +269,18 @@ std::optional<Result> parseKbiLegacyV3(Reader& r)
     }
 
     for (const LegacyEvent& event : events) {
-        std::size_t sourceIndex = sources.size();
-        for (std::size_t i = 0; i < sources.size(); ++i) {
-            if (sources[i].id == event.input.source) {
-                sourceIndex = i;
-                break;
-            }
-        }
         // The web analyzer groups the events of an unknown source under the
         // "undefined" key.
-        const std::string sourceId
-            = sourceIndex < sources.size() ? sourceIds[sourceIndex] : std::string("undefined");
+        const auto sourceIt = std::find_if(sources.begin(), sources.end(),
+            [&](const LegacyDevice& source) { return source.id == event.input.source; });
+        const std::string sourceId = sourceIt != sources.end()
+            ? sourceIds[static_cast<std::size_t>(sourceIt - sources.begin())]
+            : std::string("undefined");
 
         const int vk = keyNameToVk(event.input.key);
         InputEvent input;
         // The legacy format stores fractional seconds.
-        input.timestamp = event.time * 1000000.0;
+        input.timestamp = static_cast<std::uint64_t>(event.time * kMicrosPerSecond);
         input.pressed = event.pressed;
         input.code = vk >= 0 ? vkToKeycode(vk) : 0;
         result.inputs[sourceId].push_back(input);

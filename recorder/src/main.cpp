@@ -42,7 +42,7 @@ std::istream& operator>>(std::istream& in, ProgramMode& mode)
     return in;
 }
 
-int main(int argc, char const* argv[])
+int main(int argc, const char* argv[])
 {
     std::string logPath;
     ProgramMode mode;
@@ -73,7 +73,7 @@ int main(int argc, char const* argv[])
             static spdlog::file_event_handlers handlers;
 #ifdef __linux__
             handlers.after_open = [](const spdlog::filename_t& filename, std::FILE* file) {
-                int fd = fileno(file);
+                const int fd = fileno(file);
                 fchmod(fd, 0666);
             };
 #endif

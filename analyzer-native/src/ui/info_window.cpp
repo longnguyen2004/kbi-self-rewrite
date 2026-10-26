@@ -1,3 +1,4 @@
+#include "core/hex_util.h"
 #include "ui/info_window.h"
 
 #include "parser/usb_descriptors.h"
@@ -14,18 +15,6 @@ namespace Kbi::Ui {
 namespace {
 
 std::string hex16(std::uint16_t value) { return std::format("0x{:04X}", value); }
-
-std::string hexBytes(const std::vector<unsigned char>& bytes)
-{
-    std::string out;
-    out.reserve(bytes.size() * 3);
-    for (std::size_t i = 0; i < bytes.size(); ++i) {
-        if (i != 0u)
-            out += ' ';
-        out += std::format("{:02X}", bytes[i]);
-    }
-    return out;
-}
 
 std::string_view speedName(UsbDeviceSpeed speed)
 {

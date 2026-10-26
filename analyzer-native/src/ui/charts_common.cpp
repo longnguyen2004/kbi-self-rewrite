@@ -10,7 +10,7 @@
 
 namespace Kbi::Ui {
 
-void showTooltip(const ImVec2& anchor, const std::vector<std::string>& lines)
+void showTooltip(ImVec2 anchor, const std::vector<std::string>& lines)
 {
     // The size of the tooltip is estimated, so that it can be kept inside the
     // viewport. The web analyzer does the same with its tooltip placement.
@@ -151,4 +151,4 @@ void ChartSync::updateRange(const ChartInteraction& interaction)
     }
 }
 
-} // namespace Kbi::ui
+} // namespace Kbi::Ui

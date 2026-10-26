@@ -53,9 +53,10 @@ void TimelineChart::draw()
 
     // Map every device to a colour, in the order the devices were seen.
     std::map<std::string, ImU32> deviceColors;
-    for (std::size_t i = 0; i < deviceIds.size(); ++i)
-        deviceColors[deviceIds[i]]
-            = ImGui::ColorConvertFloat4ToU32(kDevicePalette[i % kDevicePalette.size()]);
+    for (std::ptrdiff_t i = 0; i < static_cast<std::ptrdiff_t>(deviceIds.size()); ++i)
+        deviceColors[deviceIds[static_cast<std::size_t>(i)]]
+            = ImGui::ColorConvertFloat4ToU32(
+                kDevicePalette[static_cast<std::size_t>(i) % kDevicePalette.size()]);
 
     // The index of every key on the y axis.
     std::map<std::string, double> keyIndices;
@@ -204,7 +205,7 @@ void TimelineChart::draw()
             }
         }
 
-        if (hit != nullptr) {
+        if (hit) {
             const double duration = std::max(0.0, hit->end - hit->start);
             showTooltip(mouse,
                 { std::format("device: {}", hit->deviceId), std::format("key: {}", hit->key),
@@ -228,4 +229,4 @@ void TimelineChart::setTimelineRange(double xMin, double xMax)
     m_sync->followEnd = false;
 }
 
-} // namespace Kbi::ui
+} // namespace Kbi::Ui

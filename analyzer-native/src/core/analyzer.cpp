@@ -8,6 +8,12 @@
 namespace Kbi {
 namespace {
 
+// Microseconds per second; timestamps and bin intervals are in microseconds.
+constexpr double kMicrosPerSecond = 1'000'000.0;
+
+// Signed index type for subscripts (ES.107).
+using index_t = std::ptrdiff_t;
+
 FreqSnapshot computeSnapshot(const std::vector<double>& consecutive, const std::vector<double>& all,
     const std::vector<double>& wrapped)
 {
@@ -20,7 +26,7 @@ FreqSnapshot computeSnapshot(const std::vector<double>& consecutive, const std::
     // The length of the histogram, the spectrum is normalized by it.
     const std::size_t len = consecutive.size();
     // The number of bins of the spectrum.
-    const std::size_t bins = consecutiveSpectrum.values.size() / 2;
+    const auto bins = static_cast<index_t>(consecutiveSpectrum.values.size() / 2);
     if (bins == 0)
         return snapshot;
 
@@ -28,7 +34,7 @@ FreqSnapshot computeSnapshot(const std::vector<double>& consecutive, const std::
     snapshot.allDiff.resize(bins);
     snapshot.wrappedTimestamp.resize(bins);
 
-    for (std::size_t freq = 0; freq < bins; ++freq) {
+    for (index_t freq = 0; freq < bins; ++freq) {
         // The first and the last bin are not mirrored, so they are not doubled.
         const double norm
             = ((freq == 0 || freq + 1 == bins) ? 1.0 : 2.0) / static_cast<double>(len);
@@ -58,25 +64,22 @@ FreqSnapshot computeSnapshot(const std::vector<double>& consecutive, const std::
 Analyzer::Analyzer()
 {
     reset();
-    m_thread = std::thread([this] { workerLoop(); });
+    m_thread = std::jthread([this](std::stop_token stop) { workerLoop(std::move(stop)); });
 }
 
 Analyzer::~Analyzer() { terminate(); }
 
 void Analyzer::terminate()
 {
-    {
-        std::scoped_lock lock(m_mutex);
-        m_stop = true;
-    }
-    m_cv.notify_all();
+    // Requesting the stop makes the worker's stop callback wake the
+    // condition variable; the jthread joins itself on destruction (CP.25).
+    m_thread.request_stop();
     if (m_thread.joinable())
         m_thread.join();
 }
 
 void Analyzer::reset()
 {
-    ++m_generation;
     m_timestampRaw.clear();
     m_timestampBinned.clear();
     // The histograms have one entry per hertz of the spectrum, their length is
@@ -90,6 +93,9 @@ void Analyzer::reset()
     m_eventCount = 0;
 
     std::scoped_lock lock(m_mutex);
+    // Bump the generation under the lock so the worker thread never races
+    // against it when deciding whether a computed snapshot is stale (CP.2).
+    ++m_generation;
     m_pendingConsecutive.clear();
     m_pendingAll.clear();
     m_pendingWrapped.clear();
@@ -119,7 +125,7 @@ void Analyzer::add(const std::vector<double>& timestamps)
     if (timestamps.empty())
         return;
 
-    const double interval = 1000000.0 / static_cast<double>(m_binRate);
+    const double interval = kMicrosPerSecond / static_cast<double>(m_binRate);
     std::size_t added = 0;
 
     for (const double timestamp : timestamps) {
@@ -135,10 +141,10 @@ void Analyzer::add(const std::vector<double>& timestamps)
             if (last != 0.0) {
                 // Consecutive diff: gap to the previous event.
                 const double consecutiveDiff = binned - last;
-                if (consecutiveDiff < 1000000.0) {
+                if (consecutiveDiff < kMicrosPerSecond) {
                     const auto index
-                        = static_cast<std::size_t>(std::llround(consecutiveDiff / interval));
-                    if (index < m_consecutiveDiffCount.size()) {
+                        = static_cast<index_t>(std::llround(consecutiveDiff / interval));
+                    if (index < static_cast<index_t>(m_consecutiveDiffCount.size())) {
                         m_consecutiveDiffCount[index] += 1.0;
                         m_consecutiveDiffCountMax
                             = std::max(m_consecutiveDiffCountMax, m_consecutiveDiffCount[index]);
@@ -147,21 +153,21 @@ void Analyzer::add(const std::vector<double>& timestamps)
 
                 // All diff: gap to every previous event within the last second.
                 const auto start = std::lower_bound(
-                    m_timestampBinned.begin(), m_timestampBinned.end(), binned - 1000000.0);
+                    m_timestampBinned.begin(), m_timestampBinned.end(), binned - kMicrosPerSecond);
                 for (auto i = start; i != m_timestampBinned.end(); ++i) {
                     const double longDiff = binned - *i;
-                    const auto index = static_cast<std::size_t>(std::llround(longDiff / interval));
-                    if (index < m_allDiffCount.size()) {
+                    const auto index = static_cast<index_t>(std::llround(longDiff / interval));
+                    if (index < static_cast<index_t>(m_allDiffCount.size())) {
                         m_allDiffCount[index] += 1.0;
                         m_allDiffCountMax = std::max(m_allDiffCountMax, m_allDiffCount[index]);
                     }
                 }
 
                 // Fractional part of the timestamp within a one second window.
-                const double binnedWrapped = std::fmod(binned, 1000000.0);
+                const double binnedWrapped = std::fmod(binned, kMicrosPerSecond);
                 const auto wrappedIndex
-                    = static_cast<std::size_t>(std::llround(binnedWrapped / interval));
-                if (wrappedIndex < m_wrappedTimestampCount.size()) {
+                    = static_cast<index_t>(std::llround(binnedWrapped / interval));
+                if (wrappedIndex < static_cast<index_t>(m_wrappedTimestampCount.size())) {
                     m_wrappedTimestampCount[wrappedIndex] += 1.0;
                     m_wrappedTimestampCountMax = std::max(
                         m_wrappedTimestampCountMax, m_wrappedTimestampCount[wrappedIndex]);
@@ -198,8 +204,18 @@ bool Analyzer::calculating() const
     return m_dirty || m_calculating;
 }
 
-void Analyzer::workerLoop()
+void Analyzer::workerLoop(std::stop_token stop)
 {
+    // Wake the wait below when a stop is requested, so the jthread machinery
+    // replaces the hand-rolled stop flag handling (CP.25).
+    const std::stop_callback stopCallback(stop, [this] {
+        {
+            std::scoped_lock lock(m_mutex);
+            m_stop = true;
+        }
+        m_cv.notify_all();
+    });
+
     for (;;) {
         std::vector<double> consecutive;
         std::vector<double> all;
@@ -221,7 +237,8 @@ void Analyzer::workerLoop()
             m_calculating = true;
         }
 
-        auto snapshot = std::make_shared<FreqSnapshot>(computeSnapshot(consecutive, all, wrapped));
+        const auto snapshot
+            = std::make_shared<FreqSnapshot>(computeSnapshot(consecutive, all, wrapped));
 
         {
             std::scoped_lock lock(m_mutex);

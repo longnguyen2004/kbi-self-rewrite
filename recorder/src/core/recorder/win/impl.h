@@ -1,19 +1,27 @@
+#pragma once
+
 #include "../recorder_impl.h"
 #include <boost/container/static_vector.hpp>
 #include <chrono>
+#include <cstdint>
 #include <gameinput.h>
+#include <memory>
+#include <optional>
 #include <spdlog/fwd.h>
+#include <string>
+#include <string_view>
 #include <thread>
+#include <unordered_map>
 #include <windows.h>
 
 namespace Kbi {
 
-using namespace GameInput::v3;
-using KeyStateArray = boost::container::static_vector<GameInputKeyState, 50>;
+using KeyStateArray = boost::container::static_vector<GameInput::v3::GameInputKeyState, 50>;
 
 class RecorderWinGameInput : public Recorder::Impl {
 public:
     explicit RecorderWinGameInput(std::shared_ptr<spdlog::logger> logger);
+    ~RecorderWinGameInput() override;
     void start(bool keyboard, bool mouse, bool gamepad) override;
     void stop() override;
     std::string deviceName(std::string_view pnp) const override;
@@ -24,16 +32,17 @@ public:
         std::uint64_t timestamp, const KeyStateArray& state);
 
 private:
-    IGameInput* m_gameinput;
+    GameInput::v3::IGameInput* m_gameinput = nullptr;
     std::jthread m_dispatcherThread;
-    std::uint64_t m_timestampRef;
-    GameInputCallbackToken m_callbackToken;
+    std::uint64_t m_timestampRef = 0;
+    GameInput::v3::GameInputCallbackToken m_callbackToken = 0;
     std::unordered_map<std::string, KeyStateArray> m_keyStates;
 };
 
 class RecorderWinRawInput : public Recorder::Impl {
 public:
     explicit RecorderWinRawInput(std::shared_ptr<spdlog::logger> logger);
+    ~RecorderWinRawInput() override;
     void start(bool keyboard, bool mouse, bool gamepad) override;
     void stop() override;
     std::string deviceName(std::string_view pnp) const override;

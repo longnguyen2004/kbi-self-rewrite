@@ -16,8 +16,6 @@ namespace {
 
 const wchar_t* const className = L"ListenerWindow";
 
-} // namespace
-
 LRESULT CALLBACK wndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     switch (uMsg) {
@@ -36,22 +34,39 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             // The WM_INPUT message carries the HRAWINPUT in lParam.
             // NOLINTNEXTLINE(performance-no-int-to-ptr)
             reinterpret_cast<HRAWINPUT>(lParam));
+        // WM_INPUT is handled here and everything else is passed on to the
+        // default procedure.
+        [[fallthrough]];
     }
     default:
         return DefWindowProcW(hwnd, uMsg, wParam, lParam);
     }
 }
 
-std::pair<std::uint16_t, std::uint16_t> vidPidFromPnp(std::string_view s)
+// The vendor and product id parsed from a PnP device path (F.21).
+struct VidPid {
+    std::uint16_t vid;
+    std::uint16_t pid;
+};
+
+VidPid vidPidFromPnp(std::string_view s)
 {
     std::uint16_t vid = 0;
     std::uint16_t pid = 0;
-    if (auto pos = s.find("VID_"); pos != std::string::npos)
-        std::from_chars(s.data() + pos + 4, s.data() + pos + 8, vid, 16);
-    if (auto pos = s.find("PID_"); pos != std::string::npos)
-        std::from_chars(s.data() + pos + 4, s.data() + pos + 8, pid, 16);
+    // Only parse if the four hex digits are fully present; from_chars leaves
+    // the value untouched on error, which keeps the zero default (P.7).
+    if (auto pos = s.find("VID_"); pos != std::string_view::npos && pos + 8 <= s.size()) {
+        if (std::from_chars(s.data() + pos + 4, s.data() + pos + 8, vid, 16).ec != std::errc{})
+            vid = 0;
+    }
+    if (auto pos = s.find("PID_"); pos != std::string_view::npos && pos + 8 <= s.size()) {
+        if (std::from_chars(s.data() + pos + 4, s.data() + pos + 8, pid, 16).ec != std::errc{})
+            pid = 0;
+    }
     return { vid, pid };
 }
+
+} // namespace
 
 RecorderWinRawInput::RecorderWinRawInput(std::shared_ptr<spdlog::logger> logger)
     : Recorder::Impl(std::move(logger))
@@ -60,9 +75,13 @@ RecorderWinRawInput::RecorderWinRawInput(std::shared_ptr<spdlog::logger> logger)
 
 void RecorderWinRawInput::processRawInput(HRAWINPUT rawInput)
 {
-    auto now = steady_clock::now();
-    UINT dwSize;
-    GetRawInputData(rawInput, RID_INPUT, nullptr, &dwSize, sizeof(RAWINPUTHEADER));
+    const auto now = steady_clock::now();
+    // The result of the size query is checked before it is used as a buffer
+    // size; both calls fail with (UINT)-1 (E.27, ES.20).
+    UINT dwSize = 0;
+    if (GetRawInputData(rawInput, RID_INPUT, nullptr, &dwSize, sizeof(RAWINPUTHEADER))
+        == static_cast<UINT>(-1))
+        return;
     std::vector<BYTE> data(dwSize);
     if (std::cmp_not_equal(
             GetRawInputData(rawInput, RID_INPUT, data.data(), &dwSize, sizeof(RAWINPUTHEADER)),
@@ -70,24 +89,31 @@ void RecorderWinRawInput::processRawInput(HRAWINPUT rawInput)
         return;
 
     auto* raw = reinterpret_cast<RAWINPUT*>(data.data());
-    UINT strSize;
-    GetRawInputDeviceInfoW(raw->header.hDevice, RIDI_DEVICENAME, nullptr, &strSize);
+    UINT strSize = 0;
+    if (GetRawInputDeviceInfoW(raw->header.hDevice, RIDI_DEVICENAME, nullptr, &strSize)
+        == static_cast<UINT>(-1))
+        return;
     std::wstring devicePath(strSize, 0);
-    GetRawInputDeviceInfoW(raw->header.hDevice, RIDI_DEVICENAME, devicePath.data(), &strSize);
+    if (GetRawInputDeviceInfoW(raw->header.hDevice, RIDI_DEVICENAME, devicePath.data(), &strSize)
+        == static_cast<UINT>(-1))
+        return;
     if (raw->header.dwType == RIM_TYPEKEYBOARD) {
         auto devicePathStr = wstringToString(devicePath);
-        auto pnp = devicePathStr.substr(4, /* Remove \\?\ */
-            devicePathStr.find("#{") - 4 /* Remove GUID at end */
-        );
+        // The path is expected to look like \\?\HID#VID_...#{guid}; validate
+        // the shape before slicing it up (P.7).
+        const auto guidPos = devicePathStr.find("#{");
+        if (guidPos == std::string::npos || guidPos < 4)
+            return;
+        auto pnp = devicePathStr.substr(4, guidPos - 4 /* Remove GUID at end */);
         for (auto& c : pnp) {
             if (c == '#')
                 c = '\\';
         }
         RAWKEYBOARD& keyboard = raw->data.keyboard;
-        bool released = (keyboard.Flags & RI_KEY_BREAK) != 0;
+        const bool released = (keyboard.Flags & RI_KEY_BREAK) != 0;
         if (keyboard.MakeCode == KEYBOARD_OVERRUN_MAKE_CODE || keyboard.VKey >= UCHAR_MAX)
             return;
-        auto [vid, pid] = vidPidFromPnp(pnp);
+        const auto [vid, pid] = vidPidFromPnp(pnp);
         onInput()(pnp, vid, pid,
             Input { .timestamp
                 = static_cast<std::uint64_t>(duration_cast<microseconds>(now - m_startRef).count()),
@@ -98,7 +124,11 @@ void RecorderWinRawInput::processRawInput(HRAWINPUT rawInput)
 
 void RecorderWinRawInput::start(bool keyboard, bool mouse, bool gamepad)
 {
-    m_windowThread = std::jthread([=, this](const std::stop_token& stop) {
+    // Publish the timestamp reference before the window thread starts; the
+    // thread reads it from WM_INPUT dispatch without further synchronization
+    // (CP.2).
+    m_startRef = steady_clock::now();
+    m_windowThread = std::jthread([this, keyboard, mouse, gamepad](const std::stop_token& stop) {
         SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
         SetThreadAffinityMask(GetCurrentThread(), 1);
         WNDCLASSW wndClass = {
@@ -146,7 +176,13 @@ void RecorderWinRawInput::start(bool keyboard, bool mouse, bool gamepad)
             }
         }
     });
-    m_startRef = steady_clock::now();
+}
+
+RecorderWinRawInput::~RecorderWinRawInput()
+{
+    // Release the window and window class even if the recorder is destroyed
+    // without an explicit stop() (R.1); stop() is idempotent.
+    stop();
 }
 
 void RecorderWinRawInput::stop()
@@ -154,7 +190,7 @@ void RecorderWinRawInput::stop()
     m_windowThread.request_stop();
     if (m_windowThread.joinable())
         m_windowThread.join();
-    if (m_hwnd != nullptr) {
+    if (m_hwnd) {
         DestroyWindow(m_hwnd);
         m_hwnd = nullptr;
     }

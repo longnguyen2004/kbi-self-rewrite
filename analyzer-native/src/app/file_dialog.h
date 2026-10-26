@@ -9,4 +9,4 @@ namespace Kbi::App {
 // dialog was cancelled.
 [[nodiscard]] std::optional<std::string> openRecordingDialog(const std::string& startDirectory);
 
-} // namespace Kbi::app
+} // namespace Kbi::App

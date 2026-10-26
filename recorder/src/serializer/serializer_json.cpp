@@ -10,6 +10,7 @@
 #include <concepts>
 #include <iterator>
 #include <simdutf.h>
+#include <type_traits>
 #include <string>
 
 namespace Kbi {
@@ -155,7 +156,9 @@ void tag_invoke(const value_from_tag& /*unused*/, value& j, const Input& input)
         { "code", static_cast<std::underlying_type_t<decltype(input.code)>>(input.code) } };
 }
 
-template<typename T> void tag_invoke(const value_from_tag& /*unused*/, value& j,
+template<typename T>
+    requires std::is_object_v<T>
+void tag_invoke(const value_from_tag& /*unused*/, value& j,
     const boost::unordered::concurrent_flat_map<std::string, T>& map)
 {
     using map_type = std::remove_reference_t<decltype(map)>;
@@ -212,12 +215,15 @@ void tag_invoke(const value_from_tag& /*unused*/, value& j, const Recorder& reco
 }
 
 #define DEFINE_JSON_SERIALIZER(r, _, type)                                                         \
-    void JsonTextSerializer::serialize(const type& a, std::ostream& out) { out << value_from(a); } \
-    std::string JsonTextSerializer::serialize(const type& a)                                       \
+    void JsonTextSerializer::serialize(const type& a, std::ostream& out) const                     \
+    {                                                                                              \
+        out << value_from(a);                                                                      \
+    }                                                                                              \
+    std::string JsonTextSerializer::serialize(const type& a) const                                 \
     {                                                                                              \
         return boost::json::serialize(value_from(a));                                              \
     }                                                                                              \
-    void CborSerializer::serialize(const type& a, std::ostream& out)                               \
+    void CborSerializer::serialize(const type& a, std::ostream& out) const                         \
     {                                                                                              \
         serializeCborValue(value_from(a), out);                                                    \
     }
@@ -225,7 +231,7 @@ void tag_invoke(const value_from_tag& /*unused*/, value& j, const Recorder& reco
 BOOST_PP_SEQ_FOR_EACH(DEFINE_JSON_SERIALIZER, _, SERIALIZER_CLASS_TO_DECLARE)
 
 #define DEFINE_TO_JSON(r, _, type)                                                                 \
-    boost::json::value JsonTextSerializer::toJson(const type& a) { return value_from(a); }
+    boost::json::value JsonTextSerializer::toJson(const type& a) const { return value_from(a); }
 
 BOOST_PP_SEQ_FOR_EACH(DEFINE_TO_JSON, _, SERIALIZER_CLASS_TO_DECLARE)
 
