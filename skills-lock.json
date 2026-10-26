@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "cpp-core-guidelines-review": {
+      "source": "openharmonyinsight/openharmony-skills",
+      "sourceType": "github",
+      "skillPath": "skills/cpp-core-guidelines-review/SKILL.md",
+      "computedHash": "b0532608ae7cfa2a061adbdbe40ba6cae5ce89755c732448040c64df9f4d4613"
+    }
+  }
+}
