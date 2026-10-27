@@ -50,7 +50,7 @@ IGameInput* gameInputInit()
     unknown->Release();
     THROW_IF_FAILED_MSG(hr, "Failed to initialize GameInput");
 
-    gameinput->SetFocusPolicy(GameInputDefaultFocusPolicy);
+    gameinput->SetFocusPolicy(GameInputEnableBackgroundInput);
     return gameinput.get();
 }
 
@@ -152,6 +152,8 @@ void RecorderWinGameInput::start(InputMask devices)
     });
     m_gameinput->RegisterReadingCallback(
         nullptr, kind, this, gameInputReadingCallback, &m_callbackToken);
+    if (m_callbackToken == 0)
+        logger()->error("GameInput: failed to register the reading callback");
 }
 
 void RecorderWinGameInput::stop()
