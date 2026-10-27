@@ -1,23 +1,31 @@
 #include "device_name.h"
 #include "wstring.h"
+
+// clang-format off windows includes needs to be on top
+#include <initguid.h>
+#include <windows.h>
+// clang-format on
+
 #include <cfgmgr32.h>
 #include <devguid.h>
 #include <devpkey.h>
 #include <hidsdi.h>
-#include <initguid.h>
 #include <setupapi.h>
 #include <usbioctl.h>
 #include <usbiodef.h>
 #include <wdmguid.h>
 #include <wil/resource.h>
 #include <wil/result.h>
-#include <windows.h>
 
 #include <algorithm>
 #include <boost/algorithm/string.hpp>
 #include <charconv>
 #include <optional>
 #include <vector>
+
+using unique_hdevinfo = wil::unique_any<HDEVINFO, decltype(SetupDiDestroyDeviceInfoList),
+    &SetupDiDestroyDeviceInfoList, wil::details::pointer_access_all, HDEVINFO, HDEVINFO,
+    INVALID_HANDLE_VALUE>;
 
 namespace Kbi {
 
@@ -51,7 +59,7 @@ std::string hidProductStringFromPnp(std::wstring_view wid)
 
     // The RAII wrapper destroys the device info set on every exit path (R.1).
     // SetupDiGetClassDevsW returns INVALID_HANDLE_VALUE on failure.
-    wil::unique_hdevinfo devInfoSet(
+    unique_hdevinfo devInfoSet(
         SetupDiGetClassDevsW(&hidGuid, wid.data(), nullptr, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE));
     if (!devInfoSet)
         return "Unknown";

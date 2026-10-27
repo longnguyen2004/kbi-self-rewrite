@@ -1,3 +1,5 @@
+#define NOMINMAX
+
 #include "controller.h"
 #include <system_info.h>
 #include <boost/json.hpp>

@@ -70,8 +70,12 @@ public:
     using StartSignal = boost::signals2::signal<void()>;
     using StopSignal = boost::signals2::signal<void()>;
 
+    // The logger is taken by value: under Boost.Ext.DI's lazy constructor
+    // argument conversion, a `const std::shared_ptr&` parameter binds to a
+    // reference into a temporary wrapper that is destroyed before the
+    // constructor runs (dangling copy and a crash in _Ref_count_base::_Incref).
     explicit Recorder(RecorderBackend backend = RecorderBackend::Auto,
-        const std::shared_ptr<spdlog::logger>& logger = nullptr);
+        std::shared_ptr<spdlog::logger> logger = nullptr);
     ~Recorder();
 
     Recorder(const Recorder&) = delete;

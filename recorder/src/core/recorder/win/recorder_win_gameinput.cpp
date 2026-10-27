@@ -61,12 +61,12 @@ constexpr auto sortByScancode = [](const GameInputKeyState& a, const GameInputKe
 void gameInputReadingCallback(
     GameInputCallbackToken /*token*/, void* context, IGameInputReading* reading)
 {
-    IGameInputDevice* device = nullptr;
-    if (FAILED(reading->GetDevice(&device)) || !device)
+    wil::com_ptr<IGameInputDevice> device = nullptr;
+    reading->GetDevice(&device);
+    if (!device)
         return;
     const GameInputDeviceInfo* deviceInfo = nullptr;
     if (FAILED(device->GetDeviceInfo(&deviceInfo)) || !deviceInfo) {
-        device->Release();
         return;
     }
 
@@ -84,8 +84,6 @@ void gameInputReadingCallback(
         reinterpret_cast<RecorderWinGameInput*>(context)->updateKeyStates(
             pnp, ids, timestamp, state);
     }
-
-    device->Release();
 }
 
 } // namespace

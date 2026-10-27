@@ -6,6 +6,7 @@
 	],
 	"settings": {
 		"files.associations": {
+			"*.css": "css",
 			"thread": "cpp",
 			"exception": "cpp",
 			"algorithm": "cpp",
@@ -108,10 +109,11 @@
 			"span": "cpp",
 			"text_encoding": "cpp",
 			"cfenv": "cpp",
-			"cinttypes": "cpp"
+			"cinttypes": "cpp",
+			"expected": "cpp"
 		},
 		"cmake.debugConfig": {
-			"externalConsole": true
+			"console": "integratedTerminal"
 		},
 		"C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
 		"C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json",

@@ -15,7 +15,7 @@ namespace Kbi {
 
 using namespace std::literals;
 
-Recorder::Recorder(RecorderBackend backend, const std::shared_ptr<spdlog::logger>& logger)
+Recorder::Recorder(RecorderBackend backend, std::shared_ptr<spdlog::logger> logger)
     : m_logger(logger ? logger : spdlog::default_logger())
     ,
     // Qualified on purpose: the unqualified name resolves to the member

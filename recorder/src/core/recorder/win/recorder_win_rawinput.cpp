@@ -122,7 +122,7 @@ void RecorderWinRawInput::start(InputMask devices)
     // thread reads it from WM_INPUT dispatch without further synchronization
     // (CP.2).
     m_startRef = steady_clock::now();
-    m_windowThread = std::jthread([this, keyboard, mouse, gamepad](const std::stop_token& stop) {
+    m_windowThread = std::jthread([this, devices](const std::stop_token& stop) {
         SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
         SetThreadAffinityMask(GetCurrentThread(), 1);
         WNDCLASSW wndClass = {

@@ -119,7 +119,7 @@ void writeList(std::ostream& out, Iterator start, Iterator end, Serializer seria
         serializer(out, *it);
 }
 
-void writeTime(std::ostream& out, time_point<system_clock, nanoseconds> t)
+void writeTime(std::ostream& out, time_point<system_clock> t)
 {
     // The .NET DateTime binary format, see datetime.h.
     writeUint64(out, toNetDatetimeTicks(t, kNetDateTimeKindUtc));

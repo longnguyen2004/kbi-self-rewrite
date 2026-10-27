@@ -40,7 +40,7 @@ IWbemServices* connectCim()
         THROW_IF_FAILED(pLocator->ConnectServer(
             bstr_t(L"ROOT\\CIMV2"), nullptr, nullptr, 0, 0, nullptr, nullptr, &pServices));
     THROW_IF_FAILED(CoSetProxyBlanket(pServices.get(), RPC_C_AUTHN_WINNT, RPC_C_AUTHZ_NONE, nullptr,
-        RPC_C_AUTHN_LEVEL_CALL, RPC_C_IMP_LEVEL_IMPERSONATE, nullptr, EOAC_NONE, nullptr));
+        RPC_C_AUTHN_LEVEL_CALL, RPC_C_IMP_LEVEL_IMPERSONATE, nullptr, EOAC_NONE));
     return pServices.get();
 }
 
@@ -160,7 +160,7 @@ const std::string& windowsVersion()
     OSVERSIONINFOEXW osInfo;
 
     *reinterpret_cast<FARPROC*>(&RtlGetVersion)
-        = GetProcAddress(GetModuleHandleA(L"ntdll"), "RtlGetVersion");
+        = GetProcAddress(GetModuleHandleW(L"ntdll"), "RtlGetVersion");
     if (RtlGetVersion != nullptr) {
         osInfo.dwOSVersionInfoSize = sizeof(osInfo);
         if (RtlGetVersion(&osInfo) >= 0)

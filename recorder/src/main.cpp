@@ -65,30 +65,31 @@ int main(int argc, const char* argv[])
         return 0;
     }
 
-    const auto injector = boost::di::make_injector(
-        boost::di::bind<spdlog::logger>.to([&] -> std::shared_ptr<spdlog::logger> {
-            auto consoleSink = std::make_shared<spdlog::sinks::stderr_color_sink_mt>();
-            consoleSink->set_level(spdlog::level::info);
+    auto consoleSink = std::make_shared<spdlog::sinks::stderr_color_sink_mt>();
+    consoleSink->set_level(spdlog::level::info);
 
-            static spdlog::file_event_handlers handlers;
+    static spdlog::file_event_handlers handlers;
 #ifdef __linux__
-            handlers.after_open = [](const spdlog::filename_t& filename, std::FILE* file) {
-                const int fd = fileno(file);
-                fchmod(fd, 0666);
-            };
+    handlers.after_open = [](const spdlog::filename_t& filename, std::FILE* file) {
+        const int fd = fileno(file);
+        fchmod(fd, 0666);
+    };
 #endif
-            auto fileSink
-                = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logPath, true, handlers);
-            fileSink->set_level(spdlog::level::trace);
+    auto fileSink
+        = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logPath, true, handlers);
+    fileSink->set_level(spdlog::level::trace);
 
-            const std::array<std::shared_ptr<spdlog::sinks::sink>, 2> sinks
-                = { consoleSink, fileSink };
-            auto multiSink
-                = std::make_shared<spdlog::logger>("", std::begin(sinks), std::end(sinks));
-            multiSink->set_level(spdlog::level::trace);
+    const std::array<std::shared_ptr<spdlog::sinks::sink>, 2> sinks
+        = { consoleSink, fileSink };
+    auto multiSink = std::make_shared<spdlog::logger>("", std::begin(sinks), std::end(sinks));
+    multiSink->set_level(spdlog::level::trace);
 
-            return multiSink;
-        }),
+    const auto injector = boost::di::make_injector(
+        // Bind the logger instance (created once here) instead of a factory
+        // lambda: di's instance scope calls a bound lambda on every injection,
+        // which re-opened (truncated) the log file for every dependent that
+        // received the logger.
+        boost::di::bind<spdlog::logger>.to(std::move(multiSink)),
         boost::di::bind<Kbi::Controller>.to([&](const auto& injector) -> Kbi::Controller& {
             switch (mode) {
             case ProgramMode::Console:
