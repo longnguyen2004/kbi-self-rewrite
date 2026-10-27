@@ -43,12 +43,6 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     }
 }
 
-// The vendor and product id parsed from a PnP device path (F.21).
-struct VidPid {
-    std::uint16_t vid;
-    std::uint16_t pid;
-};
-
 VidPid vidPidFromPnp(std::string_view s)
 {
     std::uint16_t vid = 0;
@@ -56,11 +50,11 @@ VidPid vidPidFromPnp(std::string_view s)
     // Only parse if the four hex digits are fully present; from_chars leaves
     // the value untouched on error, which keeps the zero default (P.7).
     if (auto pos = s.find("VID_"); pos != std::string_view::npos && pos + 8 <= s.size()) {
-        if (std::from_chars(s.data() + pos + 4, s.data() + pos + 8, vid, 16).ec != std::errc{})
+        if (std::from_chars(s.data() + pos + 4, s.data() + pos + 8, vid, 16).ec != std::errc {})
             vid = 0;
     }
     if (auto pos = s.find("PID_"); pos != std::string_view::npos && pos + 8 <= s.size()) {
-        if (std::from_chars(s.data() + pos + 4, s.data() + pos + 8, pid, 16).ec != std::errc{})
+        if (std::from_chars(s.data() + pos + 4, s.data() + pos + 8, pid, 16).ec != std::errc {})
             pid = 0;
     }
     return { vid, pid };
@@ -113,8 +107,8 @@ void RecorderWinRawInput::processRawInput(HRAWINPUT rawInput)
         const bool released = (keyboard.Flags & RI_KEY_BREAK) != 0;
         if (keyboard.MakeCode == KEYBOARD_OVERRUN_MAKE_CODE || keyboard.VKey >= UCHAR_MAX)
             return;
-        const auto [vid, pid] = vidPidFromPnp(pnp);
-        onInput()(pnp, vid, pid,
+        const VidPid ids = vidPidFromPnp(pnp);
+        onInput()(pnp, ids,
             Input { .timestamp
                 = static_cast<std::uint64_t>(duration_cast<microseconds>(now - m_startRef).count()),
                 .pressed = !released,
@@ -122,7 +116,7 @@ void RecorderWinRawInput::processRawInput(HRAWINPUT rawInput)
     }
 }
 
-void RecorderWinRawInput::start(bool keyboard, bool mouse, bool gamepad)
+void RecorderWinRawInput::start(InputMask devices)
 {
     // Publish the timestamp reference before the window thread starts; the
     // thread reads it from WM_INPUT dispatch without further synchronization
@@ -145,19 +139,19 @@ void RecorderWinRawInput::start(bool keyboard, bool mouse, bool gamepad)
             HWND_MESSAGE, nullptr, GetModuleHandleW(nullptr), nullptr);
         SetWindowLongPtrW(m_hwnd, 0, reinterpret_cast<LONG_PTR>(this));
         std::vector<RAWINPUTDEVICE> rawInputDevices;
-        if (keyboard) {
+        if (has(devices, InputMask::Keyboard)) {
             rawInputDevices.push_back({ .usUsagePage = 0x01,
                 .usUsage = 0x06,
                 .dwFlags = static_cast<DWORD>(RIDEV_NOLEGACY | RIDEV_INPUTSINK | RIDEV_NOHOTKEYS),
                 .hwndTarget = m_hwnd });
         }
-        if (mouse) {
+        if (has(devices, InputMask::Mouse)) {
             rawInputDevices.push_back({ .usUsagePage = 0x01,
                 .usUsage = 0x02,
                 .dwFlags = static_cast<DWORD>(RIDEV_NOLEGACY | RIDEV_INPUTSINK),
                 .hwndTarget = m_hwnd });
         }
-        if (gamepad) {
+        if (has(devices, InputMask::Gamepad)) {
             rawInputDevices.push_back({ .usUsagePage = 0x01,
                 .usUsage = 0x04,
                 .dwFlags = static_cast<DWORD>(RIDEV_INPUTSINK),

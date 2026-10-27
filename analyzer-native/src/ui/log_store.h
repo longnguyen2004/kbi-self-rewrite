@@ -6,6 +6,7 @@
 #include <chrono>
 #include <concepts>
 #include <cstddef>
+#include <format>
 #include <mutex>
 #include <string>
 #include <utility>
@@ -21,6 +22,9 @@ class LogStore : public spdlog::sinks::base_sink<std::mutex> {
 public:
     struct Entry {
         std::chrono::system_clock::time_point time;
+        // The formatted time stamp, prepared once when the message arrives
+        // (Per.15 — the log window draws every frame, it must not format).
+        std::string prefix;
         spdlog::level::level_enum level = spdlog::level::info;
         std::string text;
     };
@@ -50,6 +54,8 @@ protected:
     {
         Entry entry;
         entry.time = msg.time;
+        entry.prefix
+            = std::format("{:%T}", std::chrono::floor<std::chrono::milliseconds>(msg.time));
         entry.level = msg.level;
         entry.text.assign(msg.payload.data(), msg.payload.size());
 

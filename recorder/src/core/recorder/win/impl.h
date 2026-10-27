@@ -22,14 +22,14 @@ class RecorderWinGameInput : public Recorder::Impl {
 public:
     explicit RecorderWinGameInput(std::shared_ptr<spdlog::logger> logger);
     ~RecorderWinGameInput() override;
-    void start(bool keyboard, bool mouse, bool gamepad) override;
+    void start(InputMask devices) override;
     void stop() override;
     std::string deviceName(std::string_view pnp) const override;
     std::optional<std::string> usbDeviceId(std::string_view id) const override;
     std::optional<UsbDeviceInfo> usbDeviceInfo(std::string_view id) const override;
 
-    void updateKeyStates(const std::string& pnp, std::uint16_t vid, std::uint16_t pid,
-        std::uint64_t timestamp, const KeyStateArray& state);
+    void updateKeyStates(const std::string& pnp, const VidPid& ids, std::uint64_t timestamp,
+        const KeyStateArray& state);
 
 private:
     GameInput::v3::IGameInput* m_gameinput = nullptr;
@@ -43,7 +43,7 @@ class RecorderWinRawInput : public Recorder::Impl {
 public:
     explicit RecorderWinRawInput(std::shared_ptr<spdlog::logger> logger);
     ~RecorderWinRawInput() override;
-    void start(bool keyboard, bool mouse, bool gamepad) override;
+    void start(InputMask devices) override;
     void stop() override;
     std::string deviceName(std::string_view pnp) const override;
     std::optional<std::string> usbDeviceId(std::string_view id) const override;

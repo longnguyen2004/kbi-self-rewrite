@@ -1,9 +1,10 @@
-#include "core/analyzer.h"
+#include <core/analyzer.h>
 
-#include "core/fft.h"
+#include <core/fft.h>
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace Kbi {
 namespace {
@@ -64,7 +65,7 @@ FreqSnapshot computeSnapshot(const std::vector<double>& consecutive, const std::
 Analyzer::Analyzer()
 {
     reset();
-    m_thread = std::jthread([this](std::stop_token stop) { workerLoop(std::move(stop)); });
+    m_thread = std::jthread([this](const std::stop_token& stop) { workerLoop(stop); });
 }
 
 Analyzer::~Analyzer() { terminate(); }
@@ -144,7 +145,7 @@ void Analyzer::add(const std::vector<double>& timestamps)
                 if (consecutiveDiff < kMicrosPerSecond) {
                     const auto index
                         = static_cast<index_t>(std::llround(consecutiveDiff / interval));
-                    if (index < static_cast<index_t>(m_consecutiveDiffCount.size())) {
+                    if (std::cmp_less(index, m_consecutiveDiffCount.size())) {
                         m_consecutiveDiffCount[index] += 1.0;
                         m_consecutiveDiffCountMax
                             = std::max(m_consecutiveDiffCountMax, m_consecutiveDiffCount[index]);
@@ -157,7 +158,7 @@ void Analyzer::add(const std::vector<double>& timestamps)
                 for (auto i = start; i != m_timestampBinned.end(); ++i) {
                     const double longDiff = binned - *i;
                     const auto index = static_cast<index_t>(std::llround(longDiff / interval));
-                    if (index < static_cast<index_t>(m_allDiffCount.size())) {
+                    if (std::cmp_less(index, m_allDiffCount.size())) {
                         m_allDiffCount[index] += 1.0;
                         m_allDiffCountMax = std::max(m_allDiffCountMax, m_allDiffCount[index]);
                     }
@@ -167,7 +168,7 @@ void Analyzer::add(const std::vector<double>& timestamps)
                 const double binnedWrapped = std::fmod(binned, kMicrosPerSecond);
                 const auto wrappedIndex
                     = static_cast<index_t>(std::llround(binnedWrapped / interval));
-                if (wrappedIndex < static_cast<index_t>(m_wrappedTimestampCount.size())) {
+                if (std::cmp_less(wrappedIndex, m_wrappedTimestampCount.size())) {
                     m_wrappedTimestampCount[wrappedIndex] += 1.0;
                     m_wrappedTimestampCountMax = std::max(
                         m_wrappedTimestampCountMax, m_wrappedTimestampCount[wrappedIndex]);
@@ -204,7 +205,7 @@ bool Analyzer::calculating() const
     return m_dirty || m_calculating;
 }
 
-void Analyzer::workerLoop(std::stop_token stop)
+void Analyzer::workerLoop(const std::stop_token& stop)
 {
     // Wake the wait below when a stop is requested, so the jthread machinery
     // replaces the hand-rolled stop flag handling (CP.25).

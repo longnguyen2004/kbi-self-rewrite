@@ -51,8 +51,8 @@ std::string hidProductStringFromPnp(std::wstring_view wid)
 
     // The RAII wrapper destroys the device info set on every exit path (R.1).
     // SetupDiGetClassDevsW returns INVALID_HANDLE_VALUE on failure.
-    wil::unique_hdevinfo devInfoSet(SetupDiGetClassDevsW(
-        &hidGuid, wid.data(), nullptr, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE));
+    wil::unique_hdevinfo devInfoSet(
+        SetupDiGetClassDevsW(&hidGuid, wid.data(), nullptr, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE));
     if (!devInfoSet)
         return "Unknown";
 
@@ -156,22 +156,11 @@ std::optional<std::string> findUsbDevice(std::string_view id)
     return findUsbDevice(stringToWstring(id));
 }
 
-std::optional<UsbDeviceInfo> usbDeviceInfoFromPath(std::wstring_view wid)
+namespace {
+
+// The hub port the device sits on, parsed from its location info.
+std::optional<int> hubPortOf(DEVINST current)
 {
-    DEVINST current;
-    DEVINST parent;
-    // CM_Locate_DevNodeW takes a mutable string pointer on older SDKs; copy
-    // into a local buffer instead of casting away const (ES.50).
-    std::wstring idBuffer(wid);
-    // Get device instance handle for the USB device
-    if (CM_Locate_DevNodeW(&current, idBuffer.data(), CM_LOCATE_DEVNODE_NORMAL) != CR_SUCCESS)
-        return {};
-
-    // Get parent of the USB device (guaranteed to be the hub)
-    if (CM_Get_Parent(&parent, current, 0) != CR_SUCCESS)
-        return {};
-
-    // Get the port info of the device
     DEVPROPTYPE propType;
     ULONG size = 0;
     if (CM_Get_DevNode_PropertyW(
@@ -188,19 +177,13 @@ std::optional<UsbDeviceInfo> usbDeviceInfoFromPath(std::wstring_view wid)
     const int port = _wtoi(locationInfo.c_str());
     if (port == 0)
         return {};
+    return port;
+}
 
-    // Get the hub device ID
-    ULONG deviceIdSize = 0;
-    if (CM_Get_Device_ID_Size(&deviceIdSize, parent, 0) != CR_SUCCESS)
-        return {};
-    std::wstring hubDeviceId(deviceIdSize, 0);
-    if (CM_Get_Device_IDW(parent, hubDeviceId.data(), deviceIdSize, 0) != CR_SUCCESS)
-        return {};
-    for (auto& c : hubDeviceId) {
-        if (c == L'\\')
-            c = L'#';
-    }
-
+// Reads the descriptors of the device that sits on `port` of the hub with
+// the given device id, through the USB hub IOCTLs.
+std::optional<UsbDeviceInfo> readHubPortDescriptors(const std::wstring& hubDeviceId, int port)
+{
     // Open a handle to the USB hub
     const auto devicePath
         = std::format(LR"(\\?\{}#{{f18a0e88-c30c-11d0-8815-00a0c906bed8}})", hubDeviceId);
@@ -226,7 +209,7 @@ std::optional<UsbDeviceInfo> usbDeviceInfoFromPath(std::wstring_view wid)
     const auto speed = connectionInfoEx->Speed;
     const auto deviceDescriptor = connectionInfoEx->DeviceDescriptor;
     const auto* deviceDescriptorPtr = reinterpret_cast<const unsigned char*>(&deviceDescriptor);
-    const std::vector<unsigned char> descriptors(
+    std::vector<unsigned char> descriptors(
         deviceDescriptorPtr, deviceDescriptorPtr + deviceDescriptor.bLength);
 
     // Get configuration descriptor
@@ -269,6 +252,43 @@ std::optional<UsbDeviceInfo> usbDeviceInfoFromPath(std::wstring_view wid)
         .speed = static_cast<UsbDeviceSpeed>(speed + 1),
         .descriptors = descriptors,
     };
+}
+
+} // namespace
+
+std::optional<UsbDeviceInfo> usbDeviceInfoFromPath(std::wstring_view wid)
+{
+    DEVINST current;
+    DEVINST parent;
+    // CM_Locate_DevNodeW takes a mutable string pointer on older SDKs; copy
+    // into a local buffer instead of casting away const (ES.50).
+    std::wstring idBuffer(wid);
+    // Get device instance handle for the USB device
+    if (CM_Locate_DevNodeW(&current, idBuffer.data(), CM_LOCATE_DEVNODE_NORMAL) != CR_SUCCESS)
+        return {};
+
+    // Get parent of the USB device (guaranteed to be the hub)
+    if (CM_Get_Parent(&parent, current, 0) != CR_SUCCESS)
+        return {};
+
+    // Get the port of the device on the hub
+    const auto port = hubPortOf(current);
+    if (!port)
+        return {};
+
+    // Get the hub device ID
+    ULONG deviceIdSize = 0;
+    if (CM_Get_Device_ID_Size(&deviceIdSize, parent, 0) != CR_SUCCESS)
+        return {};
+    std::wstring hubDeviceId(deviceIdSize, 0);
+    if (CM_Get_Device_IDW(parent, hubDeviceId.data(), deviceIdSize, 0) != CR_SUCCESS)
+        return {};
+    for (auto& c : hubDeviceId) {
+        if (c == L'\\')
+            c = L'#';
+    }
+
+    return readHubPortDescriptors(hubDeviceId, *port);
 }
 
 std::optional<UsbDeviceInfo> usbDeviceInfoFromPath(std::string_view id)

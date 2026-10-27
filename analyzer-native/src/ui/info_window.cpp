@@ -1,7 +1,7 @@
-#include "core/hex_util.h"
-#include "ui/info_window.h"
+#include <core/hex_util.h>
+#include <ui/info_window.h>
 
-#include "parser/usb_descriptors.h"
+#include <parser/usb_descriptors.h>
 
 #include <imgui.h>
 

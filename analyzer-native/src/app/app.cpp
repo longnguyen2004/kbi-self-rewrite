@@ -1,11 +1,11 @@
-#include "app/app.h"
+#include <app/app.h>
 
-#include "app/theme.h"
-#include "parser/parser.h"
+#include <app/theme.h>
+#include <parser/parser.h>
 
-#include "ui/info_window.h"
 #include <datetime.h>
 #include <chrono>
+#include <ui/info_window.h>
 
 #include <imgui.h>
 #include <spdlog/spdlog.h>
@@ -137,7 +137,7 @@ void App::openFile(const std::string& path)
     resetAnalysis();
     ingest(*parsed);
     // The timeline starts at the beginning of the recording.
-    m_timelineChart.setTimelineRange(0.0, kInitialTimelineSpanS);
+    m_timelineChart.setTimelineRange({ .min = 0.0, .max = kInitialTimelineSpanS });
     m_lastPath = path;
     m_status = std::format("Loaded {}", path);
     m_logger->info("Loaded {}", path);
@@ -156,10 +156,9 @@ bool App::startRecording()
     Result result;
     result.time = formatIso8601Utc(std::chrono::system_clock::now());
 
-    std::string error;
-    if (!m_recorder.start(error)) {
-        m_logger->error("Could not start the recorder: {}", error);
-        m_status = std::format("Could not start the recorder: {}", error);
+    if (const auto error = m_recorder.start()) {
+        m_logger->error("Could not start the recorder: {}", *error);
+        m_status = std::format("Could not start the recorder: {}", *error);
         m_mode = Mode::FromRecorder;
         return false;
     }
@@ -313,47 +312,42 @@ void App::drawCharts()
     constexpr ImGuiTableFlags tableFlags
         = ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoSavedSettings;
 
+    // The three diff charts iterate over the three histograms of the
+    // analyzer (F.1 — one loop instead of a copied switch per chart kind).
+    const std::array<Ui::DiffChart*, 3> diffCharts
+        = { &m_diffConsecutive, &m_diffAll, &m_diffWrapped };
+    const std::array<std::pair<const std::vector<double>*, double>, 3> diffInputs
+        = { { { &m_analyzer.consecutiveDiff(), m_analyzer.consecutiveDiffMax() },
+            { &m_analyzer.allDiff(), m_analyzer.allDiffMax() },
+            { &m_analyzer.wrappedTimestamp(), m_analyzer.wrappedTimestampMax() } } };
+
     ImGui::BeginTable("##diff_charts", 3, tableFlags);
     for (int i = 0; i < 3; ++i) {
+        const auto column = static_cast<std::size_t>(i);
         ImGui::TableNextColumn();
-        switch (i) {
-        case 0:
-            m_diffConsecutive.draw(m_analyzer.consecutiveDiff(), m_analyzer.consecutiveDiffMax());
-            break;
-        case 1:
-            m_diffAll.draw(m_analyzer.allDiff(), m_analyzer.allDiffMax());
-            break;
-        default:
-            m_diffWrapped.draw(m_analyzer.wrappedTimestamp(), m_analyzer.wrappedTimestampMax());
-            break;
-        }
+        diffCharts[column]->draw(*diffInputs[column].first, diffInputs[column].second);
     }
     ImGui::EndTable();
 
-    ImGui::BeginTable("##freq_charts", 3, tableFlags);
-    {
-        const auto snapshot = m_analyzer.freqSnapshot();
-        const PostprocessResult consecutive = postprocessWithMax(
-            snapshot ? snapshot->consecutiveDiff : std::vector<double> {}, m_postprocess);
-        const PostprocessResult all = postprocessWithMax(
-            snapshot ? snapshot->allDiff : std::vector<double> {}, m_postprocess);
-        const PostprocessResult wrapped = postprocessWithMax(
-            snapshot ? snapshot->wrappedTimestamp : std::vector<double> {}, m_postprocess);
+    const std::array<Ui::FreqChart*, 3> freqCharts
+        = { &m_freqConsecutive, &m_freqAll, &m_freqWrapped };
+    const auto snapshot = m_analyzer.freqSnapshot();
+    const std::vector<double> emptySpectrum;
+    const std::array<const std::vector<double>*, 3> spectraInput = snapshot
+        ? std::array<const std::vector<double>*, 3> { &snapshot->consecutiveDiff,
+              &snapshot->allDiff, &snapshot->wrappedTimestamp }
+        : std::array<const std::vector<double>*, 3> { &emptySpectrum, &emptySpectrum,
+              &emptySpectrum };
+    for (int i = 0; i < 3; ++i)
+        postprocessWithMax(*spectraInput[static_cast<std::size_t>(i)], m_postprocess,
+            m_spectra[static_cast<std::size_t>(i)]);
 
-        for (int i = 0; i < 3; ++i) {
-            ImGui::TableNextColumn();
-            switch (i) {
-            case 0:
-                m_freqConsecutive.draw(consecutive.data, consecutive.max, m_analyzer.freqMaxHz());
-                break;
-            case 1:
-                m_freqAll.draw(all.data, all.max, m_analyzer.freqMaxHz());
-                break;
-            default:
-                m_freqWrapped.draw(wrapped.data, wrapped.max, m_analyzer.freqMaxHz());
-                break;
-            }
-        }
+    ImGui::BeginTable("##freq_charts", 3, tableFlags);
+    for (int i = 0; i < 3; ++i) {
+        const auto column = static_cast<std::size_t>(i);
+        ImGui::TableNextColumn();
+        freqCharts[column]->draw(
+            m_spectra[column].data, m_spectra[column].max, m_analyzer.freqMaxHz());
     }
     ImGui::EndTable();
 

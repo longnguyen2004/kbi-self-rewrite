@@ -1,5 +1,5 @@
-#include "core/hex_util.h"
-#include "parser/usb_descriptors.h"
+#include <core/hex_util.h>
+#include <parser/usb_descriptors.h>
 
 #include <algorithm>
 #include <array>
@@ -13,6 +13,7 @@
 #include <simdutf.h>
 #include <span>
 #include <string_view>
+#include <utility>
 
 namespace Kbi {
 namespace {
@@ -46,7 +47,7 @@ std::string utf16leToUtf8(std::span<const unsigned char> data)
 {
     const std::size_t units = data.size() / 2;
     std::vector<char16_t> utf16(units);
-    for (std::ptrdiff_t i = 0; i < static_cast<std::ptrdiff_t>(units); ++i)
+    for (std::ptrdiff_t i = 0; std::cmp_less(i, units); ++i)
         utf16[static_cast<std::size_t>(i)]
             = static_cast<char16_t>(data[static_cast<std::size_t>(i * 2)]
                 | (data[static_cast<std::size_t>(i * 2 + 1)] << 8));
@@ -546,7 +547,7 @@ std::vector<ParsedDescriptor> parseUsbDescriptors(const std::vector<unsigned cha
                         formatDuration(static_cast<double>(effective) * frameDuration)),
                     field("Polling Rate",
                         formatNumber(kMicrosPerSecond / static_cast<double>(effective)
-                                / static_cast<double>(frameDuration))
+                            / static_cast<double>(frameDuration))
                             + "Hz"),
                 };
             }

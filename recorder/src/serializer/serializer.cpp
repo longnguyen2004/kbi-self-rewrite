@@ -8,19 +8,71 @@ namespace io = boost::iostreams;
 
 namespace Kbi {
 
-#define DEFINE_SERIALIZE_WRAPPER(r, _, type)                                                       \
-    std::string Serializer::serialize(const type& a) const                                         \
-    {                                                                                              \
-        std::ostringstream os;                                                                     \
-        serialize(a, os);                                                                          \
-        return os.str();                                                                           \
-    }                                                                                              \
-    void Serializer::serialize(const type& a, std::span<char> out) const                           \
-    {                                                                                              \
-        io::stream<io::array_sink> os(out.data(), out.size());                                     \
-        serialize(a, os);                                                                          \
-    }
+// The base implements the string and the buffer variants on top of the
+// streaming interface, once per type.
+std::string Serializer::serialize(const UsbDeviceInfo& a) const
+{
+    std::ostringstream os;
+    serialize(a, os);
+    return os.str();
+}
 
-BOOST_PP_SEQ_FOR_EACH(DEFINE_SERIALIZE_WRAPPER, _, SERIALIZER_CLASS_TO_DECLARE)
+std::string Serializer::serialize(const Device& a) const
+{
+    std::ostringstream os;
+    serialize(a, os);
+    return os.str();
+}
+
+std::string Serializer::serialize(const Input& a) const
+{
+    std::ostringstream os;
+    serialize(a, os);
+    return os.str();
+}
+
+std::string Serializer::serialize(const Recorder& a) const
+{
+    std::ostringstream os;
+    serialize(a, os);
+    return os.str();
+}
+
+std::string Serializer::serialize(const SystemInfo& a) const
+{
+    std::ostringstream os;
+    serialize(a, os);
+    return os.str();
+}
+
+void Serializer::serialize(const UsbDeviceInfo& a, std::span<char> out) const
+{
+    io::stream<io::array_sink> os(out.data(), out.size());
+    serialize(a, os);
+}
+
+void Serializer::serialize(const Device& a, std::span<char> out) const
+{
+    io::stream<io::array_sink> os(out.data(), out.size());
+    serialize(a, os);
+}
+
+void Serializer::serialize(const Input& a, std::span<char> out) const
+{
+    io::stream<io::array_sink> os(out.data(), out.size());
+    serialize(a, os);
+}
+
+void Serializer::serialize(const Recorder& a, std::span<char> out) const
+{
+    io::stream<io::array_sink> os(out.data(), out.size());
+    serialize(a, os);
+}
+
+void Serializer::serialize(const SystemInfo& a, std::span<char> out) const
+{
+    io::stream<io::array_sink> os(out.data(), out.size());
+    serialize(a, os);
+}
 
 } // namespace Kbi

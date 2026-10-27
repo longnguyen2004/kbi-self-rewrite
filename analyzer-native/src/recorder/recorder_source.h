@@ -1,14 +1,15 @@
 #pragma once
 
-#include "core/analyzer.h"
-#include "core/input_timeline.h"
-#include "core/result.h"
+#include <core/analyzer.h>
+#include <core/input_timeline.h>
+#include <core/result.h>
 
 #include <system_info.h>
 #include <spdlog/fwd.h>
 
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -30,8 +31,9 @@ public:
     RecorderSource(RecorderSource&&) = delete;
     RecorderSource& operator=(RecorderSource&&) = delete;
 
-    // Starts recording. On failure `error` receives a human readable reason.
-    bool start(std::string& error);
+    // Starts recording. Returns a human readable error on failure, nothing
+    // on success (F.20 — a return value instead of an out-parameter).
+    [[nodiscard]] std::optional<std::string> start();
     void stop();
 
     [[nodiscard]] bool recording() const;

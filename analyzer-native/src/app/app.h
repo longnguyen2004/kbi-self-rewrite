@@ -1,20 +1,21 @@
 #pragma once
 
-#include "app/file_dialog.h"
-#include "core/analyzer.h"
-#include "core/input_timeline.h"
-#include "core/postprocess.h"
-#include "core/result.h"
-#include "recorder/recorder_source.h"
-#include "ui/charts.h"
-#include "ui/info_window.h"
-#include "ui/line_chart.h"
-#include "ui/log_store.h"
-#include "ui/log_window.h"
-#include "ui/timeline_chart.h"
+#include <app/file_dialog.h>
+#include <core/analyzer.h>
+#include <core/input_timeline.h>
+#include <core/postprocess.h>
+#include <core/result.h>
+#include <recorder/recorder_source.h>
+#include <ui/charts.h>
+#include <ui/info_window.h>
+#include <ui/line_chart.h>
+#include <ui/log_store.h>
+#include <ui/log_window.h>
+#include <ui/timeline_chart.h>
 
 #include <spdlog/fwd.h>
 
+#include <array>
 #include <memory>
 #include <string>
 #include <vector>
@@ -73,6 +74,9 @@ private:
     std::string m_lastPath;
 
     PostprocessOptions m_postprocess;
+    // The postprocessed spectra of the three frequency charts, their storage
+    // is reused across frames (Per.15).
+    std::array<PostprocessResult, 3> m_spectra;
     Ui::ChartSync m_diffSync;
     Ui::ChartSync m_freqSync;
     Ui::DiffChart m_diffConsecutive;

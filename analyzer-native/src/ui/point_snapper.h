@@ -20,9 +20,11 @@ struct SnapPoint {
 // enough, which gives the same result.
 class PointSnapper {
 public:
-    void set(std::vector<SnapPoint> points)
+    // The points are copied so that the internal storage is reused across
+    // frames (Per.15).
+    void set(const std::vector<SnapPoint>& points)
     {
-        m_points = std::move(points);
+        m_points = points;
         std::sort(m_points.begin(), m_points.end(),
             [](const SnapPoint& a, const SnapPoint& b) { return a.x < b.x; });
     }

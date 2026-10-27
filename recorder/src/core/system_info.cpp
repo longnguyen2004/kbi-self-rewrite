@@ -240,8 +240,7 @@ SystemInfo systemInfo()
         while (std::getline(osRelease, line)) {
             if (line.starts_with("NAME=")) {
                 distroName = line.substr(5);
-                if (distroName.size() >= 2 && distroName.front() == '"'
-                    && distroName.back() == '"')
+                if (distroName.size() >= 2 && distroName.front() == '"' && distroName.back() == '"')
                     distroName = distroName.substr(1, distroName.size() - 2);
             } else if (line.starts_with("VERSION=")) {
                 distroVer = line.substr(8);

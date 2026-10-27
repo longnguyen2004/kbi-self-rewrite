@@ -58,7 +58,7 @@ libevdev* evdevOpen(const std::string& path)
 
 void evdevClose(libevdev* device)
 {
-    if (!device)
+    if (device == nullptr)
         return;
     int fd = libevdev_get_fd(device);
     if (fd > 0)
@@ -92,13 +92,13 @@ void RecorderLinuxLibevdev::initScanDevices()
     m_deviceScanThread = std::jthread([&](const std::stop_token& stop) {
         int notifyFd = inotify_init1(IN_NONBLOCK);
         if (notifyFd < 0) {
-            m_logger->error("inotify_init1 failed");
+            logger()->error("inotify_init1 failed");
             return;
         }
         if (inotify_add_watch(
                 notifyFd, "/dev/input/by-id", IN_CREATE | IN_DELETE | IN_MOVED_TO | IN_MOVED_FROM)
             < 0) {
-            m_logger->error("inotify_add_watch failed for /dev/input/by-id");
+            logger()->error("inotify_add_watch failed for /dev/input/by-id");
             close(notifyFd);
             return;
         }
@@ -113,7 +113,7 @@ void RecorderLinuxLibevdev::initScanDevices()
                 ssize_t len = read(notifyFd, buf.data(), buf.size());
                 if (len < 0) {
                     if (errno != EAGAIN)
-                        m_logger->error("inotify read error: {}", strerror(errno));
+                        logger()->error("inotify read error: {}", strerror(errno));
                     break;
                 }
                 if (len == 0)
@@ -155,85 +155,20 @@ void RecorderLinuxLibevdev::initScanDevices()
 // The poll loop handles the libevdev status codes and the input device
 // filtering, which cannot be split up without changing its behaviour.
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-void RecorderLinuxLibevdev::initPoll(bool keyboard, bool mouse, bool gamepad)
+void RecorderLinuxLibevdev::initPoll(InputMask devices)
 {
     // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-    m_pollThread = std::jthread([this, keyboard, mouse, gamepad](const std::stop_token& stop) {
+    m_pollThread = std::jthread([this, devices](const std::stop_token& stop) {
         timespec ref;
         clock_gettime(CLOCK_MONOTONIC, &ref);
-        const std::uint64_t refUsec
-            = static_cast<std::uint64_t>(ref.tv_sec) * kMicrosPerSecond
+        const std::uint64_t refUsec = static_cast<std::uint64_t>(ref.tv_sec) * kMicrosPerSecond
             + static_cast<std::uint64_t>(ref.tv_nsec) / 1000;
-        std::vector<std::reference_wrapper<InternalDevice>> devices;
+        std::vector<std::reference_wrapper<InternalDevice>> deviceList;
         std::vector<pollfd> pollfds;
         while (!stop.stop_requested()) {
-            devices.clear();
+            deviceList.clear();
             pollfds.clear();
-            // I'm not sure if this is safe (modify elements inside erase_if). Let's see
-            m_evdevDevices.erase_if([&](EvdevDeviceMap::value_type& val) {
-                auto& [path, dev] = val;
-                if (dev.remove) {
-                    m_logger->debug("Device {} removed", path);
-                    // The device is closed by the InternalDevice destructor
-                    // when the entry is erased (R.20).
-                    return true;
-                }
-                // New device, try to open it
-                if (!dev.eventDevice) {
-                    // The RAII owner closes the device on every early-return
-                    // path; ownership is moved into the map entry on success
-                    // (P.2, CPL.1).
-                    EvdevPtr eventDevice(evdevOpen(path));
-                    if (!eventDevice) {
-                        m_logger->warn("Failed to open device {}. Are you running as root/in the "
-                                       "'input' user group?",
-                            path);
-                        return true;
-                    }
-
-                    // ignore virtual devices
-                    if (!libevdev_get_phys(eventDevice.get()))
-                        return true;
-
-                    // remove devices that don't send keys
-                    if (!libevdev_has_event_type(eventDevice.get(), EV_KEY))
-                        return true;
-
-                    // disable all events, and only enable the one we need
-                    libevdev_disable_event_type(eventDevice.get(), EV_REL);
-                    libevdev_disable_event_type(eventDevice.get(), EV_ABS);
-                    libevdev_disable_event_type(eventDevice.get(), EV_MSC);
-                    libevdev_disable_event_type(eventDevice.get(), EV_SW);
-                    libevdev_disable_event_type(eventDevice.get(), EV_LED);
-                    libevdev_disable_event_type(eventDevice.get(), EV_SND);
-                    libevdev_disable_event_type(eventDevice.get(), EV_REP);
-                    libevdev_disable_event_type(eventDevice.get(), EV_FF);
-                    libevdev_disable_event_type(eventDevice.get(), EV_PWR);
-                    libevdev_disable_event_type(eventDevice.get(), EV_FF_STATUS);
-                    if (!keyboard) {
-                        for (int i = 0; i < 256; ++i)
-                            libevdev_disable_event_code(eventDevice.get(), EV_KEY, i);
-                    }
-                    if (!mouse) {
-                        for (int i = BTN_LEFT; i <= BTN_TASK; ++i)
-                            libevdev_disable_event_code(eventDevice.get(), EV_KEY, i);
-                    }
-                    if (!gamepad) {
-                        // Disable common gamepad button codes
-                        for (int i = BTN_GAMEPAD; i <= BTN_DPAD_RIGHT; ++i)
-                            libevdev_disable_event_code(eventDevice.get(), EV_KEY, i);
-                        // Also disable trigger happy buttons
-                        for (int i = BTN_TRIGGER_HAPPY1; i <= BTN_TRIGGER_HAPPY32; ++i)
-                            libevdev_disable_event_code(eventDevice.get(), EV_KEY, i);
-                    }
-                    libevdev_set_clock_id(eventDevice.get(), CLOCK_MONOTONIC);
-                    dev.eventDevice = std::move(eventDevice);
-                    m_logger->debug("Opened device {}", path);
-                }
-                devices.emplace_back(dev);
-                pollfds.emplace_back(libevdev_get_fd(dev.eventDevice.get()), POLLIN, 0);
-                return false;
-            });
+            collectDevices(devices, deviceList, pollfds);
 
             // poll all the devices
             int pollRes = poll(pollfds.data(), pollfds.size(), 1);
@@ -242,7 +177,7 @@ void RecorderLinuxLibevdev::initPoll(bool keyboard, bool mouse, bool gamepad)
             if (pollRes < 0) {
                 // an error happened
                 if (errno != EINTR)
-                    m_logger->error("evdev poll error: {}", strerror(errno));
+                    logger()->error("evdev poll error: {}", strerror(errno));
                 continue;
             }
 
@@ -250,22 +185,23 @@ void RecorderLinuxLibevdev::initPoll(bool keyboard, bool mouse, bool gamepad)
             for (int i = 0; i < pollfds.size(); ++i) {
                 if (!(pollfds[i].revents & POLLIN))
                     continue;
-                InternalDevice& internalDevice = devices[i].get();
+                InternalDevice& internalDevice = deviceList[i].get();
                 auto* device = internalDevice.eventDevice.get();
                 const auto& syspath = internalDevice.syspath;
                 input_event ev;
                 int rc = 0;
                 int flags = LIBEVDEV_READ_FLAG_NORMAL;
-                std::uint16_t vid = libevdev_get_id_vendor(device);
-                std::uint16_t pid = libevdev_get_id_product(device);
+                const VidPid ids
+                    = { .vid = static_cast<std::uint16_t>(libevdev_get_id_vendor(device)),
+                          .pid = static_cast<std::uint16_t>(libevdev_get_id_product(device)) };
                 while (true) {
                     rc = libevdev_next_event(device, flags, &ev);
                     if (rc == LIBEVDEV_READ_STATUS_SUCCESS) {
                         if (ev.type != EV_KEY || ev.value == 2)
                             continue;
-                        onInput()(syspath, vid, pid,
-                            Input { .timestamp = static_cast<std::uint64_t>(ev.input_event_sec)
-                                        * kMicrosPerSecond
+                        onInput()(syspath, ids,
+                            Input { .timestamp
+                                = static_cast<std::uint64_t>(ev.input_event_sec) * kMicrosPerSecond
                                     + static_cast<std::uint64_t>(ev.input_event_usec) - refUsec,
                                 .pressed = static_cast<bool>(ev.value),
                                 .code = evdevToKeycode(ev.code) });
@@ -284,11 +220,85 @@ void RecorderLinuxLibevdev::initPoll(bool keyboard, bool mouse, bool gamepad)
     });
 }
 
+// Opens the newly discovered devices, disables the event codes of the device
+// classes that are not recorded, and collects the open devices into the poll
+// set. Devices flagged for removal are closed here.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+void RecorderLinuxLibevdev::collectDevices(InputMask devices,
+    std::vector<std::reference_wrapper<InternalDevice>>& deviceList, std::vector<pollfd>& pollfds)
+{
+    // I'm not sure if this is safe (modify elements inside erase_if). Let's see
+    m_evdevDevices.erase_if([&](EvdevDeviceMap::value_type& val) {
+        auto& [path, dev] = val;
+        if (dev.remove) {
+            logger()->debug("Device {} removed", path);
+            // The device is closed by the InternalDevice destructor
+            // when the entry is erased (R.20).
+            return true;
+        }
+        // New device, try to open it
+        if (!dev.eventDevice) {
+            // The RAII owner closes the device on every early-return
+            // path; ownership is moved into the map entry on success
+            // (P.2, CPL.1).
+            EvdevPtr eventDevice(evdevOpen(path));
+            if (!eventDevice) {
+                logger()->warn("Failed to open device {}. Are you running as root/in the "
+                               "'input' user group?",
+                    path);
+                return true;
+            }
+
+            // ignore virtual devices
+            if (!libevdev_get_phys(eventDevice.get()))
+                return true;
+
+            // remove devices that don't send keys
+            if (!libevdev_has_event_type(eventDevice.get(), EV_KEY))
+                return true;
+
+            // disable all events, and only enable the one we need
+            libevdev_disable_event_type(eventDevice.get(), EV_REL);
+            libevdev_disable_event_type(eventDevice.get(), EV_ABS);
+            libevdev_disable_event_type(eventDevice.get(), EV_MSC);
+            libevdev_disable_event_type(eventDevice.get(), EV_SW);
+            libevdev_disable_event_type(eventDevice.get(), EV_LED);
+            libevdev_disable_event_type(eventDevice.get(), EV_SND);
+            libevdev_disable_event_type(eventDevice.get(), EV_REP);
+            libevdev_disable_event_type(eventDevice.get(), EV_FF);
+            libevdev_disable_event_type(eventDevice.get(), EV_PWR);
+            libevdev_disable_event_type(eventDevice.get(), EV_FF_STATUS);
+            if (!has(devices, InputMask::Keyboard)) {
+                for (int i = 0; i < 256; ++i)
+                    libevdev_disable_event_code(eventDevice.get(), EV_KEY, i);
+            }
+            if (!has(devices, InputMask::Mouse)) {
+                for (int i = BTN_LEFT; i <= BTN_TASK; ++i)
+                    libevdev_disable_event_code(eventDevice.get(), EV_KEY, i);
+            }
+            if (!has(devices, InputMask::Gamepad)) {
+                // Disable common gamepad button codes
+                for (int i = BTN_GAMEPAD; i <= BTN_DPAD_RIGHT; ++i)
+                    libevdev_disable_event_code(eventDevice.get(), EV_KEY, i);
+                // Also disable trigger happy buttons
+                for (int i = BTN_TRIGGER_HAPPY1; i <= BTN_TRIGGER_HAPPY32; ++i)
+                    libevdev_disable_event_code(eventDevice.get(), EV_KEY, i);
+            }
+            libevdev_set_clock_id(eventDevice.get(), CLOCK_MONOTONIC);
+            dev.eventDevice = std::move(eventDevice);
+            logger()->debug("Opened device {}", path);
+        }
+        deviceList.emplace_back(dev);
+        pollfds.emplace_back(libevdev_get_fd(dev.eventDevice.get()), POLLIN, 0);
+        return false;
+    });
+}
+
 RecorderLinuxLibevdev::RecorderLinuxLibevdev(std::shared_ptr<spdlog::logger> logger)
     : Recorder::Impl(std::move(logger))
 {
     if (geteuid() != 0)
-        m_logger->warn(
+        Impl::logger()->warn(
             "The program is not running as root. You might not be able to capture inputs");
 }
 
@@ -299,10 +309,10 @@ RecorderLinuxLibevdev::~RecorderLinuxLibevdev()
     stop();
 }
 
-void RecorderLinuxLibevdev::start(bool keyboard, bool mouse, bool gamepad)
+void RecorderLinuxLibevdev::start(InputMask devices)
 {
     initScanDevices();
-    initPoll(keyboard, mouse, gamepad);
+    initPoll(devices);
 }
 
 void RecorderLinuxLibevdev::stop()

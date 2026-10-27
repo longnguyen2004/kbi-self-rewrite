@@ -71,8 +71,7 @@ void gameInputReadingCallback(
     }
 
     const std::string pnp = deviceInfo->pnpPath;
-    const std::uint16_t vid = deviceInfo->vendorId;
-    const std::uint16_t pid = deviceInfo->productId;
+    const VidPid ids { deviceInfo->vendorId, deviceInfo->productId };
 
     const auto timestamp = reading->GetTimestamp();
     const auto inputKind = reading->GetInputKind();
@@ -83,7 +82,7 @@ void gameInputReadingCallback(
         reading->GetKeyState(stateLen, state.data());
         std::sort(state.begin(), state.end(), sortByScancode);
         reinterpret_cast<RecorderWinGameInput*>(context)->updateKeyStates(
-            pnp, vid, pid, timestamp, state);
+            pnp, ids, timestamp, state);
     }
 
     device->Release();
@@ -91,8 +90,8 @@ void gameInputReadingCallback(
 
 } // namespace
 
-void RecorderWinGameInput::updateKeyStates(const std::string& pnp, std::uint16_t vid,
-    std::uint16_t pid, std::uint64_t timestamp, const KeyStateArray& state)
+void RecorderWinGameInput::updateKeyStates(
+    const std::string& pnp, const VidPid& ids, std::uint64_t timestamp, const KeyStateArray& state)
 {
     auto& statePrev = m_keyStates[pnp];
     KeyStateArray pressed;
@@ -102,13 +101,13 @@ void RecorderWinGameInput::updateKeyStates(const std::string& pnp, std::uint16_t
     std::set_difference(state.begin(), state.end(), statePrev.begin(), statePrev.end(),
         std::back_inserter(pressed), sortByScancode);
     for (const auto& i : pressed) {
-        onInput()(pnp, vid, pid,
+        onInput()(pnp, ids,
             Input { .timestamp = timestamp - m_timestampRef,
                 .pressed = true,
                 .code = vkToKeycode(i.virtualKey) });
     }
     for (const auto& i : released) {
-        onInput()(pnp, vid, pid,
+        onInput()(pnp, ids,
             Input { .timestamp = timestamp - m_timestampRef,
                 .pressed = false,
                 .code = vkToKeycode(i.virtualKey) });
@@ -117,19 +116,19 @@ void RecorderWinGameInput::updateKeyStates(const std::string& pnp, std::uint16_t
 }
 
 RecorderWinGameInput::RecorderWinGameInput(std::shared_ptr<spdlog::logger> logger)
-    : Recorder::Impl(std::move(logger)),
-      m_gameinput(gameInputInit())
+    : Recorder::Impl(std::move(logger))
+    , m_gameinput(gameInputInit())
 {
 }
 
-void RecorderWinGameInput::start(bool keyboard, bool mouse, bool gamepad)
+void RecorderWinGameInput::start(InputMask devices)
 {
     GameInputKind kind = GameInputKind::GameInputKindUnknown;
-    if (keyboard)
+    if (has(devices, InputMask::Keyboard))
         kind |= GameInputKind::GameInputKindKeyboard;
-    if (mouse)
+    if (has(devices, InputMask::Mouse))
         kind |= GameInputKind::GameInputKindMouse;
-    if (gamepad)
+    if (has(devices, InputMask::Gamepad))
         kind |= GameInputKind::GameInputKindGamepad;
     m_timestampRef = m_gameinput->GetCurrentTimestamp();
     m_keyStates.clear();

@@ -5,29 +5,22 @@
 
 namespace Kbi {
 
-// Base class for exporters that write the recording of the `Recorder` to a
-// stream.
+// The interface of exporters that write a recording to a stream. It stays
+// empty, the recorders are passed to the concrete exporters (I.25, C.121).
 class Exporter {
 public:
-    explicit Exporter(const Recorder& recorder)
-        : m_recorder(recorder)
-    {
-    }
     virtual ~Exporter() = default;
     virtual void exportTo(std::ostream& out) const = 0;
-
-protected:
-    const Recorder& m_recorder;
 };
 
 // Exports the recording in the binary .kbi format.
 class ExporterMatKbi : public Exporter {
 public:
-    explicit ExporterMatKbi(const Recorder& recorder)
-        : Exporter(recorder)
-    {
-    }
+    explicit ExporterMatKbi(const Recorder& recorder);
     void exportTo(std::ostream& out) const override;
+
+private:
+    const Recorder& m_recorder;
 };
 
 } // namespace Kbi

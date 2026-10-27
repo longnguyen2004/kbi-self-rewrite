@@ -1,8 +1,8 @@
 #pragma once
 
-#include "core/decimate.h"
-#include "ui/charts.h"
-#include "ui/charts_common.h"
+#include <core/decimate.h>
+#include <ui/charts.h>
+#include <ui/charts_common.h>
 
 #include <functional>
 #include <imgui.h>
@@ -31,9 +31,22 @@ class LineChart : public Chart {
 public:
     using TooltipCallback = std::function<std::vector<std::string>(ChartPoint)>;
 
-    LineChart(std::string id, std::string title, ImVec4 color, std::string xLabel,
-        std::string yLabel, double initialSpan, TickStyle tickStyle, TooltipCallback tooltip,
-        ChartSync* sharedSync = nullptr, double extentMax = 0.0);
+    // The fixed configuration, supplied at construction (I.23/F.2 — one
+    // bundle instead of ten loosely typed parameters).
+    struct Config {
+        std::string id;
+        std::string title;
+        ImVec4 color { 1.0f, 1.0f, 1.0f, 1.0f };
+        std::string xLabel;
+        std::string yLabel;
+        double initialSpan = 0.0;
+        TickStyle tickStyle = TickStyle::Automatic;
+        TooltipCallback tooltip;
+        ChartSync* sharedSync = nullptr;
+        double extentMax = 0.0;
+    };
+
+    explicit LineChart(Config config);
 
     void setChartHeight(float height) { m_chartHeight = height; }
 
@@ -43,8 +56,18 @@ public:
 
     void draw(const std::vector<double>& data, double yMax);
 
-protected:
-    void drawLineChart(const std::vector<double>& data, double yMax);
+private:
+    // Recomputes the visible range of `sync` for the new data length.
+    void updateExtent(ChartSync& sync, std::size_t dataSize) const;
+    // Sets up the axes and the generated ticks.
+    void setupAxes(ChartSync& sync, double yRange);
+    // Decimates `data` into the scratch buffer and draws the line.
+    void drawSeries(const std::vector<double>& data, const PlotArea& area, ChartSync& sync,
+        double extentMin, double extentMax);
+    // Rebuilds the snap points of the drawn series.
+    void updateSnapPoints(const PlotArea& area, ChartSync& sync, double yRange);
+    // Draws the tooltip and the marker of the snapped point, if any.
+    void drawTooltipMarker(const PlotArea& area, double yRange);
 
     std::string m_id;
     std::string m_title;
@@ -57,6 +80,23 @@ protected:
     float m_chartHeight = 220.0f;
     double m_extentMax = 0.0;
     PointSnapper m_snapper;
+
+    // Scratch buffers reused across frames (Per.15 — the chart draws every
+    // frame, nothing here may allocate per frame).
+    std::vector<ChartPoint> m_points;
+    std::vector<double> m_xs;
+    std::vector<double> m_ys;
+    std::vector<SnapPoint> m_snapPoints;
+    std::vector<double> m_tickGenerated;
+    std::vector<double> m_tickValues;
+    std::vector<std::string> m_tickLabels;
+    std::vector<const char*> m_tickLabelPtrs;
+
+protected:
+    // FreqChart adjusts the extent right before it draws (C.133 — the data
+    // members themselves are private).
+    void setExtentMax(double extentMax) { m_extentMax = extentMax; }
+    void setInitialSpan(double initialSpan) { m_initialSpan = initialSpan; }
 };
 
 // A diff chart: a line chart over a one second window in milliseconds.

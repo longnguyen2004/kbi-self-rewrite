@@ -1,8 +1,8 @@
 #pragma once
 
-#include <device.h>
-#include <keycode.h>
-#include <system_info.h>
+#include "device.h"
+#include "keycode.h"
+#include "system_info.h"
 #include <atomic>
 #include <boost/signals2.hpp>
 #include <boost/unordered/concurrent_flat_map.hpp>
@@ -23,6 +23,32 @@ struct Input {
     bool pressed;
     Keycode code;
 };
+
+// The vendor and product id scraped from a device's PnP path. One strong
+// type instead of two adjacent, swappable integers (I.24).
+struct VidPid {
+    std::uint16_t vid = 0;
+    std::uint16_t pid = 0;
+};
+
+// The device classes a recording captures. A bitmask, so callers state what
+// they want instead of passing three adjacent bools (I.4).
+enum class InputMask : unsigned {
+    None = 0,
+    Keyboard = 1u << 0,
+    Mouse = 1u << 1,
+    Gamepad = 1u << 2,
+};
+
+[[nodiscard]] constexpr InputMask operator|(InputMask a, InputMask b)
+{
+    return static_cast<InputMask>(static_cast<unsigned>(a) | static_cast<unsigned>(b));
+}
+
+[[nodiscard]] constexpr bool has(InputMask mask, InputMask flag)
+{
+    return (static_cast<unsigned>(mask) & static_cast<unsigned>(flag)) != 0;
+}
 
 enum class RecorderBackend {
     Auto,
@@ -61,8 +87,8 @@ public:
 
     // Whether inputs are being recorded.
     [[nodiscard]] bool recording() const;
-    // Starts recording, optionally restricted to a subset of the devices.
-    void start(bool keyboard = true, bool mouse = false, bool gamepad = false);
+    // Starts recording the given device classes.
+    void start(InputMask devices = InputMask::Keyboard);
     void stop();
 
     // The wall clock time the last recording started at.
@@ -85,7 +111,7 @@ public:
     [[nodiscard]] std::size_t inputCount() const;
 
 private:
-    std::atomic<bool> m_running{false};
+    std::atomic<bool> m_running { false };
 
     std::unique_ptr<Impl> m_pImpl;
     std::shared_ptr<spdlog::logger> m_logger;

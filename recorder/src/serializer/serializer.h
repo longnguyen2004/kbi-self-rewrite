@@ -3,56 +3,69 @@
 #include <recorder.h>
 #include <system_info.h>
 #include <boost/json/fwd.hpp>
-#include <boost/preprocessor/seq/for_each.hpp>
 #include <ostream>
 #include <span>
 #include <string>
 
 namespace Kbi {
 
-// The `spec` macro argument carries the trailing declaration specifier of the
-// generated functions: `= 0` for the pure virtual interface functions and
-// `override` in the derived classes (C.128).
-#define SERIALIZER_CLASS_TO_DECLARE (UsbDeviceInfo)(Device)(Input)(Recorder)(SystemInfo)
-
-#define DECLARE_OSTREAM_SERIALIZER(r, spec, type) \
-    virtual void serialize(const type& a, std::ostream& out) const spec;
-#define DECLARE_STRING_SERIALIZER(r, spec, type) \
-    virtual std::string serialize(const type& val) const spec;
-#define DECLARE_BUFFER_SERIALIZER(r, spec, type) \
-    virtual void serialize(const type& val, std::span<char> out) const spec;
-
-#define DECLARE_OSTREAM_SERIALIZER_ALL(spec) \
-    BOOST_PP_SEQ_FOR_EACH(DECLARE_OSTREAM_SERIALIZER, spec, SERIALIZER_CLASS_TO_DECLARE)
-#define DECLARE_STRING_SERIALIZER_ALL(spec) \
-    BOOST_PP_SEQ_FOR_EACH(DECLARE_STRING_SERIALIZER, spec, SERIALIZER_CLASS_TO_DECLARE)
-#define DECLARE_BUFFER_SERIALIZER_ALL(spec) \
-    BOOST_PP_SEQ_FOR_EACH(DECLARE_BUFFER_SERIALIZER, spec, SERIALIZER_CLASS_TO_DECLARE)
-
+// The interface of the different serializations of the recorded types. The
+// declarations are written out explicitly (ES.30/ES.31 — no preprocessor
+// metaprogramming); every derived class overrides the same five overloads.
 class Serializer {
 public:
     virtual ~Serializer() = default;
 
-    DECLARE_OSTREAM_SERIALIZER_ALL(= 0)
-    DECLARE_STRING_SERIALIZER_ALL()
-    DECLARE_BUFFER_SERIALIZER_ALL()
+    // The streaming interface; every concrete serializer implements it.
+    virtual void serialize(const UsbDeviceInfo& a, std::ostream& out) const = 0;
+    virtual void serialize(const Device& a, std::ostream& out) const = 0;
+    virtual void serialize(const Input& a, std::ostream& out) const = 0;
+    virtual void serialize(const Recorder& a, std::ostream& out) const = 0;
+    virtual void serialize(const SystemInfo& a, std::ostream& out) const = 0;
+
+    // The convenience wrappers of the streaming interface; the base provides
+    // them for free.
+    virtual std::string serialize(const UsbDeviceInfo& a) const;
+    virtual std::string serialize(const Device& a) const;
+    virtual std::string serialize(const Input& a) const;
+    virtual std::string serialize(const Recorder& a) const;
+    virtual std::string serialize(const SystemInfo& a) const;
+
+    virtual void serialize(const UsbDeviceInfo& a, std::span<char> out) const;
+    virtual void serialize(const Device& a, std::span<char> out) const;
+    virtual void serialize(const Input& a, std::span<char> out) const;
+    virtual void serialize(const Recorder& a, std::span<char> out) const;
+    virtual void serialize(const SystemInfo& a, std::span<char> out) const;
 };
 
 class JsonTextSerializer : public Serializer {
 public:
-    DECLARE_OSTREAM_SERIALIZER_ALL(override)
-    DECLARE_STRING_SERIALIZER_ALL(override)
+    void serialize(const UsbDeviceInfo& a, std::ostream& out) const override;
+    void serialize(const Device& a, std::ostream& out) const override;
+    void serialize(const Input& a, std::ostream& out) const override;
+    void serialize(const Recorder& a, std::ostream& out) const override;
+    void serialize(const SystemInfo& a, std::ostream& out) const override;
 
-#define DECLARE_TO_JSON(r, _, type) boost::json::value toJson(const type& val) const;
+    std::string serialize(const UsbDeviceInfo& a) const override;
+    std::string serialize(const Device& a) const override;
+    std::string serialize(const Input& a) const override;
+    std::string serialize(const Recorder& a) const override;
+    std::string serialize(const SystemInfo& a) const override;
 
-    BOOST_PP_SEQ_FOR_EACH(DECLARE_TO_JSON, _, SERIALIZER_CLASS_TO_DECLARE)
-
-#undef DECLARE_TO_JSON
+    boost::json::value toJson(const UsbDeviceInfo& a) const;
+    boost::json::value toJson(const Device& a) const;
+    boost::json::value toJson(const Input& a) const;
+    boost::json::value toJson(const Recorder& a) const;
+    boost::json::value toJson(const SystemInfo& a) const;
 };
 
 class CborSerializer : public Serializer {
 public:
-    DECLARE_OSTREAM_SERIALIZER_ALL(override)
+    void serialize(const UsbDeviceInfo& a, std::ostream& out) const override;
+    void serialize(const Device& a, std::ostream& out) const override;
+    void serialize(const Input& a, std::ostream& out) const override;
+    void serialize(const Recorder& a, std::ostream& out) const override;
+    void serialize(const SystemInfo& a, std::ostream& out) const override;
 };
 
 } // namespace Kbi

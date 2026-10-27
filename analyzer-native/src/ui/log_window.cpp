@@ -1,4 +1,4 @@
-#include "ui/log_window.h"
+#include <ui/log_window.h>
 
 #include <imgui.h>
 #include <spdlog/common.h>
@@ -22,14 +22,6 @@ constexpr std::array<spdlog::level::level_enum, 6> kFilterLevels = {
     spdlog::level::critical,
 };
 
-// A captured message made ready for drawing: the filter has been applied and
-// the time stamp has been formatted.
-struct Row {
-    std::string prefix;
-    spdlog::level::level_enum level = spdlog::level::info;
-    std::string text;
-};
-
 ImVec4 levelColor(spdlog::level::level_enum level)
 {
     switch (level) {
@@ -47,8 +39,10 @@ ImVec4 levelColor(spdlog::level::level_enum level)
     }
 }
 
+} // namespace
+
 // Lays out one line: the time, the level and the message that follows them.
-void drawRow(const Row& row)
+void LogWindow::drawRow(const Row& row)
 {
     ImGui::TextDisabled("%s", row.prefix.c_str());
     // The time stamps and the level names have a fixed width, so the columns
@@ -60,8 +54,6 @@ void drawRow(const Row& row)
     ImGui::TextUnformatted(row.text.c_str());
 }
 
-} // namespace
-
 void LogWindow::draw(bool& open, LogStore& store)
 {
     ImGui::SetNextWindowSize(ImVec2(760.0f, 420.0f), ImGuiCond_FirstUseEver);
@@ -71,30 +63,30 @@ void LogWindow::draw(bool& open, LogStore& store)
     }
 
     // The snapshot is taken before the toolbar so that the copy button can
-    // put the visible messages on the clipboard.
-    std::vector<Row> rows;
+    // put the visible messages on the clipboard. The row buffer is a member,
+    // its strings keep their capacity across frames (Per.15).
+    m_rows.clear();
     store.withEntries([&](const std::vector<LogStore::Entry>& entries) {
-        rows.reserve(entries.size());
+        m_rows.reserve(entries.size());
         for (const LogStore::Entry& entry : entries) {
             if (entry.level < m_minLevel)
                 continue;
             Row row;
-            row.prefix
-                = std::format("{:%T}", std::chrono::floor<std::chrono::milliseconds>(entry.time));
+            row.prefix = entry.prefix;
             row.level = entry.level;
             row.text = entry.text;
-            rows.push_back(std::move(row));
+            m_rows.push_back(std::move(row));
         }
     });
 
     if (ImGui::Button("Clear")) {
         store.clear();
-        rows.clear();
+        m_rows.clear();
     }
     ImGui::SameLine();
     if (ImGui::Button("Copy")) {
         std::string out;
-        for (const Row& row : rows)
+        for (const Row& row : m_rows)
             out += std::format(
                 "{} [{}] {}\n", row.prefix, spdlog::level::to_string_view(row.level), row.text);
         ImGui::SetClipboardText(out.c_str());
@@ -123,14 +115,14 @@ void LogWindow::draw(bool& open, LogStore& store)
     // Only the rows that are on the screen are laid out, the buffer keeps
     // thousands of messages.
     ImGuiListClipper clipper;
-    clipper.Begin(static_cast<int>(rows.size()));
+    clipper.Begin(static_cast<int>(m_rows.size()));
     while (clipper.Step()) {
         for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
-            drawRow(rows[static_cast<std::size_t>(i)]);
+            drawRow(m_rows[static_cast<std::size_t>(i)]);
     }
     clipper.End();
 
-    if (m_autoScroll && !rows.empty() && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+    if (m_autoScroll && !m_rows.empty() && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
         ImGui::SetScrollHereY(1.0f);
     ImGui::EndChild();
 

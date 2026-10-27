@@ -1,7 +1,7 @@
 #pragma once
 
-#include "core/result.h"
-#include "parser/usb_descriptors.h"
+#include <core/result.h>
+#include <parser/usb_descriptors.h>
 
 #include <map>
 #include <string>

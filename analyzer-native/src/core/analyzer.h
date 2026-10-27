@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/result.h"
+#include <core/result.h>
 
 #include <condition_variable>
 #include <cstdint>
@@ -76,7 +76,7 @@ public:
     void terminate();
 
 private:
-    void workerLoop(std::stop_token stop);
+    void workerLoop(const std::stop_token& stop);
     void recompute();
 
     int m_binRate = 16000;

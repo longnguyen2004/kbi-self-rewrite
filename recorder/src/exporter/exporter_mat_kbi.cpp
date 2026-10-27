@@ -133,6 +133,11 @@ void writeKbiInput(std::ostream& out, const KbiInput& input)
 
 } // namespace
 
+ExporterMatKbi::ExporterMatKbi(const Recorder& recorder)
+    : m_recorder(recorder)
+{
+}
+
 void ExporterMatKbi::exportTo(std::ostream& out) const
 {
     using DeviceMap = Recorder::DeviceMap;

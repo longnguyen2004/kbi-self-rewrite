@@ -1,7 +1,7 @@
-#include "parser/parser.h"
+#include <parser/parser.h>
 
-#include "parser/parser_kbi_legacy.h"
-#include "parser/usb_descriptors.h"
+#include <parser/parser_kbi_legacy.h>
+#include <parser/usb_descriptors.h>
 
 #include <boost/json.hpp>
 #include <boost/system/system_error.hpp>

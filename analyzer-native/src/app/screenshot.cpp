@@ -1,4 +1,4 @@
-#include "app/screenshot.h"
+#include <app/screenshot.h>
 
 #include <SDL3/SDL.h>
 
@@ -16,7 +16,7 @@ bool saveScreenshot(SDL_Renderer& renderer, const std::string& path)
     // the drawing first. The rendered frame itself is not affected.
     SDL_SetRenderScale(&renderer, 1.0f, 1.0f);
     SDL_Surface* raw = SDL_RenderReadPixels(&renderer, nullptr);
-    if (!raw) {
+    if (raw == nullptr) {
         std::println(stderr, "Failed to read the frame: {} (renderer: {})", SDL_GetError(),
             SDL_GetRendererName(&renderer));
         return false;
@@ -26,7 +26,7 @@ bool saveScreenshot(SDL_Renderer& renderer, const std::string& path)
     // format its backbuffer has.
     SDL_Surface* surface = SDL_ConvertSurface(raw, SDL_PIXELFORMAT_RGB24);
     SDL_DestroySurface(raw);
-    if (!surface) {
+    if (surface == nullptr) {
         std::println(stderr, "Failed to convert the frame: {}", SDL_GetError());
         return false;
     }

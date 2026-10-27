@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ui/charts_common.h"
+#include <ui/charts_common.h>
 
 #include <cstddef>
 #include <string>
@@ -55,6 +55,16 @@ public:
     Chart& operator=(Chart&&) = delete;
 
 protected:
+    // Charts that share their x axis with their siblings hand the shared
+    // state in; derived classes call this from their constructor (C.133 —
+    // the data members themselves are private).
+    void useSharedSync(ChartSync* sharedSync)
+    {
+        if (sharedSync != nullptr)
+            m_sync = sharedSync;
+    }
+
+private:
     ChartSync m_ownedSync;
     ChartSync* m_sync = &m_ownedSync;
 };

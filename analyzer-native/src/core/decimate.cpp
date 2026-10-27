@@ -1,4 +1,4 @@
-#include "core/decimate.h"
+#include <core/decimate.h>
 
 #include <algorithm>
 #include <cmath>
@@ -9,26 +9,26 @@ namespace {
 
 } // namespace
 
-std::vector<ChartPoint> decimate(const std::vector<double>& data, double extentMin,
-    double extentMax, double domainMin, double domainMax, int width)
+void decimate(const std::vector<double>& data, AxisRange extent, AxisRange domain, int width,
+    std::vector<ChartPoint>& out)
 {
-    std::vector<ChartPoint> points;
+    out.clear();
     const std::size_t n = data.size();
     if (n == 0 || width <= 0)
-        return points;
+        return;
 
-    const double extentSpan = extentMax - extentMin;
+    const double extentSpan = extent.max - extent.min;
     // Degenerate extent: fall back to an identity mapping so we still emit
     // something rather than NaN-poisoning the path.
     const double denom = extentSpan != 0.0 ? extentSpan : 1.0;
     const double indexDenom = n > 1 ? static_cast<double>(n - 1) : 1.0;
 
-    const double xMin = std::min(domainMin, domainMax);
-    const double xMax = std::max(domainMin, domainMax);
+    const double xMin = std::min(domain.min, domain.max);
+    const double xMax = std::max(domain.min, domain.max);
     const double domainSpan = (xMax - xMin) != 0.0 ? (xMax - xMin) : 1.0;
 
     const auto toIndex = [&](double x) -> long {
-        const double raw = std::round(((x - extentMin) / denom) * indexDenom);
+        const double raw = std::round(((x - extent.min) / denom) * indexDenom);
         return static_cast<long>(std::clamp(raw, 0.0, static_cast<double>(n - 1)));
     };
 
@@ -37,7 +37,7 @@ std::vector<ChartPoint> decimate(const std::vector<double>& data, double extentM
     // and anchors bucket boundaries to the pixel grid (zoom-stable shape).
     const auto pxToX = [&](double px) { return xMin + (px / width) * domainSpan; };
 
-    points.reserve(static_cast<std::size_t>(width));
+    out.reserve(static_cast<std::size_t>(width));
 
     // Track the last emitted index to skip duplicate pixel columns (when many
     // pixels map to the same single data index, e.g. extreme zoom-in).
@@ -66,11 +66,9 @@ std::vector<ChartPoint> decimate(const std::vector<double>& data, double extentM
             }
         }
 
-        const double x = extentMin + (static_cast<double>(bucketMaxIndex) / indexDenom) * denom;
-        points.push_back(ChartPoint { .x = x, .y = bucketMax });
+        const double x = extent.min + (static_cast<double>(bucketMaxIndex) / indexDenom) * denom;
+        out.push_back(ChartPoint { .x = x, .y = bucketMax });
     }
-
-    return points;
 }
 
 } // namespace Kbi

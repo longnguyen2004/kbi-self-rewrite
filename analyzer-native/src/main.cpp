@@ -1,7 +1,7 @@
-#include "app/app.h"
-#include "app/screenshot.h"
-#include "app/theme.h"
-#include "ui/log_store.h"
+#include <app/app.h>
+#include <app/screenshot.h>
+#include <app/theme.h>
+#include <ui/log_store.h>
 
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>
@@ -16,6 +16,7 @@
 
 #include <cstdio>
 #include <format>
+#include <optional>
 #include <print>
 #include <string>
 
@@ -32,38 +33,68 @@ constexpr Uint32 kMinimizedDelayMs = 10;
 
 } // namespace
 
-int main(int argc, char** argv)
-{
+namespace {
+
+// The command line options of the analyzer.
+struct Arguments {
     std::string screenshotPath;
     std::string openPath;
     bool record = false;
     bool showInfo = false;
     int screenshotFrame = 0;
+};
+
+// Parses the command line. Returns nothing when the program should exit
+// immediately because the usage message was printed (F.3 — argument handling
+// kept out of main).
+std::optional<Arguments> parseArguments(int argc, char** argv)
+{
+    Arguments arguments;
     // Argument values are consumed with explicit index steps; the loop
     // control variable is only advanced at the bottom of the loop (ES.86).
     int i = 1;
     while (i < argc) {
         const std::string argument = argv[i];
         if (argument == "--screenshot" && i + 1 < argc) {
-            screenshotPath = argv[i + 1];
-            screenshotFrame = kScreenshotFrame;
+            arguments.screenshotPath = argv[i + 1];
+            arguments.screenshotFrame = kScreenshotFrame;
             i += 2;
         } else if (argument == "--open" && i + 1 < argc) {
-            openPath = argv[i + 1];
+            arguments.openPath = argv[i + 1];
             i += 2;
         } else {
             if (argument == "--record")
-                record = true;
+                arguments.record = true;
             else if (argument == "--info")
-                showInfo = true;
+                arguments.showInfo = true;
             else if (argument == "--help") {
                 std::println("Usage: analyzer-native [--open <recording>] [--record] [--info] "
                              "[--screenshot <file.ppm>]");
-                return 0;
+                return std::nullopt;
             }
             ++i;
         }
     }
+    return arguments;
+}
+
+// Creates the renderer of the window; prints the error and returns nothing
+// on failure.
+SDL_Renderer* createRenderer(SDL_Window* window)
+{
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, nullptr);
+    if (renderer == nullptr)
+        std::println(stderr, "Failed to create the SDL renderer: {}", SDL_GetError());
+    return renderer;
+}
+
+} // namespace
+
+int main(int argc, char** argv)
+{
+    const auto arguments = parseArguments(argc, argv);
+    if (!arguments)
+        return 0;
 
     // The dependencies are wired together with boost::di: the logger writes
     // to the terminal and into the log store, which is a singleton shared
@@ -97,14 +128,13 @@ int main(int argc, char** argv)
     constexpr int height = 900;
     SDL_Window* window = SDL_CreateWindow(
         "Keyboard Inspector", width, height, SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
-    if (!window) {
+    if (window == nullptr) {
         std::println(stderr, "Failed to create the SDL window: {}", SDL_GetError());
         SDL_Quit();
         return 1;
     }
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, nullptr);
-    if (!renderer) {
-        std::println(stderr, "Failed to create the SDL renderer: {}", SDL_GetError());
+    SDL_Renderer* renderer = createRenderer(window);
+    if (renderer == nullptr) {
         SDL_DestroyWindow(window);
         SDL_Quit();
         return 1;
@@ -121,11 +151,11 @@ int main(int argc, char** argv)
     ImGui_ImplSDLRenderer3_Init(renderer);
 
     auto app = injector.create<std::unique_ptr<Kbi::App::App>>();
-    if (!openPath.empty())
-        app->load(openPath);
-    if (record)
+    if (!arguments->openPath.empty())
+        app->load(arguments->openPath);
+    if (arguments->record)
         app->startRecording();
-    if (showInfo)
+    if (arguments->showInfo)
         app->setInfoVisible(true);
 
     int frame = 0;
@@ -174,9 +204,9 @@ int main(int argc, char** argv)
             Kbi::App::saveScreenshot(*renderer, "screenshot.ppm");
 
         ++frame;
-        if (!screenshotPath.empty() && frame >= screenshotFrame) {
-            if (!Kbi::App::saveScreenshot(*renderer, screenshotPath))
-                std::println(stderr, "Failed to write {}", screenshotPath);
+        if (!arguments->screenshotPath.empty() && frame >= arguments->screenshotFrame) {
+            if (!Kbi::App::saveScreenshot(*renderer, arguments->screenshotPath))
+                std::println(stderr, "Failed to write {}", arguments->screenshotPath);
             done = true;
         }
 

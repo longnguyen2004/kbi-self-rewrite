@@ -1,4 +1,4 @@
-#include "core/keycode_util.h"
+#include <core/keycode_util.h>
 
 #include <keycode.h>
 
@@ -405,7 +405,7 @@ std::string_view keycodeName(int code)
 
 int vkToKeycode(int vk)
 {
-    if (vk < 0 || vk >= static_cast<int>(vkTable().size()))
+    if (vk < 0 || std::cmp_greater_equal(vk, vkTable().size()))
         return static_cast<int>(Keycode::None);
     return vkTable()[static_cast<std::size_t>(vk)];
 }

@@ -75,13 +75,13 @@ int portableGetch()
 } // namespace
 
 ConsoleController::ConsoleController(Recorder& recorder, std::shared_ptr<spdlog::logger> logger)
-    : Controller(recorder, std::move(logger))
+    : m_ctx { .recorder = recorder, .logger = std::move(logger) }
 {
 }
 
 void ConsoleController::run()
 {
-    auto& rec = m_recorder;
+    auto& rec = m_ctx.recorder;
     rec.start();
     std::println("Keep spamming, press Esc to end...");
     std::jthread statThread([&] {

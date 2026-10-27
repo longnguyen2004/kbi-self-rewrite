@@ -10,8 +10,8 @@
 #include <concepts>
 #include <iterator>
 #include <simdutf.h>
-#include <type_traits>
 #include <string>
+#include <type_traits>
 
 namespace Kbi {
 
@@ -214,25 +214,94 @@ void tag_invoke(const value_from_tag& /*unused*/, value& j, const Recorder& reco
     // clang-format on
 }
 
-#define DEFINE_JSON_SERIALIZER(r, _, type)                                                         \
-    void JsonTextSerializer::serialize(const type& a, std::ostream& out) const                     \
-    {                                                                                              \
-        out << value_from(a);                                                                      \
-    }                                                                                              \
-    std::string JsonTextSerializer::serialize(const type& a) const                                 \
-    {                                                                                              \
-        return boost::json::serialize(value_from(a));                                              \
-    }                                                                                              \
-    void CborSerializer::serialize(const type& a, std::ostream& out) const                         \
-    {                                                                                              \
-        serializeCborValue(value_from(a), out);                                                    \
-    }
+// The JsonTextSerializer writes the boost::json conversion of every type;
+// the CborSerializer encodes the same conversion in CBOR.
+void JsonTextSerializer::serialize(const UsbDeviceInfo& a, std::ostream& out) const
+{
+    out << value_from(a);
+}
 
-BOOST_PP_SEQ_FOR_EACH(DEFINE_JSON_SERIALIZER, _, SERIALIZER_CLASS_TO_DECLARE)
+void JsonTextSerializer::serialize(const Device& a, std::ostream& out) const
+{
+    out << value_from(a);
+}
 
-#define DEFINE_TO_JSON(r, _, type)                                                                 \
-    boost::json::value JsonTextSerializer::toJson(const type& a) const { return value_from(a); }
+void JsonTextSerializer::serialize(const Input& a, std::ostream& out) const
+{
+    out << value_from(a);
+}
 
-BOOST_PP_SEQ_FOR_EACH(DEFINE_TO_JSON, _, SERIALIZER_CLASS_TO_DECLARE)
+void JsonTextSerializer::serialize(const Recorder& a, std::ostream& out) const
+{
+    out << value_from(a);
+}
+
+void JsonTextSerializer::serialize(const SystemInfo& a, std::ostream& out) const
+{
+    out << value_from(a);
+}
+
+std::string JsonTextSerializer::serialize(const UsbDeviceInfo& a) const
+{
+    return boost::json::serialize(value_from(a));
+}
+
+std::string JsonTextSerializer::serialize(const Device& a) const
+{
+    return boost::json::serialize(value_from(a));
+}
+
+std::string JsonTextSerializer::serialize(const Input& a) const
+{
+    return boost::json::serialize(value_from(a));
+}
+
+std::string JsonTextSerializer::serialize(const Recorder& a) const
+{
+    return boost::json::serialize(value_from(a));
+}
+
+std::string JsonTextSerializer::serialize(const SystemInfo& a) const
+{
+    return boost::json::serialize(value_from(a));
+}
+
+void CborSerializer::serialize(const UsbDeviceInfo& a, std::ostream& out) const
+{
+    serializeCborValue(value_from(a), out);
+}
+
+void CborSerializer::serialize(const Device& a, std::ostream& out) const
+{
+    serializeCborValue(value_from(a), out);
+}
+
+void CborSerializer::serialize(const Input& a, std::ostream& out) const
+{
+    serializeCborValue(value_from(a), out);
+}
+
+void CborSerializer::serialize(const Recorder& a, std::ostream& out) const
+{
+    serializeCborValue(value_from(a), out);
+}
+
+void CborSerializer::serialize(const SystemInfo& a, std::ostream& out) const
+{
+    serializeCborValue(value_from(a), out);
+}
+
+boost::json::value JsonTextSerializer::toJson(const UsbDeviceInfo& a) const
+{
+    return value_from(a);
+}
+
+boost::json::value JsonTextSerializer::toJson(const Device& a) const { return value_from(a); }
+
+boost::json::value JsonTextSerializer::toJson(const Input& a) const { return value_from(a); }
+
+boost::json::value JsonTextSerializer::toJson(const Recorder& a) const { return value_from(a); }
+
+boost::json::value JsonTextSerializer::toJson(const SystemInfo& a) const { return value_from(a); }
 
 } // namespace Kbi

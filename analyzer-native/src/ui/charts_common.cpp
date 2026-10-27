@@ -1,5 +1,5 @@
-#include "ui/charts_common.h"
-#include "ui/charts.h"
+#include <ui/charts.h>
+#include <ui/charts_common.h>
 
 #include <imgui.h>
 #include <implot.h>
@@ -39,7 +39,7 @@ void showTooltip(ImVec2 anchor, const std::vector<std::string>& lines)
     }
 }
 
-PlotArea currentPlotArea(double xMin, double xMax)
+PlotArea currentPlotArea(AxisRange domain)
 {
     PlotArea area;
     area.position = ImPlot::GetPlotPos();
@@ -54,27 +54,27 @@ PlotArea currentPlotArea(double xMin, double xMax)
 
     if (area.size.x > 1.0f) {
         const double t = (mouse.x - area.position.x) / area.size.x;
-        area.mouseX = xMin + t * (xMax - xMin);
+        area.mouseX = domain.min + t * (domain.max - domain.min);
     } else {
-        area.mouseX = xMin;
+        area.mouseX = domain.min;
     }
     return area;
 }
 
-double toPixelX(const PlotArea& area, double xMin, double xMax, double x)
+double toPixelX(const PlotArea& area, AxisRange domain, double x)
 {
-    const double span = xMax - xMin;
+    const double span = domain.max - domain.min;
     if (span <= 0.0)
         return area.position.x;
-    return area.position.x + (x - xMin) / span * area.size.x;
+    return area.position.x + (x - domain.min) / span * area.size.x;
 }
 
-double toPixelY(const PlotArea& area, double yMin, double yMax, double y)
+double toPixelY(const PlotArea& area, AxisRange domain, double y)
 {
-    const double span = yMax - yMin;
+    const double span = domain.max - domain.min;
     if (span <= 0.0)
         return area.position.y + area.size.y;
-    return area.position.y + area.size.y * (1.0 - (y - yMin) / span);
+    return area.position.y + area.size.y * (1.0 - (y - domain.min) / span);
 }
 
 void handleInteraction(ChartSync& sync, const PlotArea& area)

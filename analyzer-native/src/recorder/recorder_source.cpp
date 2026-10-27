@@ -1,4 +1,4 @@
-#include "recorder/recorder_source.h"
+#include <recorder/recorder_source.h>
 
 #include <recorder.h>
 
@@ -25,10 +25,10 @@ RecorderSource::RecorderSource(std::shared_ptr<spdlog::logger> logger)
 
 RecorderSource::~RecorderSource() { stop(); }
 
-bool RecorderSource::start(std::string& error)
+std::optional<std::string> RecorderSource::start()
 {
     if (m_impl->recorder && m_impl->recorder->recording())
-        return true;
+        return std::nullopt;
 
     try {
         // The recorder dereferences the logger it is given, so always hand it
@@ -37,9 +37,8 @@ bool RecorderSource::start(std::string& error)
             throw std::runtime_error("the recorder has no logger");
         m_impl->recorder = std::make_unique<Recorder>(RecorderBackend::Auto, m_impl->logger);
     } catch (const std::exception& e) {
-        error = e.what();
         m_impl->recorder.reset();
-        return false;
+        return std::string(e.what());
     }
 
     {
@@ -88,8 +87,8 @@ bool RecorderSource::start(std::string& error)
               m_queue.push_back(std::move(event));
           });
 
-    recorder.start(true, false, false);
-    return true;
+    recorder.start(InputMask::Keyboard);
+    return std::nullopt;
 }
 
 void RecorderSource::stop()

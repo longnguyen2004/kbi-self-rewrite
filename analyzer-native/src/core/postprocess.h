@@ -19,6 +19,11 @@ struct PostprocessResult {
 // The low cut divides the first bins by a logistic function centred at
 // bin 25, which suppresses the DC component and everything below roughly
 // 25 Hz. It is only meaningful in the frequency domain.
-PostprocessResult postprocessWithMax(const std::vector<double>& arr, PostprocessOptions options);
+//
+// The result is written into `out`, whose storage is reused across frames
+// (Per.15 — the caller runs this every frame, so nothing may allocate per
+// frame). Any previous content of `out` is discarded.
+void postprocessWithMax(
+    const std::vector<double>& arr, PostprocessOptions options, PostprocessResult& out);
 
 } // namespace Kbi

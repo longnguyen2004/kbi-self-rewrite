@@ -1,12 +1,12 @@
-#include "core/analyzer.h"
-#include "core/decimate.h"
-#include "core/fft.h"
-#include "core/input_timeline.h"
-#include "core/postprocess.h"
-#include "parser/parser.h"
-#include "parser/usb_descriptors.h"
-#include "ui/charts.h"
-#include "ui/log_store.h"
+#include <core/analyzer.h>
+#include <core/decimate.h>
+#include <core/fft.h>
+#include <core/input_timeline.h>
+#include <core/postprocess.h>
+#include <parser/parser.h>
+#include <parser/usb_descriptors.h>
+#include <ui/charts.h>
+#include <ui/log_store.h>
 
 #include <datetime.h>
 
@@ -26,6 +26,7 @@
 #include <random>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -53,11 +54,10 @@ void check(bool condition, const std::string& what)
 std::vector<std::complex<double>> naiveDft(const std::vector<double>& input, std::size_t size)
 {
     std::vector<std::complex<double>> result(size);
-    for (std::ptrdiff_t k = 0; k < static_cast<std::ptrdiff_t>(size); ++k) {
+    for (std::ptrdiff_t k = 0; std::cmp_less(k, size); ++k) {
         std::complex<double> sum(0.0, 0.0);
         for (std::size_t j = 0; j < input.size(); ++j) {
-            const double angle
-                = -2.0 * std::numbers::pi
+            const double angle = -2.0 * std::numbers::pi
                 * static_cast<double>(static_cast<std::size_t>(k) * j) / static_cast<double>(size);
             sum += input[j] * std::complex<double>(std::cos(angle), std::sin(angle));
         }
@@ -88,7 +88,7 @@ void testFft()
         const auto reference = naiveDft(input, m);
 
         double worst = 0.0;
-        for (std::ptrdiff_t k = 0; k < static_cast<std::ptrdiff_t>(m / 2 + 1); ++k) {
+        for (std::ptrdiff_t k = 0; std::cmp_less(k, m / 2 + 1); ++k) {
             const std::complex<double> got(spectrum.values[static_cast<std::size_t>(k * 2)],
                 spectrum.values[static_cast<std::size_t>(k * 2 + 1)]);
             worst = std::max(worst, std::abs(got - reference[static_cast<std::size_t>(k)]));
@@ -108,7 +108,7 @@ void testFft()
     const auto spectrum = Kbi::Fft::realDft(tone);
     std::size_t peak = 0;
     double peakValue = 0.0;
-    for (std::ptrdiff_t k = 0; k < static_cast<std::ptrdiff_t>(spectrum.values.size() / 2); ++k) {
+    for (std::ptrdiff_t k = 0; std::cmp_less(k, spectrum.values.size() / 2); ++k) {
         const double magnitude = std::hypot(spectrum.values[static_cast<std::size_t>(k * 2)],
             spectrum.values[static_cast<std::size_t>(k * 2 + 1)]);
         if (magnitude > peakValue) {
@@ -243,10 +243,11 @@ void testDecimate()
     std::println("decimate");
 
     std::vector<double> data(1001);
-    for (std::ptrdiff_t i = 0; i < static_cast<std::ptrdiff_t>(data.size()); ++i)
+    for (std::ptrdiff_t i = 0; std::cmp_less(i, data.size()); ++i)
         data[static_cast<std::size_t>(i)] = static_cast<double>(i % 7);
 
-    const auto points = Kbi::decimate(data, 0.0, 1000.0, 0.0, 1000.0, 100);
+    std::vector<Kbi::ChartPoint> points;
+    Kbi::decimate(data, { .min = 0.0, .max = 1000.0 }, { .min = 0.0, .max = 1000.0 }, 100, points);
     check(points.size() <= 100, "at most one point per pixel column");
     check(!points.empty(), "points are produced");
 
@@ -259,9 +260,9 @@ void testDecimate()
         actualMax = std::max(actualMax, point.y);
     check(actualMax == expectedMax, "the bucket max preserves the global maximum");
 
-    // Zooming in must not produce points outside the visible domain.
-    const auto zoomed = Kbi::decimate(data, 0.0, 1000.0, 500.0, 510.0, 100);
-    for (const auto& point : zoomed)
+    // Zooming in must not produce points outside of the visible domain.
+    Kbi::decimate(data, { .min = 0.0, .max = 1000.0 }, { .min = 500.0, .max = 510.0 }, 100, points);
+    for (const auto& point : points)
         check(point.x >= 490.0 && point.x <= 520.0, "zoomed points stay in range");
 }
 
@@ -269,13 +270,14 @@ void testPostprocess()
 {
     std::println("postprocess");
     const std::vector<double> data(100, 1.0);
-    const auto withLowCut = Kbi::postprocessWithMax(data, { true });
-    check(withLowCut.data[0] < 0.01, "the low cut removes the dc component");
-    check(withLowCut.data[99] == 1.0, "the low cut leaves the high bins alone");
-    check(withLowCut.max == 1.0, "the max is computed");
+    Kbi::PostprocessResult result;
+    Kbi::postprocessWithMax(data, { true }, result);
+    check(result.data[0] < 0.01, "the low cut removes the dc component");
+    check(result.data[99] == 1.0, "the low cut leaves the high bins alone");
+    check(result.max == 1.0, "the max is computed");
 
-    const auto withoutLowCut = Kbi::postprocessWithMax(data, { false });
-    check(withoutLowCut.data[0] == 1.0, "the low cut can be disabled");
+    Kbi::postprocessWithMax(data, { false }, result);
+    check(result.data[0] == 1.0, "the low cut can be disabled");
 }
 
 void testTimeline()
@@ -318,7 +320,7 @@ void testLogStore()
 {
     std::println("log store");
     const auto store = std::make_shared<Kbi::Ui::LogStore>();
-    store->capacity = 3;
+    store->setCapacity(3);
 
     const auto logger = std::make_unique<spdlog::logger>("test", store);
     logger->info("hello {}", 42);
@@ -531,7 +533,7 @@ void testPointSnapper()
 
     const Kbi::Ui::SnapPoint* snapped = snapper.find(11.0, 5.0, 40.0);
     check(snapped != nullptr, "a point is found");
-    if (snapped) {
+    if (snapped != nullptr) {
         check(snapped->index == 0, "the closest point is found");
         check(snapped->x == 10.0, "the position of the point is kept");
     }
@@ -639,7 +641,7 @@ void testLegacyParser(const std::string& path)
     check(result->devices.size() == 2, "the device list is parsed");
     const Kbi::ResultDevice* keyboardDevice = result->findDevice("HID_VID_3149&PID_5041&MI_00");
     check(keyboardDevice != nullptr, "the keyboard device is parsed");
-    if (keyboardDevice) {
+    if (keyboardDevice != nullptr) {
         check(keyboardDevice->name == "MonsGeek Keyboard", "the device name is parsed");
         check(keyboardDevice->vid == 0x3149, "the vendor id is scraped from the device id");
         check(keyboardDevice->pid == 0x5041, "the product id is scraped from the device id");

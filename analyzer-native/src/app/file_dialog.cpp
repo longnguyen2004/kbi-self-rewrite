@@ -1,8 +1,9 @@
-#include "app/file_dialog.h"
+#include <app/file_dialog.h>
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_dialog.h>
 
+#include <array>
 #include <atomic>
 #include <memory>
 #include <optional>
@@ -14,7 +15,7 @@ namespace {
 
 struct DialogState {
     std::atomic<bool> done { false };
-    std::atomic<std::shared_ptr<std::string>> result {};
+    std::atomic<std::shared_ptr<std::string>> result;
 };
 
 void SDLCALL onFileSelected(void* userdata, const char* const* filelist, int /*filter*/)
@@ -29,14 +30,15 @@ void SDLCALL onFileSelected(void* userdata, const char* const* filelist, int /*f
 
 std::optional<std::string> openRecordingDialog(const std::string& startDirectory)
 {
-    static constexpr SDL_DialogFileFilter filters[] = {
-        { "recording files", "json;kbi" },
+    static constexpr std::array<SDL_DialogFileFilter, 1> filters = {
+        SDL_DialogFileFilter { .name = "recording files", .pattern = "json;kbi" },
     };
 
     DialogState state;
 
     const char* defaultLocation = startDirectory.empty() ? nullptr : startDirectory.c_str();
-    SDL_ShowOpenFileDialog(onFileSelected, &state, nullptr, filters, 1, defaultLocation, false);
+    SDL_ShowOpenFileDialog(
+        onFileSelected, &state, nullptr, filters.data(), 1, defaultLocation, false);
 
     while (!state.done.load(std::memory_order_acquire)) {
         SDL_PumpEvents();

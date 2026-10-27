@@ -1,11 +1,11 @@
-#include "parser/parser_kbi_legacy.h"
+#include <parser/parser_kbi_legacy.h>
 
-#include "core/keycode_util.h"
+#include <core/keycode_util.h>
 
 #include <datetime.h>
 
-#include <array>
 #include <algorithm>
+#include <array>
 #include <charconv>
 #include <cstring>
 #include <optional>
