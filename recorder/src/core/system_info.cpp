@@ -57,10 +57,8 @@ std::string queryCim(std::wstring_view column, std::wstring_view table)
     for (;;) {
         if (FAILED(pEnumerator->Next(WBEM_INFINITE, 1, &pClassObject, &uReturn)) || uReturn == 0)
             break;
-        VARIANT vtProp;
-        VariantInit(&vtProp);
+        wil::unique_variant vtProp;
         if (FAILED(pClassObject->Get(column.data(), 0, &vtProp, 0, 0))) {
-            VariantClear(&vtProp);
             continue;
         }
         const auto str = vtProp.bstrVal;
@@ -69,8 +67,6 @@ std::string queryCim(std::wstring_view column, std::wstring_view table)
             = simdutf::utf8_length_from_utf16(reinterpret_cast<const char16_t*>(str), len);
         std::string value(lenUtf8, 0);
         simdutf::convert_utf16_to_utf8(reinterpret_cast<const char16_t*>(str), len, value.data());
-        // The VARIANT owns the BSTR; release it before returning (R.1).
-        VariantClear(&vtProp);
         return value;
     }
     return "";
