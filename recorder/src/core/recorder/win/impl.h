@@ -52,6 +52,7 @@ public:
     void processRawInput(HRAWINPUT rawInput);
 
 private:
+    // Owned by the window thread; created, destroyed and reset there.
     HWND m_hwnd = nullptr;
     std::jthread m_windowThread;
     std::chrono::steady_clock::time_point m_startRef;

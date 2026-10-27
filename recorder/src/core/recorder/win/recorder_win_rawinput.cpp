@@ -2,6 +2,7 @@
 #include "impl.h"
 #include "wstring.h"
 #include <charconv>
+#include <stop_token>
 #include <string_view>
 #include <utility>
 #include <wil/result.h>
@@ -160,35 +161,68 @@ void RecorderWinRawInput::start(InputMask devices)
         if (!RegisterRawInputDevices(
                 rawInputDevices.data(), rawInputDevices.size(), sizeof(RAWINPUTDEVICE)))
             LOG_LAST_ERROR();
+        // The pump has to wake up for two independent events: messages in the
+        // queue and the stop request. A blocking GetMessageW can only wait for
+        // the former, so instead the wait covers an event that a stop callback
+        // signals whenever the stop token is set; this way a stop request
+        // interrupts the loop even while it is idle.
+        HANDLE stopEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+        std::stop_callback stopWatcher(stop, [&stopEvent] { SetEvent(stopEvent); });
         MSG msg;
-        while (!stop.stop_requested()) {
-            if (GetMessageW(&msg, m_hwnd, 0, 0)) {
-                TranslateMessage(&msg);
-                DispatchMessageW(&msg);
-            } else {
+        bool quit = false;
+        for (;;) {
+            // MWMO_INPUTAVAILABLE makes the wait return when messages are
+            // pending even if they were queued before the wait started.
+            const DWORD wait = MsgWaitForMultipleObjectsEx(
+                1, &stopEvent, INFINITE, QS_ALLINPUT, MWMO_INPUTAVAILABLE);
+            if (wait == WAIT_OBJECT_0 + 1) {
+                // Drain every queued message without blocking.
+                while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) {
+                    if (msg.message == WM_QUIT) {
+                        quit = true;
+                        break;
+                    }
+                    TranslateMessage(&msg);
+                    DispatchMessageW(&msg);
+                }
+            }
+            if (quit || stop.stop_requested() || wait == WAIT_OBJECT_0)
+                break;
+            if (wait == WAIT_FAILED) {
                 LOG_LAST_ERROR();
+                break;
             }
         }
+        CloseHandle(stopEvent);
+        // The thread that created a window must destroy it and unregister its
+        // class, so cleanup happens here rather than in stop() (CP.14).
+        if (m_hwnd) {
+            DestroyWindow(m_hwnd);
+            m_hwnd = nullptr;
+        }
+        UnregisterClassW(className, GetModuleHandleW(nullptr));
     });
 }
 
 RecorderWinRawInput::~RecorderWinRawInput()
 {
-    // Release the window and window class even if the recorder is destroyed
-    // without an explicit stop() (R.1); stop() is idempotent.
+    // Terminate the window thread even if the recorder is destroyed without
+    // an explicit stop() (R.1); the thread tears down the window and class.
+    // stop() is idempotent.
     stop();
 }
 
 void RecorderWinRawInput::stop()
 {
-    m_windowThread.request_stop();
-    if (m_windowThread.joinable())
+    // The pump thread waits on the stop event (signaled by its stop callback
+    // when request_stop() runs) right next to the message queue, so stopping
+    // works even while it is idle without any key being pressed, and also when
+    // no window queue existed yet at all. The window and its class are
+    // unregistered by the thread itself.
+    if (m_windowThread.joinable()) {
+        m_windowThread.request_stop();
         m_windowThread.join();
-    if (m_hwnd) {
-        DestroyWindow(m_hwnd);
-        m_hwnd = nullptr;
     }
-    UnregisterClassW(className, GetModuleHandleW(nullptr));
 }
 
 std::string RecorderWinRawInput::deviceName(std::string_view pnp) const
