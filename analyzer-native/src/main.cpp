@@ -13,14 +13,17 @@
 #include <SDL3/SDL.h>
 
 #include <boost/di.hpp>
+#include <boost/program_options.hpp>
 
 #include <cstdio>
 #include <format>
+#include <iostream>
 #include <optional>
 #include <print>
 #include <string>
 
 namespace di = boost::di;
+namespace po = boost::program_options;
 
 namespace {
 
@@ -44,37 +47,33 @@ struct Arguments {
     int screenshotFrame = 0;
 };
 
-// Parses the command line. Returns nothing when the program should exit
-// immediately because the usage message was printed (F.3 — argument handling
-// kept out of main).
+// Parses the command line with boost::program_options. Returns nothing when
+// the program should exit immediately because the usage message was printed
+// (F.3 — argument handling kept out of main).
 std::optional<Arguments> parseArguments(int argc, char** argv)
 {
     Arguments arguments;
-    // Argument values are consumed with explicit index steps; the loop
-    // control variable is only advanced at the bottom of the loop (ES.86).
-    int i = 1;
-    while (i < argc) {
-        const std::string argument = argv[i];
-        if (argument == "--screenshot" && i + 1 < argc) {
-            arguments.screenshotPath = argv[i + 1];
-            arguments.screenshotFrame = kScreenshotFrame;
-            i += 2;
-        } else if (argument == "--open" && i + 1 < argc) {
-            arguments.openPath = argv[i + 1];
-            i += 2;
-        } else {
-            if (argument == "--record")
-                arguments.record = true;
-            else if (argument == "--info")
-                arguments.showInfo = true;
-            else if (argument == "--help") {
-                std::println("Usage: analyzer-native [--open <recording>] [--record] [--info] "
-                             "[--screenshot <file.ppm>]");
-                return std::nullopt;
-            }
-            ++i;
-        }
+
+    po::options_description description("Options");
+    description.add_options()("help", "Show this help and exit")(
+        "record", po::bool_switch(&arguments.record), "Start a recording at startup")(
+        "info", po::bool_switch(&arguments.showInfo), "Show the info window at startup")("open",
+        po::value<std::string>(&arguments.openPath),
+        "Load a recording at startup (.json or legacy .kbi file)")("screenshot",
+        po::value<std::string>(&arguments.screenshotPath),
+        "Save a screenshot to the given .ppm file some frames after startup");
+
+    po::variables_map vm;
+    po::store(po::parse_command_line(argc, argv, description), vm);
+    if (vm.contains("help")) {
+        std::cout << description << "\n";
+        return std::nullopt;
     }
+    // Recognised values are written into the Arguments fields, unknown or
+    // malformed options throw.
+    po::notify(vm);
+    if (vm.contains("screenshot"))
+        arguments.screenshotFrame = kScreenshotFrame;
     return arguments;
 }
 
@@ -92,7 +91,14 @@ SDL_Renderer* createRenderer(SDL_Window* window)
 
 int main(int argc, char** argv)
 {
-    const auto arguments = parseArguments(argc, argv);
+    std::optional<Arguments> arguments;
+    try {
+        arguments = parseArguments(argc, argv);
+    } catch (const std::exception& e) {
+        std::println(stderr, "Error: {}", e.what());
+        std::println(stderr, "Try analyzer-native --help");
+        return 1;
+    }
     if (!arguments)
         return 0;
 

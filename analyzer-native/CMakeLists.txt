@@ -33,6 +33,7 @@ endif()
 find_package(imgui CONFIG REQUIRED)
 find_package(implot CONFIG REQUIRED)
 find_package(boost_json CONFIG REQUIRED)
+find_package(boost_program_options CONFIG REQUIRED)
 find_package(pffft CONFIG REQUIRED)
 find_package(SDL3 CONFIG REQUIRED)
 find_package(simdutf CONFIG REQUIRED)
@@ -73,6 +74,7 @@ target_link_libraries(analyzer-native PRIVATE
     imgui::imgui
     implot::implot
     Boost::json
+    Boost::program_options
     pffft::pffft
     SDL3::SDL3
     simdutf::simdutf
