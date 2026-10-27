@@ -52,15 +52,43 @@ std::string hidProductStringFromDevicePath(std::string_view id)
     return hidProductStringFromDevicePath(stringToWstring(id));
 }
 
+namespace {
+
+// RawInput (RIDI_DEVICENAME) and GameInput (pnpPath) hand out a device
+// *interface* path such as \\?\HID#VID_3151&PID_502F&MI_00#8&1c055855&0&0000#{guid},
+// while the setupapi/cfgmgr32 APIs below expect an enumerator name or a PnP
+// device instance ID (e.g. HID\VID_3151&PID_502F&MI_00\8&1c055855&0&0000) and
+// otherwise fail. Convert an interface path into a device instance ID; a
+// string that already is one passes through unchanged, making this idempotent.
+std::wstring pnpInstanceIdOf(std::wstring_view wid)
+{
+    constexpr std::wstring_view interfacePrefix = LR"(\\?\)";
+    if (wid.starts_with(interfacePrefix))
+        wid.remove_prefix(interfacePrefix.size());
+
+    // The trailing #{interface-guid} is not part of the device instance ID.
+    if (const auto guidPos = wid.find(L"#{"); guidPos != std::wstring::npos)
+        wid = wid.substr(0, guidPos);
+
+    std::wstring instanceId(wid);
+    std::ranges::replace(instanceId, L'#', L'\\');
+    return instanceId;
+}
+
+} // namespace
+
 std::string hidProductStringFromPnp(std::wstring_view wid)
 {
+    // Copy the view into an owned, null-terminated buffer (PCWSTR parameter).
+    const std::wstring instanceId = pnpInstanceIdOf(wid);
+
     GUID hidGuid;
     HidD_GetHidGuid(&hidGuid);
 
     // The RAII wrapper destroys the device info set on every exit path (R.1).
     // SetupDiGetClassDevsW returns INVALID_HANDLE_VALUE on failure.
-    unique_hdevinfo devInfoSet(
-        SetupDiGetClassDevsW(&hidGuid, wid.data(), nullptr, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE));
+    unique_hdevinfo devInfoSet(SetupDiGetClassDevsW(
+        &hidGuid, instanceId.c_str(), nullptr, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE));
     if (!devInfoSet)
         return "Unknown";
 
@@ -105,7 +133,7 @@ std::optional<std::string> findUsbDevice(std::wstring_view wid)
     DEVINST parent;
     // CM_Locate_DevNodeW takes a mutable string pointer on older SDKs; copy
     // into a local buffer instead of casting away const (ES.50).
-    std::wstring idBuffer(wid);
+    std::wstring idBuffer = pnpInstanceIdOf(wid);
     // Get device instance handle for the HID device
     if (CM_Locate_DevNodeW(&current, idBuffer.data(), CM_LOCATE_DEVNODE_NORMAL) != CR_SUCCESS)
         return {};
@@ -270,7 +298,7 @@ std::optional<UsbDeviceInfo> usbDeviceInfoFromPath(std::wstring_view wid)
     DEVINST parent;
     // CM_Locate_DevNodeW takes a mutable string pointer on older SDKs; copy
     // into a local buffer instead of casting away const (ES.50).
-    std::wstring idBuffer(wid);
+    std::wstring idBuffer = pnpInstanceIdOf(wid);
     // Get device instance handle for the USB device
     if (CM_Locate_DevNodeW(&current, idBuffer.data(), CM_LOCATE_DEVNODE_NORMAL) != CR_SUCCESS)
         return {};
