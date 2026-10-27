@@ -182,8 +182,6 @@ bool App::startRecording()
 void App::stopRecording()
 {
     m_recorder.stop();
-    if (m_hasResult)
-        m_result.info.backend = m_recorder.backendName();
     m_status = "Recording stopped";
     m_logger->info("Recording stopped, {} events captured", m_result.totalInputCount());
     m_mode = Mode::FromRecorder;
