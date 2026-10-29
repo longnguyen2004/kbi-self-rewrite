@@ -16,7 +16,7 @@ jobs:
             preset: vcpkg - Ninja - Release
             tripletFlags: ''
           - os: windows-latest
-            preset: vcpkg - VS 2022
+            preset: vcpkg - VS 2026
             # Static libraries with the dynamic MSVC runtime.
             tripletFlags: -D VCPKG_TARGET_TRIPLET=x64-windows-static-md
 

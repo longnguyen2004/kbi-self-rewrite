@@ -29,8 +29,8 @@
       }
     },
     {
-      "name": "vcpkg - VS 2022",
-      "generator": "Visual Studio 17 2022",
+      "name": "vcpkg - VS 2026",
+      "generator": "Visual Studio 18 2026",
       "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
@@ -47,8 +47,8 @@
       "configurePreset": "vcpkg - Ninja - Debug"
     },
     {
-      "name": "VS 2022 - Release",
-      "configurePreset": "vcpkg - VS 2022",
+      "name": "VS 2026 - Release",
+      "configurePreset": "vcpkg - VS 2026",
       "configuration": "Release"
     },
     {
