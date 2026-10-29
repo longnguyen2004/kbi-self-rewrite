@@ -43,8 +43,22 @@ jobs:
 
       - name: Install dependencies
         if: runner.os == 'Linux'
-        # Some vcpkg ports build with the autotools.
-        run: sudo apt install autoconf autoconf-archive automake libtool
+        # Some vcpkg ports build with the autotools, and SDL3 needs the X11
+        # and Wayland development packages for its windowing backends.
+        run: |
+          sudo apt install autoconf autoconf-archive automake libtool
+          sudo apt install \
+            libx11-dev \
+            libxext-dev \
+            libxrender-dev \
+            libxrandr-dev \
+            libxcursor-dev \
+            libxfixes-dev \
+            libxi-dev \
+            libxss-dev \
+            libwayland-dev \
+            libxkbcommon-dev \
+            libegl1-mesa-dev
 
       - name: Install CMake
         uses: lukka/get-cmake@latest
