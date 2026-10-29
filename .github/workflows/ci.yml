@@ -14,8 +14,11 @@ jobs:
         include:
           - os: ubuntu-22.04
             preset: vcpkg - Ninja - Release
+            tripletFlags: ''
           - os: windows-latest
             preset: vcpkg - VS 2022
+            # Static libraries with the dynamic MSVC runtime.
+            tripletFlags: -D VCPKG_TARGET_TRIPLET=x64-windows-static-md
 
     runs-on: ${{ matrix.os }}
     env:
@@ -53,11 +56,12 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/vcpkg-bincache
-          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
-          restore-keys: vcpkg-${{ runner.os }}-
+          # The triplet is part of the key so entry sets never mix.
+          key: vcpkg-${{ runner.os }}-${{ matrix.preset }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: vcpkg-${{ runner.os }}-${{ matrix.preset }}-
 
       - name: Configure
-        run: cmake --preset "${{ matrix.preset }}"
+        run: cmake --preset "${{ matrix.preset }}" ${{ matrix.tripletFlags }}
 
       - name: Build
         run: cmake --build build --target analyzer-native analyzer-native-tests
