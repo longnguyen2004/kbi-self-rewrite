@@ -1,0 +1,80 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  analyzer-native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest]
+        include:
+          - os: ubuntu-22.04
+            preset: vcpkg - Ninja - Release
+          - os: windows-latest
+            preset: vcpkg - VS 2022
+
+    runs-on: ${{ matrix.os }}
+    env:
+      # The vcpkg manifest install triggered by the CMake toolchain stores its
+      # binary cache here so it can be cached between runs.
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/vcpkg-bincache
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install GCC 15
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt update
+          sudo apt install software-properties-common
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+          sudo apt update
+          sudo apt install gcc-15 g++-15
+          echo "CC=gcc-15" >> "$GITHUB_ENV"
+          echo "CXX=g++-15" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        if: runner.os == 'Linux'
+        # Some vcpkg ports build with the autotools.
+        run: sudo apt install autoconf autoconf-archive automake libtool
+
+      - name: Install CMake
+        uses: lukka/get-cmake@latest
+
+      - name: Install vcpkg
+        uses: lukka/run-vcpkg@v11
+
+      - name: Cache vcpkg archives
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/vcpkg-bincache
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: vcpkg-${{ runner.os }}-
+
+      - name: Configure
+        run: cmake --preset "${{ matrix.preset }}"
+
+      - name: Build
+        run: cmake --build build --target analyzer-native analyzer-native-tests
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Upload analyzer-native (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: analyzer-native-linux
+          path: build/analyzer-native
+
+      - name: Upload analyzer-native (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: analyzer-native-windows
+          path: build/Release/analyzer-native.exe
