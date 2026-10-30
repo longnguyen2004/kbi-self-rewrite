@@ -61,6 +61,10 @@ elseif(LINUX)
     target_link_libraries(recorder-lib PRIVATE ${LIBEVDEV_LINK_LIBRARIES})
     target_include_directories(recorder-lib PRIVATE ${LIBEVDEV_INCLUDE_DIRS})
 
+    pkg_check_modules(LIBSYSTEMD REQUIRED libsystemd)
+    target_link_libraries(recorder-lib PRIVATE ${LIBSYSTEMD_LINK_LIBRARIES})
+    target_include_directories(recorder-lib PRIVATE ${LIBSYSTEMD_INCLUDE_DIRS})
+
     find_package(Threads REQUIRED)
     target_link_libraries(recorder-lib PRIVATE Threads::Threads)
 

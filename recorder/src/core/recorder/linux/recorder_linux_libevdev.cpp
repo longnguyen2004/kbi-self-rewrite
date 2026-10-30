@@ -1,10 +1,9 @@
 #include "device_name.h"
 #include "impl.h"
-#include <boost/container/static_vector.hpp>
-#include <boost/iterator/transform_iterator.hpp>
 #include <spdlog/spdlog.h>
 
 #include <format>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -12,16 +11,14 @@
 
 #include "evdev_to_keycode.h"
 #include <fcntl.h>
-#include <glob.h>
 #include <libevdev/libevdev.h>
 #include <linux/input-event-codes.h>
 #include <poll.h>
-#include <sys/inotify.h>
+#include <systemd/sd-device.h>
 #include <unistd.h>
 
 namespace Kbi {
 
-using namespace boost::container;
 using namespace boost::unordered;
 
 // Compatibility with older kernels: struct input_event used to carry its
@@ -70,85 +67,141 @@ void evdevClose(libevdev* device)
 
 void EvdevCloser::operator()(libevdev* device) const { evdevClose(device); }
 
-// The hotplug scan walks the inotify events of /dev/input/by-id, which
-// needs a nested loop over the event stream.
+struct SdDeviceCloser {
+    void operator()(sd_device* device) const { sd_device_unref(device); }
+};
+struct SdEnumeratorCloser {
+    void operator()(sd_device_enumerator* enumerator) const { sd_device_enumerator_unref(enumerator); }
+};
+struct SdMonitorCloser {
+    void operator()(sd_device_monitor* monitor) const { sd_device_monitor_unref(monitor); }
+};
+using SdDevicePtr = std::unique_ptr<sd_device, SdDeviceCloser>;
+using SdEnumeratorPtr = std::unique_ptr<sd_device_enumerator, SdEnumeratorCloser>;
+using SdMonitorPtr = std::unique_ptr<sd_device_monitor, SdMonitorCloser>;
+
+// An input event device satellite node (eventXX under /dev/input).
+bool isEventDevice(sd_device* device)
+{
+    const char* sysname = nullptr;
+    if (sd_device_get_sysname(device, &sysname) < 0 || sysname == nullptr)
+        return false;
+    return std::string_view(sysname).contains("event");
+}
+
+// Unique, durable device ID used in recordings: prefer the udev-stable
+// /dev/input/by-id symlink (stable across replugging/reboot, unlike the
+// runtime-numbered /dev/input/eventXX devnode), falling back to the devnode
+// for devices that have no by-id link (e.g. non-USB i8042 devices).
+std::optional<std::string> inputDeviceId(sd_device* device)
+{
+    for (const char* link = sd_device_get_devlink_first(device); link != nullptr;
+         link = sd_device_get_devlink_next(device)) {
+        const std::string_view linkView(link);
+        if (linkView.starts_with("/dev/input/by-id/") && linkView.contains("event"))
+            return std::string(linkView);
+    }
+    const char* devnode = nullptr;
+    if (sd_device_get_devname(device, &devnode) < 0 || devnode == nullptr)
+        return std::nullopt;
+    return std::string(devnode);
+}
+
+// The hotplug scan lists the already-present input devices with an
+// sd_device_enumerator, then watches the udev monitor for additions and
+// removals. The monitor needs several setup steps, hence the linear bodies.
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 void RecorderLinuxLibevdev::initScanDevices()
 {
-    auto defaultConstruct = [](std::string_view path) {
+    auto makeDevice = [](std::string_view path) {
         return std::make_pair(std::string(path), InternalDevice { .syspath = std::string(path) });
     };
-    glob_t globResult {};
-    if (glob("/dev/input/by-id/*event*", 0, nullptr, &globResult) == 0) {
-        const auto glPathc = globResult.gl_pathc;
-        auto* const glPathv = globResult.gl_pathv;
-        m_evdevDevices.insert(boost::make_transform_iterator(glPathv, defaultConstruct),
-            boost::make_transform_iterator(glPathv + glPathc, defaultConstruct));
-    }
-    // glob may have allocated storage even when it fails, always release it
-    // (P.8).
-    globfree(&globResult);
 
+    // Initial scan: devices already present when the recorder starts.
+    sd_device_enumerator* enumeratorRaw = nullptr;
+    if (sd_device_enumerator_new(&enumeratorRaw) < 0) {
+        logger()->error("sd_device_enumerator_new failed");
+        return;
+    }
+    SdEnumeratorPtr enumerator { enumeratorRaw };
+    sd_device_enumerator_add_match_subsystem(enumeratorRaw, "input", true);
+    // The enumerator skips devices without a udev database entry by default;
+    // enumerate uninitialized devices too, or nothing may be found.
+    sd_device_enumerator_allow_uninitialized(enumeratorRaw);
+    // get_device_next() only advances the scan; iteration must start with
+    // get_device_first().
+    for (sd_device* device = sd_device_enumerator_get_device_first(enumeratorRaw); device != nullptr;
+         device = sd_device_enumerator_get_device_next(enumeratorRaw)) {
+        // The reference is owned by the enumerator, don't unref it.
+        if (!isEventDevice(device))
+            continue;
+        const auto id = inputDeviceId(device);
+        if (!id)
+            continue;
+        m_evdevDevices.insert(makeDevice(*id));
+    }
+
+    // Hotplug detection: receive devices from the udev monitor instead of
+    // parsing raw inotify events of /dev/input/by-id.
     m_deviceScanThread = std::jthread([&](const std::stop_token& stop) {
-        int notifyFd = inotify_init1(IN_NONBLOCK);
-        if (notifyFd < 0) {
-            logger()->error("inotify_init1 failed");
+        sd_device_monitor* monitorRaw = nullptr;
+        if (sd_device_monitor_new(&monitorRaw) < 0) {
+            logger()->error("sd_device_monitor_new failed");
             return;
         }
-        if (inotify_add_watch(
-                notifyFd, "/dev/input/by-id", IN_CREATE | IN_DELETE | IN_MOVED_TO | IN_MOVED_FROM)
-            < 0) {
-            logger()->error("inotify_add_watch failed for /dev/input/by-id");
-            close(notifyFd);
+        SdMonitorPtr monitor { monitorRaw };
+        if (sd_device_monitor_filter_add_match_subsystem_devtype(monitorRaw, "input", nullptr) < 0
+            || sd_device_monitor_attach_event(monitorRaw, nullptr) < 0
+            || sd_device_monitor_start(monitorRaw, nullptr, nullptr) < 0) {
+            logger()->error("failed to start the udev device monitor");
             return;
         }
-        pollfd pollStruct { .fd = notifyFd, .events = POLLIN };
-        constexpr size_t bufSize = 4096;
-        std::array<char, bufSize> buf;
+        const int monitorFd = sd_device_monitor_get_fd(monitorRaw);
+        if (monitorFd < 0) {
+            logger()->error("sd_device_monitor_get_fd failed");
+            return;
+        }
         while (!stop.stop_requested()) {
-            int result = poll(&pollStruct, 1, 100);
-            if (result <= 0)
+            pollfd pollStruct { .fd = monitorFd, .events = POLLIN };
+            const int pollResult = poll(&pollStruct, 1, 100);
+            if (pollResult <= 0)
                 continue;
             while (true) {
-                ssize_t len = read(notifyFd, buf.data(), buf.size());
-                if (len < 0) {
-                    if (errno != EAGAIN)
-                        logger()->error("inotify read error: {}", strerror(errno));
+                sd_device* received = nullptr;
+                const int receiveResult = sd_device_monitor_receive(monitorRaw, &received);
+                if (receiveResult == 0)
+                    break;
+                if (receiveResult < 0) {
+                    logger()->error("sd_device_monitor_receive error: {}", strerror(-receiveResult));
                     break;
                 }
-                if (len == 0)
-                    break;
-                auto makeDevice = [](std::string_view path) {
-                    return std::make_pair(
-                        std::string(path), InternalDevice { .syspath = std::string(path) });
-                };
-                static_vector<std::string, 100> added;
-                static_vector<std::string, 100> removed;
-                size_t offset = 0;
-                while (std::cmp_less(offset, len)) {
-                    auto* ev = reinterpret_cast<struct inotify_event*>(buf.data() + offset);
-                    std::string_view name
-                        = ev->len ? std::string_view(ev->name, ev->len) : std::string_view {};
-                    // Trim trailing NUL if present
-                    if (!name.empty() && name.back() == '\0')
-                        name.remove_suffix(1);
-                    // Skip empty or hidden/temp names
-                    if (!name.empty() && name[0] != '.' && name.contains("event")) {
-                        std::string fullPath = std::format("/dev/input/by-id/{}", name);
-                        if ((ev->mask & IN_CREATE) || (ev->mask & IN_MOVED_TO))
-                            added.emplace_back(std::move(fullPath));
-                        else if ((ev->mask & IN_DELETE) || (ev->mask & IN_MOVED_FROM))
-                            removed.emplace_back(std::move(fullPath));
-                    }
-                    offset += sizeof(struct inotify_event) + ev->len;
+                SdDevicePtr device { received };
+                if (!isEventDevice(received))
+                    continue;
+                auto id = inputDeviceId(received);
+                if (!id) {
+                    // Devices synthesized from the udev database on removal
+                    // normally keep their devnode/links; recover the identity
+                    // from the sysname as a last resort.
+                    const char* sysname = nullptr;
+                    if (sd_device_get_sysname(received, &sysname) < 0 || sysname == nullptr)
+                        continue;
+                    id = std::format("/dev/input/{}", sysname);
                 }
-                for (const auto& p : added)
-                    m_evdevDevices.insert(makeDevice(p));
-                m_evdevDevices.visit(removed.begin(), removed.end(),
-                    [](EvdevDeviceMap::value_type& dev) { dev.second.remove = true; });
+                sd_device_action_t action = _SD_DEVICE_ACTION_INVALID;
+                if (sd_device_get_action(received, &action) < 0)
+                    continue;
+                if (action == SD_DEVICE_ADD) {
+                    m_evdevDevices.insert(makeDevice(*id));
+                } else if (action == SD_DEVICE_REMOVE) {
+                    const std::string idString = *id;
+                    m_evdevDevices.visit_all([&](EvdevDeviceMap::value_type& entry) {
+                        if (entry.first == idString)
+                            entry.second.remove = true;
+                    });
+                }
             }
         }
-        close(notifyFd);
     });
 }
 

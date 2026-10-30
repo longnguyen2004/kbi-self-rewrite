@@ -14,18 +14,11 @@
     "boost-program-options",
     "boost-signals2",
     "boost-unordered",
+    "boost-url",
     "boost-uuid",
     {
       "name": "gameinput",
       "platform": "windows"
-    },
-    {
-      "name": "ixwebsocket",
-      "default-features": false
-    },
-    {
-      "name": "libevdev",
-      "platform": "linux"
     },
     {
       "name": "imgui",
@@ -35,13 +28,24 @@
       ]
     },
     "implot",
+    {
+      "name": "ixwebsocket",
+      "default-features": false
+    },
+    {
+      "name": "libevdev",
+      "platform": "linux"
+    },
+    {
+      "name": "libsystemd",
+      "platform": "linux"
+    },
     "pffft",
     "simdutf",
     "spdlog",
     {
       "name": "wil",
       "platform": "windows"
-    },
-    "boost-url"
+    }
   ]
 }
