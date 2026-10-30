@@ -14,11 +14,14 @@ jobs:
         include:
           - os: ubuntu-22.04
             preset: vcpkg - Ninja - Release
-            tripletFlags: ''
+            # Statically link libgcc/libstdc++ so the binary doesn't require
+            # newer runtimes than a typical distro ships.
+            configureFlags: >-
+              -D CMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++"
           - os: windows-latest
             preset: vcpkg - VS 2026
             # Static libraries with the dynamic MSVC runtime.
-            tripletFlags: -D VCPKG_TARGET_TRIPLET=x64-windows-static-md
+            configureFlags: -D VCPKG_TARGET_TRIPLET=x64-windows-static-md
 
     runs-on: ${{ matrix.os }}
     env:
@@ -76,7 +79,7 @@ jobs:
           restore-keys: vcpkg-${{ runner.os }}-${{ matrix.preset }}-
 
       - name: Configure
-        run: cmake --preset "${{ matrix.preset }}" ${{ matrix.tripletFlags }}
+        run: cmake --preset "${{ matrix.preset }}" ${{ matrix.configureFlags }}
 
       - name: Build
         run: cmake --build build --target analyzer-native analyzer-native-tests
