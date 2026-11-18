@@ -22,8 +22,9 @@ public:
     // Resets the zoom state.
     void resetZoom() override;
 
-    // Sets the visible range of the input timeline.
-    void setTimelineRange(AxisRange range);
+    // Clears the cached data of the chart, the next draw repopulates it from
+    // the timeline; used when a recording is replaced.
+    void reset();
 
 private:
     // Rebuilds the caches when the underlying data has grown or shrunk; all

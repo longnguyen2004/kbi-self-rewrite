@@ -90,6 +90,8 @@ LineChart::LineChart(Config config)
     , m_tickStyle(config.tickStyle)
     , m_tooltip(std::move(config.tooltip))
     , m_extentMax(config.extentMax)
+    , m_sampleLayout(config.sampleLayout)
+    , m_maxZoom(config.maxZoom)
 {
     useSharedSync(config.sharedSync);
 }
@@ -110,7 +112,14 @@ DiffChart::DiffChart(std::string id, std::string title, ChartSync* sharedSync)
                   };
               },
           .sharedSync = sharedSync,
-          .extentMax = 1000.0 })
+          .extentMax = 1000.0,
+          // The histogram entries are buckets of 1000 / bin_rate ms each, not
+          // point samples; otherwise the x values drift away from the bin
+          // rate (a 1000Hz bin rate would label its bins 1.001ms, 2.002ms, ...).
+          .sampleLayout = SampleLayout::Bucket,
+          // The web app's diff charts zoom in at most 1000x, the smallest
+          // visible span is 1ms.
+          .maxZoom = 1000.0 })
 {
 }
 
@@ -130,7 +139,12 @@ FreqChart::FreqChart(std::string id, std::string title, ChartSync* sharedSync)
                   };
               },
           .sharedSync = sharedSync,
-          .extentMax = 0.0 })
+          .extentMax = 0.0,
+          // The spectrum entries are point samples, the last bin sits exactly
+          // on the maximum frequency.
+          .sampleLayout = SampleLayout::Point,
+          // The web app's frequency charts zoom in at most 32x.
+          .maxZoom = 32.0 })
 {
 }
 
@@ -145,6 +159,7 @@ void LineChart::updateExtent(ChartSync& sync, std::size_t dataSize) const
 {
     sync.extentMin = 0.0;
     sync.extentMax = m_extentMax;
+    sync.maxZoom = m_maxZoom;
 
     const double extentMin = sync.extentMin;
     const double extentMax = sync.extentMax;
@@ -179,23 +194,20 @@ void LineChart::setupAxes(ChartSync& sync, double yRange)
     else
         appendRegularTicks(sync.xMin, sync.xMax, hertzTickStep(range), m_tickGenerated);
 
-    // Label the ticks; the values that do not map to a clean label are
-    // dropped.
+    // Label the ticks. Like the web app, a tick whose value has no clean
+    // label keeps its mark but gets an empty label.
     m_tickValues.clear();
     m_tickLabels.clear();
     for (const double value : m_tickGenerated) {
         std::string label;
         if (m_tickStyle == TickStyle::Milliseconds) {
             const double fractional = value - std::floor(value);
-            if (std::floor(fractional * 8.0) - fractional * 8.0 != 0.0)
-                continue;
             if (fractional == 0.0)
                 label = std::format("{}ms", value);
-            else
-                label = std::format("{:.3f}", fractional + 1.0);
-        } else {
-            if (value != std::floor(value))
-                continue;
+            else if (std::floor(fractional * 8.0) == fractional * 8.0)
+                // Sub millisecond steps show only the fraction, like ".125".
+                label = std::format(".{:03d}", static_cast<int>(std::lround(fractional * 1000.0)));
+        } else if (value == std::floor(value)) {
             label = std::format("{}Hz", value);
         }
         m_tickValues.push_back(value);
@@ -214,7 +226,7 @@ void LineChart::drawSeries(const std::vector<double>& data, const PlotArea& area
 {
     const int width = static_cast<int>(area.size.x);
     decimate(data, { .min = extentMin, .max = extentMax }, { .min = sync.xMin, .max = sync.xMax },
-        width, m_points);
+        width, m_sampleLayout, m_points);
     if (m_points.empty())
         return;
 

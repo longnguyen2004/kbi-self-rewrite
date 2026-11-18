@@ -10,7 +10,7 @@ namespace {
 } // namespace
 
 void decimate(const std::vector<double>& data, AxisRange extent, AxisRange domain, int width,
-    std::vector<ChartPoint>& out)
+    SampleLayout layout, std::vector<ChartPoint>& out)
 {
     out.clear();
     const std::size_t n = data.size();
@@ -21,7 +21,10 @@ void decimate(const std::vector<double>& data, AxisRange extent, AxisRange domai
     // Degenerate extent: fall back to an identity mapping so we still emit
     // something rather than NaN-poisoning the path.
     const double denom = extentSpan != 0.0 ? extentSpan : 1.0;
-    const double indexDenom = n > 1 ? static_cast<double>(n - 1) : 1.0;
+    // Point samples divide the extent between the last pair of entries, the
+    // buckets tile it with one bucket per entry.
+    const double indexDenom = layout == SampleLayout::Point && n > 1 ? static_cast<double>(n - 1)
+                                                                     : static_cast<double>(n);
 
     const double xMin = std::min(domain.min, domain.max);
     const double xMax = std::max(domain.min, domain.max);

@@ -97,7 +97,9 @@ void ChartSync::updateRange(const ChartInteraction& interaction)
 {
     const double span = xMax - xMin;
     const double extentSpan = std::max(extentMax - extentMin, 1e-12);
-    const double minSpan = std::max(extentSpan * 1e-9, 1e-12);
+    // The view cannot be zoomed in past the extent divided by the max zoom
+    // factor, like the upper bound of the web app's d3 scaleExtent.
+    const double minSpan = std::max(extentSpan / maxZoom, 1e-12);
 
     if (interaction.dragging && interaction.plotWidth > 1.0f) {
         const double delta
@@ -117,7 +119,9 @@ void ChartSync::updateRange(const ChartInteraction& interaction)
     }
 
     if (interaction.wheel != 0.0f) {
-        const double factor = std::pow(0.9, static_cast<double>(interaction.wheel));
+        // The same zoom speed per wheel step as the web app, whose d3 zoom
+        // scales the view by e^-0.2 per wheel step.
+        const double factor = std::exp(-0.2 * static_cast<double>(interaction.wheel));
         const double anchor = std::clamp(interaction.mouseX, xMin, xMax);
         double newMin = anchor - (anchor - xMin) * factor;
         double newMax = anchor + (xMax - anchor) * factor;

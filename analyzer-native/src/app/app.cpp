@@ -27,9 +27,6 @@ constexpr std::array<int, 8> kBinRates = { 1000, 2000, 4000, 8000, 16000, 32000,
 // recommended (see the tooltip in drawControls).
 constexpr int kDefaultBinRate = 16000;
 
-// The initial time span of the timeline chart, in seconds.
-constexpr double kInitialTimelineSpanS = 10.0;
-
 // Piecewise linear interpolation between the event count colors.
 ImVec4 eventCountColor(double value)
 {
@@ -83,6 +80,7 @@ void App::resetAnalysis()
     m_infoWindow.reset();
     m_diffSync = Ui::ChartSync {};
     m_freqSync = Ui::ChartSync {};
+    m_timelineChart.reset();
     m_timelineChart.resetZoom();
 }
 
@@ -136,8 +134,9 @@ void App::openFile(const std::string& path)
     }
     resetAnalysis();
     ingest(*parsed);
-    // The timeline starts at the beginning of the recording.
-    m_timelineChart.setTimelineRange({ .min = 0.0, .max = kInitialTimelineSpanS });
+    // Like the web app, the timeline opens showing the whole recording: the
+    // reset in resetAnalysis() makes the next draw initialize the view to the
+    // full extent.
     m_lastPath = path;
     m_status = std::format("Loaded {}", path);
     m_logger->info("Loaded {}", path);

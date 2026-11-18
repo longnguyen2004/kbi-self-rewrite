@@ -44,6 +44,11 @@ public:
         TooltipCallback tooltip;
         ChartSync* sharedSync = nullptr;
         double extentMax = 0.0;
+        // How the entries of the data map onto the extent.
+        SampleLayout sampleLayout = SampleLayout::Point;
+        // The highest zoom factor; the smallest visible span is the extent
+        // divided by it (the web app's d3 scaleExtent upper bound).
+        double maxZoom = 1e9;
     };
 
     explicit LineChart(Config config);
@@ -79,6 +84,8 @@ private:
     TooltipCallback m_tooltip;
     float m_chartHeight = 220.0f;
     double m_extentMax = 0.0;
+    SampleLayout m_sampleLayout;
+    double m_maxZoom;
     PointSnapper m_snapper;
 
     // Scratch buffers reused across frames (Per.15 — the chart draws every

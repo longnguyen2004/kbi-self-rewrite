@@ -110,6 +110,8 @@ void TimelineChart::updateSync(const InputTimeline& timeline)
     const double previousExtentMax = sync.extentMax;
     sync.extentMin = 0.0;
     sync.extentMax = std::max(timeline.endTimestamp(), 1.0);
+    // The web app's timeline zooms in at most 64x.
+    sync.maxZoom = 64.0;
     if (!sync.initialized) {
         sync.initialized = true;
         sync.xMin = sync.extentMin;
@@ -257,16 +259,13 @@ void TimelineChart::draw()
     ImGui::PopID();
 }
 
-void TimelineChart::resetZoom() { sync() = ChartSync {}; }
-
-void TimelineChart::setTimelineRange(AxisRange range)
+void TimelineChart::reset()
 {
-    ChartSync& sync = this->sync();
-    sync.initialized = true;
-    sync.xMin = range.min;
-    sync.xMax = range.max;
-    // The range was set explicitly, it does not follow the end of a recording.
-    sync.followEnd = false;
+    m_deviceColors.clear();
+    m_keyIndices.clear();
+    m_drawn.clear();
 }
+
+void TimelineChart::resetZoom() { sync() = ChartSync {}; }
 
 } // namespace Kbi::Ui

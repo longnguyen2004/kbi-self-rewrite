@@ -26,6 +26,9 @@ struct ChartSync {
     double xMax = 1.0;
     double extentMin = 0.0;
     double extentMax = 0.0;
+    // The highest zoom factor, like the upper bound of the web app's d3
+    // scaleExtent: the smallest visible span is the extent divided by it.
+    double maxZoom = 1e9;
     std::size_t dataLength = 0;
     bool initialized = false;
     // Whether the view follows the end of a growing recording.

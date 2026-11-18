@@ -116,7 +116,9 @@ src/
   it `spdlog::default_logger()`.
 * The charts implement their own pan, zoom and reset instead of using the
   ImPlot input handling, so that all of them behave the same way and so that
-  the charts of a row can share their zoom state.
+  the charts of a row can share their zoom state. They clamp the zoom like the
+  web app's d3 `scaleExtent` (diff charts 1000x, frequency charts 32x, the
+  timeline 64x) and scale by `e^-0.2` per wheel step, like the web app.
 * The legacy `.kbi` format stores fractional seconds, so the timestamps are
   kept as floating point microseconds, like the web app does.
 * The histograms cover the timestamp differences below one second, the ones of
