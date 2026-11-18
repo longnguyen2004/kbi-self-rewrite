@@ -5,7 +5,9 @@
 #include <core/input_timeline.h>
 #include <core/postprocess.h>
 #include <core/result.h>
+#if !defined(__EMSCRIPTEN__)
 #include <recorder/recorder_source.h>
+#endif
 #include <ui/charts.h>
 #include <ui/info_window.h>
 #include <ui/line_chart.h>
@@ -22,7 +24,13 @@
 
 namespace Kbi::App {
 
+#if defined(__EMSCRIPTEN__)
+// Recording is only available in the native build, the web build can just
+// analyse files.
+enum class Mode { FromFile };
+#else
 enum class Mode { FromFile, FromRecorder, Recording };
+#endif
 
 // The application shell: mode selection, the analysis options and the charts.
 class App {
@@ -34,9 +42,11 @@ public:
     // Loads a recording from disk (JSON or legacy .kbi).
     bool load(const std::string& path);
 
+#if !defined(__EMSCRIPTEN__)
     // Starts and stops the embedded recorder.
     bool startRecording();
     void stopRecording();
+#endif
 
     // Shows or hides the info window.
     void setInfoVisible(bool visible) { m_showInfo = visible; }
@@ -63,7 +73,9 @@ private:
     bool m_hasResult = false;
 
     std::shared_ptr<spdlog::logger> m_logger;
+#if !defined(__EMSCRIPTEN__)
     RecorderSource m_recorder;
+#endif
 
     bool m_showInfo = false;
     bool m_showLogs = false;

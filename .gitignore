@@ -1,4 +1,5 @@
 build/
+build-wasm/
 vcpkg_installed/
 imgui.ini
 *.ppm

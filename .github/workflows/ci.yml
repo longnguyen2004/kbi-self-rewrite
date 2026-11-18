@@ -46,10 +46,11 @@ jobs:
 
       - name: Install dependencies
         if: runner.os == 'Linux'
-        # Some vcpkg ports build with the autotools, and SDL3 needs the X11
-        # and Wayland development packages for its windowing backends.
+        # Some vcpkg ports build with the autotools, and GLFW needs the X11
+        # development packages and an OpenGL implementation for its windowing
+        # and rendering backends.
         run: |
-          sudo apt install autoconf autoconf-archive automake libtool
+          sudo apt install autoconf autoconf-archive automake libtool pkg-config
           sudo apt install \
             libx11-dev \
             libxext-dev \
@@ -58,10 +59,12 @@ jobs:
             libxcursor-dev \
             libxfixes-dev \
             libxi-dev \
+            libxinerama-dev \
             libxss-dev \
             libxtst-dev \
-            libwayland-dev \
             libxkbcommon-dev \
+            libgl1-mesa-dev \
+            libglu1-mesa-dev \
             libegl1-mesa-dev
 
       - name: Install CMake
@@ -100,3 +103,41 @@ jobs:
         with:
           name: analyzer-native-windows
           path: build/Release/analyzer-native.exe
+
+  analyzer-web:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 7.0.0
+          actions-cache-folder: emsdk-cache
+
+      - name: Install CMake
+        uses: lukka/get-cmake@latest
+
+      - name: Install vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          # The CMake toolchain installs the web manifest's dependencies for
+          # the wasm32-emscripten triplet.
+          runVcpkgInstall: false
+
+      - name: Configure
+        run: cmake --preset emscripten
+
+      - name: Build
+        run: cmake --build --preset emscripten
+
+      - name: Upload analyzer-native (WebAssembly)
+        uses: actions/upload-artifact@v7
+        with:
+          name: analyzer-native-web
+          path: |
+            build-wasm/analyzer-native/analyzer-native.html
+            build-wasm/analyzer-native/analyzer-native.js
+            build-wasm/analyzer-native/analyzer-native.wasm

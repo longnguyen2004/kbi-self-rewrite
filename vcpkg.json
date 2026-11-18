@@ -20,11 +20,12 @@
       "name": "gameinput",
       "platform": "windows"
     },
+    "glfw3",
     {
       "name": "imgui",
       "features": [
-        "sdl3-binding",
-        "sdl3-renderer-binding"
+        "glfw-binding",
+        "opengl3-binding"
       ]
     },
     "implot",
@@ -43,6 +44,10 @@
     "pffft",
     "simdutf",
     "spdlog",
+    {
+      "name": "tinyfiledialogs",
+      "platform": "!emscripten"
+    },
     {
       "name": "wil",
       "platform": "windows"

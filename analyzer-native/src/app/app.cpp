@@ -23,9 +23,11 @@ namespace {
 
 constexpr std::array<int, 8> kBinRates = { 1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000 };
 
+#if !defined(__EMSCRIPTEN__)
 // The bin rate the analyzer defaults to; live analysis above it is not
 // recommended (see the tooltip in drawControls).
 constexpr int kDefaultBinRate = 16000;
+#endif
 
 // Piecewise linear interpolation between the event count colors.
 ImVec4 eventCountColor(double value)
@@ -56,7 +58,9 @@ ImVec4 eventCountColor(double value)
 
 App::App(std::shared_ptr<spdlog::logger> logger, std::shared_ptr<Ui::LogStore> logStore)
     : m_logger(std::move(logger))
+#if !defined(__EMSCRIPTEN__)
     , m_recorder(m_logger)
+#endif
     , m_logStore(std::move(logStore))
     , m_diffConsecutive("diff_consecutive", "Consecutive timestamp diffs", &m_diffSync)
     , m_diffAll("diff_all", "All timestamp diffs", &m_diffSync)
@@ -148,6 +152,7 @@ bool App::load(const std::string& path)
     return m_hasResult;
 }
 
+#if !defined(__EMSCRIPTEN__)
 bool App::startRecording()
 {
     resetAnalysis();
@@ -185,11 +190,13 @@ void App::stopRecording()
     m_logger->info("Recording stopped, {} events captured", m_result.totalInputCount());
     m_mode = Mode::FromRecorder;
 }
+#endif
 
 void App::setMode(Mode mode)
 {
     if (m_mode == mode)
         return;
+#if !defined(__EMSCRIPTEN__)
     const bool wasRecording = m_mode == Mode::Recording;
     if (wasRecording)
         stopRecording();
@@ -203,6 +210,11 @@ void App::setMode(Mode mode)
         m_status = "Open a recording to analyse it";
     else if (mode == Mode::FromRecorder)
         m_status = "Start a recording to analyse it";
+#else
+    m_mode = mode;
+    resetAnalysis();
+    m_status = "Open a recording to analyse it";
+#endif
 }
 
 void App::drawHeader()
@@ -215,8 +227,12 @@ void App::drawHeader()
     ImGui::TableNextColumn();
 
     const auto modeButton = [&](std::string_view label, Mode mode) {
+#if defined(__EMSCRIPTEN__)
+        const bool active = m_mode == mode;
+#else
         const bool active
             = m_mode == mode || (mode == Mode::FromRecorder && m_mode == Mode::Recording);
+#endif
         if (active)
             ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
         // The button labels are literals, they are NUL-terminated.
@@ -228,8 +244,10 @@ void App::drawHeader()
     };
 
     modeButton("From file", Mode::FromFile);
+#if !defined(__EMSCRIPTEN__)
     ImGui::SameLine();
     modeButton("From recorder", Mode::FromRecorder);
+#endif
 
     ImGui::TableNextColumn();
     ImGui::AlignTextToFramePadding();
@@ -275,6 +293,7 @@ void App::drawOptions()
         }
         ImGui::EndCombo();
     }
+#if !defined(__EMSCRIPTEN__)
     if (m_mode == Mode::Recording && m_analyzer.binRate() > kDefaultBinRate) {
         ImGui::SameLine();
         ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.1f, 1.0f), "!");
@@ -283,6 +302,7 @@ void App::drawOptions()
                 "It is not recommended to go above 16000Hz bin rate during live analysis");
         }
     }
+#endif
 
     ImGui::TableNextColumn();
     ImGui::AlignTextToFramePadding();
@@ -362,6 +382,7 @@ void App::drawStatus()
 
 void App::draw()
 {
+#if !defined(__EMSCRIPTEN__)
     if (m_mode == Mode::Recording) {
         m_recorder.drain(m_result, m_analyzer, m_timeline);
         // The recorder discovers the devices while recording, their colors
@@ -369,6 +390,7 @@ void App::draw()
         if (m_result.devices.size() != m_deviceIds.size())
             updateDeviceIds();
     }
+#endif
 
     const ImGuiIO& io = ImGui::GetIO();
     ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
@@ -396,6 +418,7 @@ void App::draw()
         ImGui::SameLine();
         ImGui::TextDisabled("(.json or legacy .kbi files)");
         break;
+#if !defined(__EMSCRIPTEN__)
     case Mode::FromRecorder:
         if (ImGui::Button("Start recording"))
             startRecording();
@@ -406,6 +429,7 @@ void App::draw()
         ImGui::SameLine();
         ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "recording...");
         break;
+#endif
     }
 
     drawStatus();

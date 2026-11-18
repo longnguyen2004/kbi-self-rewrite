@@ -4,35 +4,51 @@
 #include <ui/log_store.h>
 
 #include <imgui.h>
-#include <imgui_impl_sdl3.h>
-#include <imgui_impl_sdlrenderer3.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
 #include <implot.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 
-#include <SDL3/SDL.h>
+// Use the same OpenGL loader as the ImGui backend so that every GL call goes
+// through the same dispatch table. Emscripten provides GLES directly.
+#if defined(__EMSCRIPTEN__)
+#include <GLES3/gl3.h>
+#else
+#include "imgui_impl_opengl3_loader.h"
+#endif
+
+#define GLFW_INCLUDE_NONE
+#include <GLFW/glfw3.h>
 
 #include <boost/di.hpp>
-#include <boost/program_options.hpp>
 
-#include <cstdio>
-#include <format>
+#if defined(__EMSCRIPTEN__)
+#include <emscripten/emscripten.h>
+#else
+#include <boost/program_options.hpp>
+#endif
+
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <print>
 #include <string>
 
 namespace di = boost::di;
+#if !defined(__EMSCRIPTEN__)
 namespace po = boost::program_options;
+#endif
 
 namespace {
 
 // The frame at which the --screenshot capture is taken.
 constexpr int kScreenshotFrame = 30;
 
-// How long to sleep per iteration while the window is minimized, in
-// milliseconds.
-constexpr Uint32 kMinimizedDelayMs = 10;
+void glfwErrorCallback(int error, const char* description)
+{
+    std::println(stderr, "GLFW error {}: {}", error, description);
+}
 
 } // namespace
 
@@ -47,6 +63,7 @@ struct Arguments {
     int screenshotFrame = 0;
 };
 
+#if !defined(__EMSCRIPTEN__)
 // Parses the command line with boost::program_options. Returns nothing when
 // the program should exit immediately because the usage message was printed
 // (F.3 — argument handling kept out of main).
@@ -76,22 +93,80 @@ std::optional<Arguments> parseArguments(int argc, char** argv)
         arguments.screenshotFrame = kScreenshotFrame;
     return arguments;
 }
+#endif
 
-// Creates the renderer of the window; prints the error and returns nothing
-// on failure.
-SDL_Renderer* createRenderer(SDL_Window* window)
+// Everything the frame function needs. The emscripten main loop only passes
+// a single pointer around, so the state is kept in one place that both the
+// native and the browser build can use.
+struct Session {
+    GLFWwindow* window = nullptr;
+    std::unique_ptr<Kbi::App::App> app;
+    std::string screenshotPath;
+    int screenshotFrame = 0;
+    int frame = 0;
+};
+
+// Draws one frame. Returns false when the window was closed.
+bool runFrame(Session& session)
 {
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, nullptr);
-    if (renderer == nullptr)
-        std::println(stderr, "Failed to create the SDL renderer: {}", SDL_GetError());
-    return renderer;
+    glfwPollEvents();
+
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
+    session.app->draw();
+
+    ImGui::Render();
+
+    int framebufferWidth = 0;
+    int framebufferHeight = 0;
+    glfwGetFramebufferSize(session.window, &framebufferWidth, &framebufferHeight);
+    glViewport(0, 0, framebufferWidth, framebufferHeight);
+    glClearColor(0.06f, 0.06f, 0.07f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+    if (ImGui::IsKeyPressed(ImGuiKey_F12))
+        Kbi::App::saveScreenshot("screenshot.ppm");
+
+    ++session.frame;
+    bool done = false;
+    if (!session.screenshotPath.empty() && session.frame >= session.screenshotFrame) {
+        if (!Kbi::App::saveScreenshot(session.screenshotPath))
+            std::println(stderr, "Failed to write {}", session.screenshotPath);
+        done = true;
+    }
+
+    glfwSwapBuffers(session.window);
+    return !done && glfwWindowShouldClose(session.window) == 0;
 }
 
 } // namespace
 
+#if defined(__EMSCRIPTEN__)
+namespace {
+
+// The session has to outlive main(): the browser main loop keeps running
+// after the wasm entry point returned.
+std::unique_ptr<Session> gSession;
+
+void webFrame(void* userData)
+{
+    auto& session = *static_cast<Session*>(userData);
+    if (!runFrame(session))
+        emscripten_cancel_main_loop();
+}
+
+} // namespace
+#endif
+
 int main(int argc, char** argv)
 {
     std::optional<Arguments> arguments;
+#if defined(__EMSCRIPTEN__)
+    arguments = Arguments {};
+#else
     try {
         arguments = parseArguments(argc, argv);
     } catch (const std::exception& e) {
@@ -99,13 +174,13 @@ int main(int argc, char** argv)
         std::println(stderr, "Try analyzer-native --help");
         return 1;
     }
+#endif
     if (!arguments)
         return 0;
 
     // The dependencies are wired together with boost::di: the logger writes
     // to the terminal and into the log store, which is a singleton shared
-    // with the "Logs" dialog of the app. The recorder gets the logger passed
-    // by the app, then it reports in both.
+    // with the "Logs" dialog of the app.
     const auto injector = di::make_injector(di::bind<Kbi::Ui::LogStore>.in(di::singleton),
         di::bind<spdlog::logger>.to([](const auto& injector) -> std::shared_ptr<spdlog::logger> {
             auto consoleSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
@@ -115,37 +190,38 @@ int main(int argc, char** argv)
                 "kbi", spdlog::sinks_init_list { consoleSink, logStore });
         }));
 
-    // Wayland compositors work in scaled points, and when the fractional
-    // scaling handshake does not complete they upscale the backbuffer from
-    // its logical size, which makes the whole program blurry. Working in
-    // pixel coordinates keeps the backbuffer 1:1 with the screen pixels on
-    // every compositor, rendering the UI at the same size as the X11 driver.
-    SDL_SetHint(SDL_HINT_VIDEO_WAYLAND_SCALE_TO_DISPLAY, "1");
-    if (!SDL_SetAppMetadata("Keyboard Inspector", "1.0.0", "com.keyboard-inspector.analyzer")) {
-        std::println(stderr, "Failed to set the SDL app metadata: {}", SDL_GetError());
-        return 1;
-    }
-    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
-        std::println(stderr, "Failed to initialize SDL: {}", SDL_GetError());
+    glfwSetErrorCallback(glfwErrorCallback);
+    if (glfwInit() == 0) {
+        std::println(stderr, "Failed to initialize GLFW");
         return 1;
     }
 
+#if defined(__EMSCRIPTEN__)
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+    constexpr const char* kGlslVersion = "#version 300 es";
+#else
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+#if defined(__APPLE__)
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
+#endif
+    constexpr const char* kGlslVersion = "#version 150";
+#endif
+
     constexpr int width = 1600;
     constexpr int height = 900;
-    SDL_Window* window = SDL_CreateWindow(
-        "Keyboard Inspector", width, height, SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
-    if (window == nullptr) {
-        std::println(stderr, "Failed to create the SDL window: {}", SDL_GetError());
-        SDL_Quit();
+    auto session = std::make_unique<Session>();
+    session->window = glfwCreateWindow(width, height, "Keyboard Inspector", nullptr, nullptr);
+    if (session->window == nullptr) {
+        std::println(stderr, "Failed to create the GLFW window");
+        glfwTerminate();
         return 1;
     }
-    SDL_Renderer* renderer = createRenderer(window);
-    if (renderer == nullptr) {
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return 1;
-    }
-    SDL_SetRenderVSync(renderer, 1);
+    glfwMakeContextCurrent(session->window);
+    glfwSwapInterval(1);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -153,79 +229,42 @@ int main(int argc, char** argv)
     ImPlot::CreateContext();
     Kbi::Ui::applyTheme(Kbi::Ui::Theme::Dark);
 
-    ImGui_ImplSDL3_InitForSDLRenderer(window, renderer);
-    ImGui_ImplSDLRenderer3_Init(renderer);
+    ImGui_ImplGlfw_InitForOpenGL(session->window, true);
+#if defined(__EMSCRIPTEN__)
+    // Ties the canvas size and the mouse wheel to the browser page.
+    ImGui_ImplGlfw_InstallEmscriptenCallbacks(session->window, "#canvas");
+#endif
+    ImGui_ImplOpenGL3_Init(kGlslVersion);
 
-    auto app = injector.create<std::unique_ptr<Kbi::App::App>>();
+    session->app = injector.create<std::unique_ptr<Kbi::App::App>>();
     if (!arguments->openPath.empty())
-        app->load(arguments->openPath);
+        session->app->load(arguments->openPath);
+#if !defined(__EMSCRIPTEN__)
     if (arguments->record)
-        app->startRecording();
+        session->app->startRecording();
+#endif
     if (arguments->showInfo)
-        app->setInfoVisible(true);
+        session->app->setInfoVisible(true);
+    session->screenshotPath = arguments->screenshotPath;
+    session->screenshotFrame = arguments->screenshotFrame;
 
-    int frame = 0;
-    bool done = false;
-    while (!done) {
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            ImGui_ImplSDL3_ProcessEvent(&event);
-            if (event.type == SDL_EVENT_QUIT)
-                done = true;
-            if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED
-                && event.window.windowID == SDL_GetWindowID(window))
-                done = true;
-        }
-        if ((SDL_GetWindowFlags(window) & SDL_WINDOW_MINIMIZED) != 0) {
-            SDL_Delay(kMinimizedDelayMs);
-            continue;
-        }
-
-        ImGui_ImplSDLRenderer3_NewFrame();
-        ImGui_ImplSDL3_NewFrame();
-        ImGui::NewFrame();
-
-        // The SDL renderer backend samples every texture with nearest
-        // filtering unless a draw callback of the frame asks for linear
-        // sampling. The chart lines are anti-aliased through a pre-rendered
-        // texture that needs linear sampling, so request it before anything
-        // else is drawn.
-        ImGui::GetBackgroundDrawList()->AddCallback(
-            ImGui::GetPlatformIO().DrawCallback_SetSamplerLinear, nullptr);
-
-        app->draw();
-
-        ImGui::Render();
-
-        // The SDL renderer works in logical points, scale the draw data into
-        // the window's pixel density.
-        const ImGuiIO& io = ImGui::GetIO();
-        SDL_SetRenderScale(renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
-
-        SDL_SetRenderDrawColorFloat(renderer, 0.06f, 0.06f, 0.07f, 1.0f);
-        SDL_RenderClear(renderer);
-        ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
-
-        if (ImGui::IsKeyPressed(ImGuiKey_F12))
-            Kbi::App::saveScreenshot(*renderer, "screenshot.ppm");
-
-        ++frame;
-        if (!arguments->screenshotPath.empty() && frame >= arguments->screenshotFrame) {
-            if (!Kbi::App::saveScreenshot(*renderer, arguments->screenshotPath))
-                std::println(stderr, "Failed to write {}", arguments->screenshotPath);
-            done = true;
-        }
-
-        SDL_RenderPresent(renderer);
+#if defined(__EMSCRIPTEN__)
+    gSession = std::move(session);
+    // The browser cannot block in a while loop, it drives the frame function
+    // from requestAnimationFrame; simulating an infinite loop keeps main()
+    // from returning and tearing the runtime down.
+    emscripten_set_main_loop_arg(webFrame, gSession.get(), 0, true);
+#else
+    while (runFrame(*session)) {
     }
 
-    ImGui_ImplSDLRenderer3_Shutdown();
-    ImGui_ImplSDL3_Shutdown();
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
     ImPlot::DestroyContext();
     ImGui::DestroyContext();
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    SDL_Quit();
+    glfwDestroyWindow(session->window);
+    glfwTerminate();
+#endif
 
     return 0;
 }

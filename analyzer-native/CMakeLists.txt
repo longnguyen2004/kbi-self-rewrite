@@ -19,11 +19,15 @@ endif()
 # The main program wires its dependencies up with boost::di.
 find_path(BEXT_DI_INCLUDE_DIRS "boost/di.hpp")
 
+# The recorder's public headers (device.h, keycode.h, datetime.h) are used by
+# the analyzer even in the browser build, which has no recording support.
+set(RECORDER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../recorder)
+
 # The recorder is embedded as a static library instead of being spawned as an
-# external process. When this project is built on its own the recorder is
-# added here, otherwise the top level project already did that.
-if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    set(RECORDER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../recorder)
+# external process. The browser build has no access to input devices, so it
+# leaves the recorder out. When this project is built on its own the recorder
+# is added here, otherwise the top level project already did that.
+if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR AND NOT EMSCRIPTEN)
     if (NOT EXISTS ${RECORDER_DIR}/CMakeLists.txt)
         message(FATAL_ERROR "Cannot find the recorder project at ${RECORDER_DIR}")
     endif()
@@ -33,13 +37,17 @@ endif()
 find_package(imgui CONFIG REQUIRED)
 find_package(implot CONFIG REQUIRED)
 find_package(boost_json CONFIG REQUIRED)
-find_package(boost_program_options CONFIG REQUIRED)
 find_package(pffft CONFIG REQUIRED)
-find_package(SDL3 CONFIG REQUIRED)
+find_package(glfw3 CONFIG REQUIRED)
 find_package(simdutf CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
+if (NOT EMSCRIPTEN)
+    find_package(boost_program_options CONFIG REQUIRED)
+    find_package(OpenGL REQUIRED)
+    find_package(tinyfiledialogs CONFIG REQUIRED)
+endif()
 
-
-add_executable(analyzer-native
+set(ANALYZER_SOURCES
     src/main.cpp
 
     src/app/app.cpp
@@ -58,8 +66,6 @@ add_executable(analyzer-native
     src/parser/parser_kbi_legacy.cpp
     src/parser/usb_descriptors.cpp
 
-    src/recorder/recorder_source.cpp
-
     src/ui/charts_common.cpp
     src/ui/info_window.cpp
     src/ui/line_chart.cpp
@@ -67,20 +73,48 @@ add_executable(analyzer-native
     src/ui/log_window.cpp
 )
 
+if (NOT EMSCRIPTEN)
+    list(APPEND ANALYZER_SOURCES src/recorder/recorder_source.cpp)
+endif()
+
+add_executable(analyzer-native ${ANALYZER_SOURCES})
+
 target_include_directories(analyzer-native PRIVATE src ${BEXT_DI_INCLUDE_DIRS})
 
-target_link_libraries(analyzer-native PRIVATE
-    recorder-lib
-    imgui::imgui
-    implot::implot
-    Boost::json
-    Boost::program_options
-    pffft::pffft
-    SDL3::SDL3
-    simdutf::simdutf
-)
+if (EMSCRIPTEN)
+    # The analyzer only uses the recorder's platform independent headers and
+    # helpers for parsing and decoding the recordings.
+    target_include_directories(analyzer-native PRIVATE ${RECORDER_DIR}/include)
+    target_sources(analyzer-native PRIVATE
+        ${RECORDER_DIR}/src/core/datetime.cpp
+        ${RECORDER_DIR}/src/core/keycode/keycode_to_string.cpp
+    )
+    target_link_libraries(analyzer-native PRIVATE
+        imgui::imgui
+        implot::implot
+        Boost::json
+        pffft::pffft
+        glfw
+        simdutf::simdutf
+        spdlog::spdlog
+    )
+else()
+    target_link_libraries(analyzer-native PRIVATE
+        recorder-lib
+        imgui::imgui
+        implot::implot
+        Boost::json
+        Boost::program_options
+        pffft::pffft
+        glfw
+        OpenGL::GL
+        simdutf::simdutf
+        spdlog::spdlog
+        tinyfiledialogs::tinyfiledialogs
+    )
+endif()
 
-if (UNIX AND NOT APPLE)
+if (UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
     find_package(Threads REQUIRED)
     target_link_libraries(analyzer-native PRIVATE Threads::Threads)
 endif()
@@ -98,41 +132,76 @@ set_target_properties(analyzer-native PROPERTIES
     WIN32_EXECUTABLE OFF
 )
 
-# Tests ---------------------------------------------------------------------
-
-enable_testing()
-
-add_executable(analyzer-native-tests
-    tests/tests.cpp
-
-    src/core/analyzer.cpp
-    src/core/decimate.cpp
-    src/core/fft.cpp
-    src/core/input_timeline.cpp
-    src/core/keycode_util.cpp
-    src/core/postprocess.cpp
-
-    src/parser/parser.cpp
-    src/parser/parser_kbi_legacy.cpp
-    src/parser/usb_descriptors.cpp
-    src/ui/charts_common.cpp
-    src/ui/log_store.h
-)
-target_include_directories(analyzer-native-tests PRIVATE src)
-target_link_libraries(analyzer-native-tests PRIVATE
-    recorder-lib
-    Boost::json
-    pffft::pffft
-    simdutf::simdutf
-    imgui::imgui
-    implot::implot
-)
-if (UNIX AND NOT APPLE)
-    find_package(Threads REQUIRED)
-    target_link_libraries(analyzer-native-tests PRIVATE Threads::Threads)
+if (EMSCRIPTEN)
+    # Emscripten appends the .html file next to the .js/.wasm pair, which makes
+    # the build directly servable.
+    set_target_properties(analyzer-native PROPERTIES SUFFIX ".html")
+    # The FFT runs on a worker thread. Emscripten implements std::thread with
+    # pthreads, so the target has to be compiled and linked with -pthread.
+    target_compile_options(analyzer-native PRIVATE "SHELL:-pthread")
+    target_link_options(analyzer-native PRIVATE
+        # Browsers cannot run a blocking main loop, the frames are driven by
+        # requestAnimationFrame (see main.cpp).
+        "SHELL:-sALLOW_MEMORY_GROWTH=1"
+        "SHELL:-sINITIAL_MEMORY=67108864"
+        "SHELL:-sSTACK_SIZE=1048576"
+        # The FFT worker is created on the main thread before the main loop
+        # starts yielding to the browser, so its Worker has to exist already.
+        "SHELL:-pthread"
+        "SHELL:-sPTHREAD_POOL_SIZE=1"
+        # The file dialog suspends the wasm stack until the browser closed the
+        # picker. Asyncify is what lets the synchronous C++ code wait for the
+        # asynchronously picked file.
+        "SHELL:-sASYNCIFY"
+        "SHELL:-sASYNCIFY_STACK_SIZE=131072"
+        # boost::json reports malformed recordings with exceptions.
+        "SHELL:-sDISABLE_EXCEPTION_CATCHING=0"
+        # ImGui's OpenGL3 backend uses GLES3, which the browser provides
+        # through a WebGL2 context.
+        "SHELL:-sMAX_WEBGL_VERSION=2"
+        "SHELL:-sENVIRONMENT=web"
+        "SHELL:--js-library=${CMAKE_CURRENT_SOURCE_DIR}/web/file_dialog.js"
+        "SHELL:--shell-file=${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html"
+    )
 endif()
 
-add_test(NAME analyzer-native-tests
-         COMMAND analyzer-native-tests
-                 ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/test_recording.json
-                 ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/test_recording_legacy.kbi)
+# Tests ---------------------------------------------------------------------
+
+if (NOT EMSCRIPTEN)
+    enable_testing()
+
+    add_executable(analyzer-native-tests
+        tests/tests.cpp
+
+        src/core/analyzer.cpp
+        src/core/decimate.cpp
+        src/core/fft.cpp
+        src/core/input_timeline.cpp
+        src/core/keycode_util.cpp
+        src/core/postprocess.cpp
+
+        src/parser/parser.cpp
+        src/parser/parser_kbi_legacy.cpp
+        src/parser/usb_descriptors.cpp
+        src/ui/charts_common.cpp
+        src/ui/log_store.h
+    )
+    target_include_directories(analyzer-native-tests PRIVATE src)
+    target_link_libraries(analyzer-native-tests PRIVATE
+        recorder-lib
+        Boost::json
+        pffft::pffft
+        simdutf::simdutf
+        imgui::imgui
+        implot::implot
+    )
+    if (UNIX AND NOT APPLE)
+        find_package(Threads REQUIRED)
+        target_link_libraries(analyzer-native-tests PRIVATE Threads::Threads)
+    endif()
+
+    add_test(NAME analyzer-native-tests
+             COMMAND analyzer-native-tests
+                     ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/test_recording.json
+                     ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/test_recording_legacy.kbi)
+endif()

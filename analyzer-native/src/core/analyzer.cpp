@@ -65,6 +65,8 @@ FreqSnapshot computeSnapshot(const std::vector<double>& consecutive, const std::
 Analyzer::Analyzer()
 {
     reset();
+    // The FFT runs on a worker thread (a pthread in the browser build), so the
+    // UI never blocks on it.
     m_thread = std::jthread([this](const std::stop_token& stop) { workerLoop(stop); });
 }
 
@@ -205,6 +207,38 @@ bool Analyzer::calculating() const
     return m_dirty || m_calculating;
 }
 
+void Analyzer::recompute()
+{
+    std::vector<double> consecutive;
+    std::vector<double> all;
+    std::vector<double> wrapped;
+    std::uint64_t generation = 0;
+    {
+        std::scoped_lock lock(m_mutex);
+        consecutive = std::move(m_pendingConsecutive);
+        all = std::move(m_pendingAll);
+        wrapped = std::move(m_pendingWrapped);
+        m_pendingConsecutive.clear();
+        m_pendingAll.clear();
+        m_pendingWrapped.clear();
+        generation = m_pendingGeneration;
+        m_dirty = false;
+        m_calculating = true;
+    }
+
+    const auto snapshot
+        = std::make_shared<FreqSnapshot>(computeSnapshot(consecutive, all, wrapped));
+
+    {
+        std::scoped_lock lock(m_mutex);
+        // The analyzer may have been reset while the snapshot was being
+        // computed, in that case the result is stale and must be dropped.
+        if (generation == m_generation)
+            m_snapshot = snapshot;
+        m_calculating = false;
+    }
+}
+
 void Analyzer::workerLoop(const std::stop_token& stop)
 {
     // Wake the wait below when a stop is requested, so the jthread machinery
@@ -218,37 +252,13 @@ void Analyzer::workerLoop(const std::stop_token& stop)
     });
 
     for (;;) {
-        std::vector<double> consecutive;
-        std::vector<double> all;
-        std::vector<double> wrapped;
-        std::uint64_t generation = 0;
         {
             std::unique_lock lock(m_mutex);
             m_cv.wait(lock, [this] { return m_stop || m_dirty; });
             if (m_stop)
                 return;
-            consecutive = std::move(m_pendingConsecutive);
-            all = std::move(m_pendingAll);
-            wrapped = std::move(m_pendingWrapped);
-            m_pendingConsecutive.clear();
-            m_pendingAll.clear();
-            m_pendingWrapped.clear();
-            generation = m_pendingGeneration;
-            m_dirty = false;
-            m_calculating = true;
         }
-
-        const auto snapshot
-            = std::make_shared<FreqSnapshot>(computeSnapshot(consecutive, all, wrapped));
-
-        {
-            std::scoped_lock lock(m_mutex);
-            // The analyzer may have been reset while the snapshot was being
-            // computed, in that case the result is stale and must be dropped.
-            if (generation == m_generation)
-                m_snapshot = snapshot;
-            m_calculating = false;
-        }
+        recompute();
     }
 }
 

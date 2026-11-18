@@ -26,7 +26,11 @@ set(CMAKE_FIND_PACKAGE_TARGETS_GLOBAL ON)
 
 enable_testing()
 
-add_subdirectory(recorder)
+# The recorder only exists for the native analyzers, the browser build of the
+# analyzer analyses files instead.
+if (NOT EMSCRIPTEN)
+    add_subdirectory(recorder)
+endif()
 add_subdirectory(analyzer-native)
 
 # Style targets ---------------------------------------------------------------
