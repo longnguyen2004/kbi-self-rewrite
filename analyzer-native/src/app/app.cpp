@@ -220,9 +220,9 @@ void App::setMode(Mode mode)
 void App::drawHeader()
 {
     ImGui::BeginTable(
-        "##header", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings);
+        "##header", 2, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoSavedSettings);
     ImGui::TableSetupColumn("##left", ImGuiTableColumnFlags_WidthStretch);
-    ImGui::TableSetupColumn("##right", ImGuiTableColumnFlags_WidthFixed, 340.0f);
+    ImGui::TableSetupColumn("##right");
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
 
@@ -281,7 +281,7 @@ void App::drawOptions()
     ImGui::Text("Binning rate");
     ImGui::SameLine();
     int binRate = m_analyzer.binRate();
-    if (ImGui::BeginCombo("##binrate", std::format("{}", binRate).c_str())) {
+    if (ImGui::BeginCombo("##binrate", std::format("{}Hz", binRate).c_str())) {
         for (const int rate : kBinRates) {
             const bool selected = rate == binRate;
             if (ImGui::Selectable(std::format("{}Hz", rate).c_str(), selected)) {
