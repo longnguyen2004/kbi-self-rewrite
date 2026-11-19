@@ -97,13 +97,18 @@ the synchronous `openRecordingDialog()` interface.
 The web build links only the parts of the recorder that it needs (the keycode
 names and the `.kbi` date conversion); the platform dependent recorder sources
 are replaced by the file parser. It uses the same GLFW + OpenGL 3 backend as
-the native build, with Emscripten's GLFW implementation and a WebGL 2 context.
+the native build, with Emscripten's contrib GLFW 3.5 port (HiDPI aware) and a
+WebGL 2 context; ImGui auto-detects Emscripten and uses its GLES2 backend on
+top of it. The GLFW window follows the browser viewport in CSS pixels and the
+port scales the drawing buffer by `devicePixelRatio` (so a 1920x1080 screen at
+125% scaling gets a 1920x1080 canvas at a 1536x864 CSS size), with no browser
+zoom needed. The web build draws ImGui 1:1 into those device pixels and bakes
+its default font at that scale, so text stays sharp at fractional scaling.
 The FFT is computed on the same worker thread as in the native build. Because
 `-pthread` switches the wasm module to shared memory, the dependencies are
 built with `-pthread` too. The overlay triplet at
-`web/triplets/wasm32-emscripten.cmake` adds that flag to vcpkg's community
-Emscripten triplet, along with `IMGUI_IMPL_OPENGL_ES3` so that the prebuilt
-ImGui library uses its GLES3 path.
+`web/triplets/wasm32-emscripten.cmake` adds that flag; the contrib GLFW port is
+enabled on the analyzer target in `CMakeLists.txt`.
 
 ### Deployment
 

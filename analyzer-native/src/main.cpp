@@ -25,6 +25,11 @@
 
 #if defined(__EMSCRIPTEN__)
 #include <emscripten/emscripten.h>
+
+// From the contrib GLFW port. Declared here because its C++ header needs
+// C++17 while ImGui is built as C++11 by vcpkg.
+extern "C" int emscripten_glfw_make_canvas_resizable(
+    GLFWwindow* window, const char* canvasResizeSelector, const char* handleSelector);
 #else
 #include <boost/program_options.hpp>
 #endif
@@ -113,7 +118,32 @@ bool runFrame(Session& session)
 
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
+#if defined(__EMSCRIPTEN__)
+    // The backend reports CSS pixels plus a framebuffer scale, which makes
+    // ImGui stretch the font texture. Draw in device pixels instead: the
+    // font is baked at that scale and the mouse is converted below.
+    ImGuiIO& io = ImGui::GetIO();
+    int cssWidth = 0;
+    int cssHeight = 0;
+    int fbWidth = 0;
+    int fbHeight = 0;
+    glfwGetWindowSize(session.window, &cssWidth, &cssHeight);
+    glfwGetFramebufferSize(session.window, &fbWidth, &fbHeight);
+    const float scaleX = cssWidth > 0 ? static_cast<float>(fbWidth) / cssWidth : 1.0f;
+    const float scaleY = cssHeight > 0 ? static_cast<float>(fbHeight) / cssHeight : 1.0f;
+    io.DisplaySize = ImVec2(static_cast<float>(fbWidth), static_cast<float>(fbHeight));
+    io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
+#endif
     ImGui::NewFrame();
+#if defined(__EMSCRIPTEN__)
+    // The backend reports CSS pixels; convert once from the raw cursor
+    // position rather than scaling the accumulated ImGui value each frame.
+    double cursorX = 0;
+    double cursorY = 0;
+    glfwGetCursorPos(session.window, &cursorX, &cursorY);
+    io.MousePos
+        = ImVec2(static_cast<float>(cursorX) * scaleX, static_cast<float>(cursorY) * scaleY);
+#endif
 
     session.app->draw();
 
@@ -138,7 +168,11 @@ bool runFrame(Session& session)
         done = true;
     }
 
+    // The browser presents the WebGL canvas itself; the GLFW port's
+    // glfwSwapBuffers is a no-op that warns on every call.
+#if !defined(__EMSCRIPTEN__)
     glfwSwapBuffers(session.window);
+#endif
     return !done && glfwWindowShouldClose(session.window) == 0;
 }
 
@@ -200,7 +234,17 @@ int main(int argc, char** argv)
     glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-    constexpr const char* kGlslVersion = "#version 300 es";
+    // Render at the device pixel ratio: the window size stays in CSS pixels
+    // while glfwGetFramebufferSize() reports the real number of pixels. The
+    // contrib port is GLFW 3.5 and renamed this hint, but Emscripten still
+    // ships a 3.3 header with the old name.
+#ifndef GLFW_SCALE_FRAMEBUFFER
+#define GLFW_SCALE_FRAMEBUFFER 0x0002200D
+#endif
+    glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GLFW_TRUE);
+    // ImGui's backend auto-detects Emscripten and compiles its GLES2 path,
+    // which uses GLSL 100 (it runs on the WebGL 2 context created above).
+    constexpr const char* kGlslVersion = "#version 100";
 #else
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -211,8 +255,15 @@ int main(int argc, char** argv)
     constexpr const char* kGlslVersion = "#version 150";
 #endif
 
+#if defined(__EMSCRIPTEN__)
+    // Use the browser viewport in CSS pixels. With GLFW_SCALE_FRAMEBUFFER the
+    // port scales the drawing buffer by devicePixelRatio on top of this.
+    const int width = EM_ASM_INT({ return innerWidth; });
+    const int height = EM_ASM_INT({ return innerHeight; });
+#else
     constexpr int width = 1600;
     constexpr int height = 900;
+#endif
     auto session = std::make_unique<Session>();
     session->window = glfwCreateWindow(width, height, "Keyboard Inspector", nullptr, nullptr);
     if (session->window == nullptr) {
@@ -229,10 +280,32 @@ int main(int argc, char** argv)
     ImPlot::CreateContext();
     Kbi::Ui::applyTheme(Kbi::Ui::Theme::Dark);
 
+#if defined(__EMSCRIPTEN__)
+    // ImGui's default font is a fixed 13px bitmap. Bake the scalable default
+    // font at the device pixel size instead, since the web build draws 1:1
+    // into the framebuffer (see runFrame()).
+    int initialWidth = 0;
+    int initialHeight = 0;
+    int initialFramebufferWidth = 0;
+    int initialFramebufferHeight = 0;
+    glfwGetWindowSize(session->window, &initialWidth, &initialHeight);
+    glfwGetFramebufferSize(session->window, &initialFramebufferWidth, &initialFramebufferHeight);
+    const float dpr
+        = initialWidth > 0 ? static_cast<float>(initialFramebufferWidth) / initialWidth : 1.0f;
+    ImGuiIO& io = ImGui::GetIO();
+    io.Fonts->Clear();
+    ImFontConfig fontConfig;
+    fontConfig.SizePixels = 13.0f * dpr;
+    io.Fonts->AddFontDefaultVector(&fontConfig);
+#endif
+
     ImGui_ImplGlfw_InitForOpenGL(session->window, true);
 #if defined(__EMSCRIPTEN__)
-    // Ties the canvas size and the mouse wheel to the browser page.
-    ImGui_ImplGlfw_InstallEmscriptenCallbacks(session->window, "#canvas");
+    // ImGui's Emscripten callbacks target the legacy GLFW emulation and would
+    // fight the port's HiDPI sizing, so let the port follow the browser
+    // window size directly.
+    if (emscripten_glfw_make_canvas_resizable(session->window, "window", nullptr) != 0)
+        std::println(stderr, "Failed to make the canvas resizable");
 #endif
     ImGui_ImplOpenGL3_Init(kGlslVersion);
 

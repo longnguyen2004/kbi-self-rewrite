@@ -89,12 +89,14 @@ if (EMSCRIPTEN)
         ${RECORDER_DIR}/src/core/datetime.cpp
         ${RECORDER_DIR}/src/core/keycode/keycode_to_string.cpp
     )
+    # The vcpkg glfw port would add -sUSE_GLFW=3, selecting the legacy GLFW
+    # implementation. The contrib port is selected with the flags below
+    # instead, so it must not be linked here.
     target_link_libraries(analyzer-native PRIVATE
         imgui::imgui
         implot::implot
         Boost::json
         pffft::pffft
-        glfw
         simdutf::simdutf
         spdlog::spdlog
     )
@@ -138,13 +140,21 @@ if (EMSCRIPTEN)
     set_target_properties(analyzer-native PROPERTIES SUFFIX ".html")
     # The FFT runs on a worker thread. Emscripten implements std::thread with
     # pthreads, so the target has to be compiled and linked with -pthread.
-    target_compile_options(analyzer-native PRIVATE "SHELL:-pthread")
+    # The contrib GLFW port supplies the GLFW 3.5 headers and selects that
+    # implementation at link time. Its headers need C++17, while vcpkg builds
+    # ImGui as C++11, so the port is enabled for this target only.
+    target_compile_options(analyzer-native PRIVATE
+        "SHELL:-pthread"
+        "SHELL:--use-port=contrib.glfw3"
+    )
     target_link_options(analyzer-native PRIVATE
         # Browsers cannot run a blocking main loop, the frames are driven by
         # requestAnimationFrame (see main.cpp).
         "SHELL:-sALLOW_MEMORY_GROWTH=1"
         "SHELL:-sINITIAL_MEMORY=67108864"
         "SHELL:-sSTACK_SIZE=1048576"
+        # GLFW 3.5 from the contrib port, replacing the legacy -sUSE_GLFW=3.
+        "SHELL:--use-port=contrib.glfw3"
         # The FFT worker is created on the main thread before the main loop
         # starts yielding to the browser, so its Worker has to exist already.
         "SHELL:-pthread"
@@ -156,8 +166,8 @@ if (EMSCRIPTEN)
         "SHELL:-sASYNCIFY_STACK_SIZE=131072"
         # boost::json reports malformed recordings with exceptions.
         "SHELL:-sDISABLE_EXCEPTION_CATCHING=0"
-        # ImGui's OpenGL3 backend uses GLES3, which the browser provides
-        # through a WebGL2 context.
+        # WebGL 2 for the GL context. ImGui's backend picks its GLES2 path
+        # automatically on Emscripten (GLSL 100, see main.cpp).
         "SHELL:-sMAX_WEBGL_VERSION=2"
         "SHELL:-sENVIRONMENT=web"
         "SHELL:--js-library=${CMAKE_CURRENT_SOURCE_DIR}/web/file_dialog.js"
