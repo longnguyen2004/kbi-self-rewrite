@@ -82,7 +82,8 @@ The FFT runs on a pthread in the browser as well, which needs
 already sends the `Cross-Origin-Opener-Policy: same-origin` and
 `Cross-Origin-Embedder-Policy: require-corp` headers; other static file servers
 have to be configured to send them too, otherwise the analyzer fails to start
-with a "SharedArrayBuffer is not available" error.
+with a "SharedArrayBuffer is not available" error. The Cloudflare Pages
+deployment sends them through the `web/_headers` file (see Deployment below).
 
 Recording is not available in the browser, so the web build only has the
 "From file" mode. The open file dialog is implemented by a JS shim
@@ -102,6 +103,32 @@ built with `-pthread` too. The overlay triplet at
 `web/triplets/wasm32-emscripten.cmake` adds that flag to vcpkg's community
 Emscripten triplet, along with `IMGUI_IMPL_OPENGL_ES3` so that the prebuilt
 ImGui library uses its GLES3 path.
+
+### Deployment
+
+The CI publishes the web build to
+[Cloudflare Pages](https://pages.cloudflare.com/): a push to `main` becomes a
+production deployment at `https://keyboard-inspector.pages.dev`, and a manual
+run of the workflow deploys the branch it was started from as a preview
+deployment. The `analyzer-web-deploy` job needs two repository secrets:
+
+* `CLOUDFLARE_API_TOKEN` — an API token with the
+  [Cloudflare Pages — Edit](https://developers.cloudflare.com/cloudflare-one/authorizations/applications/permissions/)
+  permission for the account.
+* `CLOUDFLARE_ACCOUNT_ID` — the account ID from the Cloudflare dashboard
+  overview page.
+
+The Pages project is created on the first deployment, or before that with
+`npx wrangler pages project create keyboard-inspector`.
+
+The build output is packaged for static hosting: the entry point is copied to
+the conventional `index.html`, and `web/_headers` is placed next to it so the
+hosting serves the two cross-origin isolation headers. A local build can be
+deployed by hand with:
+
+```sh
+npx wrangler pages deploy build-wasm/analyzer-native --project-name=keyboard-inspector
+```
 
 ## Running
 

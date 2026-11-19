@@ -163,6 +163,18 @@ if (EMSCRIPTEN)
         "SHELL:--js-library=${CMAKE_CURRENT_SOURCE_DIR}/web/file_dialog.js"
         "SHELL:--shell-file=${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html"
     )
+    # Package the build output for static hosting (Cloudflare Pages): the
+    # entry point under the conventional index.html name, plus the _headers
+    # file with the cross-origin isolation headers that the pthread build
+    # needs (see web/_headers).
+    add_custom_command(TARGET analyzer-native POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_CURRENT_SOURCE_DIR}/web/_headers
+            ${CMAKE_CURRENT_BINARY_DIR}/_headers
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_CURRENT_BINARY_DIR}/analyzer-native.html
+            ${CMAKE_CURRENT_BINARY_DIR}/index.html
+    )
 endif()
 
 # Tests ---------------------------------------------------------------------
