@@ -123,8 +123,8 @@ jobs:
       - name: Install vcpkg
         uses: lukka/run-vcpkg@v11
         with:
-          # The CMake toolchain installs the web manifest's dependencies for
-          # the wasm32-emscripten triplet.
+          # The CMake toolchain installs the manifest's dependencies for the
+          # wasm32-emscripten triplet.
           runVcpkgInstall: false
 
       - name: Configure

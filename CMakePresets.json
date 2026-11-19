@@ -46,7 +46,6 @@
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/toolchains/emscripten.cmake",
         "VCPKG_TARGET_TRIPLET": "wasm32-emscripten",
-        "VCPKG_MANIFEST_DIR": "${sourceDir}/analyzer-native/web",
         "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/analyzer-native/web/triplets"
       }
     }

@@ -31,9 +31,10 @@ analyses recordings that were captured elsewhere.
 * CMake 3.24 or newer
 * A C++23 compiler
 * [vcpkg](https://github.com/microsoft/vcpkg). The dependencies of every
-  project of the repository are declared in the manifest at the root of the
-  repository, see [`../vcpkg.json`](../vcpkg.json). The web build has its own,
-  smaller manifest at [`web/vcpkg.json`](web/vcpkg.json).
+  project of the repository are declared in the single manifest at the root of
+  the repository, see [`../vcpkg.json`](../vcpkg.json). Dependencies that only
+  the native build needs are excluded from the WebAssembly build with vcpkg
+  platform expressions.
 * [Emscripten](https://emscripten.org/) (and its `EMSDK` environment) for the
   WebAssembly build.
 
@@ -176,9 +177,9 @@ src/
   recorder/                the embedded recorder and the host system info
   ui/                      the ImPlot charts, the tooltips and the info window
 web/
+  _headers                 cross-origin isolation headers for Cloudflare Pages
   file_dialog.js           JS shim for the browser file picker
   shell.html               the page the Emscripten build is embedded in
-  vcpkg.json               the dependencies of the web build
   triplets/                overlay triplet that builds the dependencies with -pthread
 ```
 

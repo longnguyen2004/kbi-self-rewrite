@@ -4,18 +4,51 @@
   "builtin-baseline": "bdadb1e1a5feceeaf1040dbdd5180dce2ecad61d",
   "dependencies": [
     "bext-di",
-    "boost-algorithm",
-    "boost-container",
-    "boost-endian",
-    "boost-iostreams",
-    "boost-iterator",
+    {
+      "name": "boost-algorithm",
+      "platform": "!emscripten"
+    },
+    {
+      "name": "boost-container",
+      "platform": "!emscripten"
+    },
+    {
+      "name": "boost-endian",
+      "platform": "!emscripten"
+    },
+    {
+      "name": "boost-iostreams",
+      "platform": "!emscripten"
+    },
+    {
+      "name": "boost-iterator",
+      "platform": "!emscripten"
+    },
     "boost-json",
-    "boost-preprocessor",
-    "boost-program-options",
-    "boost-signals2",
-    "boost-unordered",
-    "boost-url",
-    "boost-uuid",
+    {
+      "name": "boost-preprocessor",
+      "platform": "!emscripten"
+    },
+    {
+      "name": "boost-program-options",
+      "platform": "!emscripten"
+    },
+    {
+      "name": "boost-signals2",
+      "platform": "!emscripten"
+    },
+    {
+      "name": "boost-unordered",
+      "platform": "!emscripten"
+    },
+    {
+      "name": "boost-url",
+      "platform": "!emscripten"
+    },
+    {
+      "name": "boost-uuid",
+      "platform": "!emscripten"
+    },
     {
       "name": "gameinput",
       "platform": "windows"
@@ -31,7 +64,8 @@
     "implot",
     {
       "name": "ixwebsocket",
-      "default-features": false
+      "default-features": false,
+      "platform": "!emscripten"
     },
     {
       "name": "libevdev",
