@@ -10,6 +10,10 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 
+#include <cmrc/cmrc.hpp>
+
+CMRC_DECLARE(kbi);
+
 // Use the same OpenGL loader as the ImGui backend so that every GL call goes
 // through the same dispatch table. Emscripten provides GLES directly.
 #if defined(__EMSCRIPTEN__)
@@ -118,32 +122,7 @@ bool runFrame(Session& session)
 
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
-#if defined(__EMSCRIPTEN__)
-    // The backend reports CSS pixels plus a framebuffer scale, which makes
-    // ImGui stretch the font texture. Draw in device pixels instead: the
-    // font is baked at that scale and the mouse is converted below.
-    ImGuiIO& io = ImGui::GetIO();
-    int cssWidth = 0;
-    int cssHeight = 0;
-    int fbWidth = 0;
-    int fbHeight = 0;
-    glfwGetWindowSize(session.window, &cssWidth, &cssHeight);
-    glfwGetFramebufferSize(session.window, &fbWidth, &fbHeight);
-    const float scaleX = cssWidth > 0 ? static_cast<float>(fbWidth) / cssWidth : 1.0f;
-    const float scaleY = cssHeight > 0 ? static_cast<float>(fbHeight) / cssHeight : 1.0f;
-    io.DisplaySize = ImVec2(static_cast<float>(fbWidth), static_cast<float>(fbHeight));
-    io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
-#endif
     ImGui::NewFrame();
-#if defined(__EMSCRIPTEN__)
-    // The backend reports CSS pixels; convert once from the raw cursor
-    // position rather than scaling the accumulated ImGui value each frame.
-    double cursorX = 0;
-    double cursorY = 0;
-    glfwGetCursorPos(session.window, &cursorX, &cursorY);
-    io.MousePos
-        = ImVec2(static_cast<float>(cursorX) * scaleX, static_cast<float>(cursorY) * scaleY);
-#endif
 
     session.app->draw();
 
@@ -274,30 +253,43 @@ int main(int argc, char** argv)
     glfwMakeContextCurrent(session->window);
     glfwSwapInterval(1);
 
+#if defined(__linux__)
+    // Wayland sizes windows in logical pixels and scales the framebuffer by
+    // the output scale, so 1600x900 would cover 2000x1125 display pixels here
+    // and overflow the screen. X11 never scales the framebuffer, so the sizes
+    // match there and this is a no-op.
+    int createdWidth = 0;
+    int createdHeight = 0;
+    int framebufferWidth = 0;
+    int framebufferHeight = 0;
+    glfwGetWindowSize(session->window, &createdWidth, &createdHeight);
+    glfwGetFramebufferSize(session->window, &framebufferWidth, &framebufferHeight);
+    if (createdWidth > 0 && createdHeight > 0 && framebufferWidth > createdWidth
+        && framebufferHeight > createdHeight) {
+        const float scaleX = static_cast<float>(framebufferWidth) / createdWidth;
+        const float scaleY = static_cast<float>(framebufferHeight) / createdHeight;
+        glfwSetWindowSize(
+            session->window, static_cast<int>(width / scaleX), static_cast<int>(height / scaleY));
+    }
+#endif
+
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
     ImPlot::CreateContext();
     Kbi::Ui::applyTheme(Kbi::Ui::Theme::Dark);
 
-#if defined(__EMSCRIPTEN__)
-    // ImGui's default font is a fixed 13px bitmap. Bake the scalable default
-    // font at the device pixel size instead, since the web build draws 1:1
-    // into the framebuffer (see runFrame()).
-    int initialWidth = 0;
-    int initialHeight = 0;
-    int initialFramebufferWidth = 0;
-    int initialFramebufferHeight = 0;
-    glfwGetWindowSize(session->window, &initialWidth, &initialHeight);
-    glfwGetFramebufferSize(session->window, &initialFramebufferWidth, &initialFramebufferHeight);
-    const float dpr
-        = initialWidth > 0 ? static_cast<float>(initialFramebufferWidth) / initialWidth : 1.0f;
-    ImGuiIO& io = ImGui::GetIO();
-    io.Fonts->Clear();
+    // Roboto Mono is embedded in the executable with cmrc. The size is in
+    // logical pixels; ImGui rasterizes the glyphs at the framebuffer scale
+    // reported by GLFW, so text is sharp on HiDPI screens in both builds with
+    // identical metrics.
+    const auto embeddedFont = cmrc::kbi::get_filesystem().open("font/CascadiaMono.ttf");
     ImFontConfig fontConfig;
-    fontConfig.SizePixels = 13.0f * dpr;
-    io.Fonts->AddFontDefaultVector(&fontConfig);
-#endif
+    // The embedded data is static, so ImGui must not take ownership of it.
+    fontConfig.FontDataOwnedByAtlas = false;
+    ImGuiIO& io = ImGui::GetIO();
+    io.Fonts->AddFontFromMemoryTTF(const_cast<char*>(embeddedFont.begin()),
+        static_cast<int>(embeddedFont.size()), 13.0f, &fontConfig);
 
     ImGui_ImplGlfw_InitForOpenGL(session->window, true);
 #if defined(__EMSCRIPTEN__)

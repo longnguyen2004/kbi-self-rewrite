@@ -53,8 +53,6 @@ public:
 
     explicit LineChart(Config config);
 
-    void setChartHeight(float height) { m_chartHeight = height; }
-
     // The parameterless draw of the base stays part of the overload set
     // (C.138).
     using Chart::draw;
@@ -82,7 +80,6 @@ private:
     double m_initialSpan;
     TickStyle m_tickStyle;
     TooltipCallback m_tooltip;
-    float m_chartHeight = 220.0f;
     double m_extentMax = 0.0;
     SampleLayout m_sampleLayout;
     double m_maxZoom;

@@ -102,8 +102,12 @@ WebGL 2 context; ImGui auto-detects Emscripten and uses its GLES2 backend on
 top of it. The GLFW window follows the browser viewport in CSS pixels and the
 port scales the drawing buffer by `devicePixelRatio` (so a 1920x1080 screen at
 125% scaling gets a 1920x1080 canvas at a 1536x864 CSS size), with no browser
-zoom needed. The web build draws ImGui 1:1 into those device pixels and bakes
-its default font at that scale, so text stays sharp at fractional scaling.
+zoom needed. ImGui keeps its layout in CSS pixels and uses the framebuffer
+scale reported by GLFW to rasterize the bundled Roboto Mono font at the native
+resolution, so text stays sharp at fractional scaling while widgets keep the
+same logical size as in the desktop build. Both builds use the bundled Roboto
+Mono (`src/font`), embedded into the executable with cmrc (the `cmakerc` vcpkg
+port) instead of ImGui's built-in bitmap font.
 The FFT is computed on the same worker thread as in the native build. Because
 `-pthread` switches the wasm module to shared memory, the dependencies are
 built with `-pthread` too. The overlay triplet at
@@ -144,6 +148,13 @@ npx wrangler pages deploy build-wasm/analyzer-native --project-name=keyboard-ins
 
 Recording requires access to the input devices: on Linux you need to be root
 or a member of the `input` group.
+
+On Linux the native build enables GLFW's Wayland backend alongside X11. GLFW
+picks Wayland automatically when `XDG_SESSION_TYPE=wayland` and
+`WAYLAND_DISPLAY` are set, so ImGui gets the real framebuffer scale from the
+compositor and font and widget sizes match the web build on the same display.
+X11 is still available as a fallback; it does not expose a framebuffer scale,
+so scaled X11 desktops need `Xft.dpi` based handling that is not implemented.
 
 ### Command line
 

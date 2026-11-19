@@ -49,11 +49,20 @@
       "name": "boost-uuid",
       "platform": "!emscripten"
     },
+    "cmakerc",
     {
       "name": "gameinput",
       "platform": "windows"
     },
-    "glfw3",
+    {
+      "name": "glfw3",
+      "features": [
+        {
+          "name": "wayland",
+          "platform": "linux"
+        }
+      ]
+    },
     {
       "name": "imgui",
       "features": [

@@ -50,6 +50,10 @@ public:
 
     ChartSync& sync() { return *m_sync; }
 
+    // Sets the height of the plot area. The caller derives it from the space
+    // available in the window, so no fixed pixel heights are needed here.
+    void setChartHeight(float height) { m_chartHeight = height; }
+
     virtual void resetZoom() { *m_sync = ChartSync {}; }
 
     Chart(const Chart&) = delete;
@@ -70,6 +74,9 @@ protected:
 private:
     ChartSync m_ownedSync;
     ChartSync* m_sync = &m_ownedSync;
+
+protected:
+    float m_chartHeight = 0.0f;
 };
 
 } // namespace Kbi::Ui

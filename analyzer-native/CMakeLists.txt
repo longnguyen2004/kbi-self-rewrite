@@ -34,6 +34,7 @@ if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR AND NOT EMSCRIPTEN)
     add_subdirectory(${RECORDER_DIR} ${CMAKE_CURRENT_BINARY_DIR}/recorder EXCLUDE_FROM_ALL)
 endif()
 
+find_package(CMakeRC CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(implot CONFIG REQUIRED)
 find_package(boost_json CONFIG REQUIRED)
@@ -79,6 +80,20 @@ endif()
 
 add_executable(analyzer-native ${ANALYZER_SOURCES})
 
+# Embed the font into the executable with cmrc (the `cmakerc` vcpkg port).
+cmrc_add_resource_library(
+    analyzer-resources
+    ALIAS analyzer::resources
+    NAMESPACE kbi
+    WHENCE ${CMAKE_CURRENT_SOURCE_DIR}/src
+    src/font/CascadiaMono.ttf
+)
+if (EMSCRIPTEN)
+    # cmrc compiles its own object files: they need pthreads for the same
+    # reason as the analyzer (wasm-ld --shared-memory).
+    target_compile_options(analyzer-resources PRIVATE "SHELL:-pthread")
+endif()
+
 target_include_directories(analyzer-native PRIVATE src ${BEXT_DI_INCLUDE_DIRS})
 
 if (EMSCRIPTEN)
@@ -93,6 +108,7 @@ if (EMSCRIPTEN)
     # implementation. The contrib port is selected with the flags below
     # instead, so it must not be linked here.
     target_link_libraries(analyzer-native PRIVATE
+        analyzer::resources
         imgui::imgui
         implot::implot
         Boost::json
@@ -103,6 +119,7 @@ if (EMSCRIPTEN)
 else()
     target_link_libraries(analyzer-native PRIVATE
         recorder-lib
+        analyzer::resources
         imgui::imgui
         implot::implot
         Boost::json

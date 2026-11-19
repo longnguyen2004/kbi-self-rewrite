@@ -326,6 +326,17 @@ void App::drawCharts()
     ImGui::BeginChild("##charts", ImVec2(0.0f, 0.0f), ImGuiChildFlags_None,
         ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
+    // Split the remaining height into three equal rows: two tables of titled
+    // charts and the timeline. Leave one text line at the bottom for ImPlot's
+    // x-axis label and for the gaps between the rows, otherwise the last plot
+    // would overflow the child and clip its "s" label. The plot sizes are
+    // derived from the available space and ImGui's own metrics, so they adapt
+    // to window size and display scale instead of being fixed pixel values.
+    const float textHeight = ImGui::GetTextLineHeightWithSpacing();
+    const float rowHeight = (ImGui::GetContentRegionAvail().y - textHeight) / 3.0f;
+    const float cellPadding = 2.0f * ImGui::GetStyle().CellPadding.y;
+    const float titledPlotHeight = std::max(rowHeight - textHeight - cellPadding, textHeight);
+
     constexpr ImGuiTableFlags tableFlags
         = ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoSavedSettings;
 
@@ -333,6 +344,8 @@ void App::drawCharts()
     // analyzer (F.1 — one loop instead of a copied switch per chart kind).
     const std::array<Ui::DiffChart*, 3> diffCharts
         = { &m_diffConsecutive, &m_diffAll, &m_diffWrapped };
+    for (Ui::DiffChart* chart : diffCharts)
+        chart->setChartHeight(titledPlotHeight);
     const std::array<std::pair<const std::vector<double>*, double>, 3> diffInputs
         = { { { &m_analyzer.consecutiveDiff(), m_analyzer.consecutiveDiffMax() },
             { &m_analyzer.allDiff(), m_analyzer.allDiffMax() },
@@ -348,6 +361,8 @@ void App::drawCharts()
 
     const std::array<Ui::FreqChart*, 3> freqCharts
         = { &m_freqConsecutive, &m_freqAll, &m_freqWrapped };
+    for (Ui::FreqChart* chart : freqCharts)
+        chart->setChartHeight(titledPlotHeight);
     const auto snapshot = m_analyzer.freqSnapshot();
     const std::vector<double> emptySpectrum;
     const std::array<const std::vector<double>*, 3> spectraInput = snapshot
@@ -368,6 +383,7 @@ void App::drawCharts()
     }
     ImGui::EndTable();
 
+    m_timelineChart.setChartHeight(rowHeight);
     m_timelineChart.draw();
 
     ImGui::EndChild();

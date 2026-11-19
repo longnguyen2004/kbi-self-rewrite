@@ -220,9 +220,8 @@ void TimelineChart::draw()
 
     ImGui::PushID("##input_timeline");
 
-    // The timeline takes up all the space that is left.
     if (!ImPlot::BeginPlot(
-            "##plot", ImVec2(-1.0f, -1.0f), ImPlotFlags_NoTitle | ImPlotFlags_NoInputs)) {
+            "##plot", ImVec2(-1.0f, m_chartHeight), ImPlotFlags_NoTitle | ImPlotFlags_NoInputs)) {
         ImPlot::EndPlot();
         ImGui::PopID();
         return;
