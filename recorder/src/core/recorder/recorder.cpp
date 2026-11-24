@@ -15,6 +15,10 @@ namespace Kbi {
 
 using namespace std::literals;
 
+// The logger parameter is taken by value on purpose; under Boost.Ext.DI's
+// lazy constructor argument conversion a const reference parameter would bind
+// to a temporary that is destroyed before the constructor runs (see
+// recorder.h). NOLINTNEXTLINE(performance-unnecessary-value-param)
 Recorder::Recorder(RecorderBackend backend, std::shared_ptr<spdlog::logger> logger)
     : m_logger(logger ? logger : spdlog::default_logger())
     ,

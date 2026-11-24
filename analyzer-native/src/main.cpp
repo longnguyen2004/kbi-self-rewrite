@@ -12,7 +12,10 @@
 
 #include <cmrc/cmrc.hpp>
 
-CMRC_DECLARE(kbi);
+// The modernize-type-traits warning points into the generated cmrc.hpp,
+// which regenerates from this declaration, so the check is suppressed here.
+// NOLINTNEXTLINE(modernize-type-traits)
+CMRC_DECLARE(Kbi);
 
 // Use the same OpenGL loader as the ImGui backend so that every GL call goes
 // through the same dispatch table. Emscripten provides GLES directly.
@@ -283,7 +286,7 @@ int main(int argc, char** argv)
     // logical pixels; ImGui rasterizes the glyphs at the framebuffer scale
     // reported by GLFW, so text is sharp on HiDPI screens in both builds with
     // identical metrics.
-    const auto embeddedFont = cmrc::kbi::get_filesystem().open("font/CascadiaMono.ttf");
+    const auto embeddedFont = cmrc::Kbi::get_filesystem().open("font/CascadiaMono.ttf");
     ImFontConfig fontConfig;
     // The embedded data is static, so ImGui must not take ownership of it.
     fontConfig.FontDataOwnedByAtlas = false;

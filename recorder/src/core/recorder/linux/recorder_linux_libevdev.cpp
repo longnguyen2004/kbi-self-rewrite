@@ -71,7 +71,10 @@ struct SdDeviceCloser {
     void operator()(sd_device* device) const { sd_device_unref(device); }
 };
 struct SdEnumeratorCloser {
-    void operator()(sd_device_enumerator* enumerator) const { sd_device_enumerator_unref(enumerator); }
+    void operator()(sd_device_enumerator* enumerator) const
+    {
+        sd_device_enumerator_unref(enumerator);
+    }
 };
 struct SdMonitorCloser {
     void operator()(sd_device_monitor* monitor) const { sd_device_monitor_unref(monitor); }
@@ -96,7 +99,7 @@ bool isEventDevice(sd_device* device)
 std::optional<std::string> inputDeviceId(sd_device* device)
 {
     for (const char* link = sd_device_get_devlink_first(device); link != nullptr;
-         link = sd_device_get_devlink_next(device)) {
+        link = sd_device_get_devlink_next(device)) {
         const std::string_view linkView(link);
         if (linkView.starts_with("/dev/input/by-id/") && linkView.contains("event"))
             return std::string(linkView);
@@ -124,14 +127,14 @@ void RecorderLinuxLibevdev::initScanDevices()
         return;
     }
     SdEnumeratorPtr enumerator { enumeratorRaw };
-    sd_device_enumerator_add_match_subsystem(enumeratorRaw, "input", true);
+    sd_device_enumerator_add_match_subsystem(enumeratorRaw, "input", 1);
     // The enumerator skips devices without a udev database entry by default;
     // enumerate uninitialized devices too, or nothing may be found.
     sd_device_enumerator_allow_uninitialized(enumeratorRaw);
     // get_device_next() only advances the scan; iteration must start with
     // get_device_first().
-    for (sd_device* device = sd_device_enumerator_get_device_first(enumeratorRaw); device != nullptr;
-         device = sd_device_enumerator_get_device_next(enumeratorRaw)) {
+    for (sd_device* device = sd_device_enumerator_get_device_first(enumeratorRaw);
+        device != nullptr; device = sd_device_enumerator_get_device_next(enumeratorRaw)) {
         // The reference is owned by the enumerator, don't unref it.
         if (!isEventDevice(device))
             continue;
@@ -172,7 +175,8 @@ void RecorderLinuxLibevdev::initScanDevices()
                 if (receiveResult == 0)
                     break;
                 if (receiveResult < 0) {
-                    logger()->error("sd_device_monitor_receive error: {}", strerror(-receiveResult));
+                    logger()->error(
+                        "sd_device_monitor_receive error: {}", strerror(-receiveResult));
                     break;
                 }
                 SdDevicePtr device { received };
@@ -194,7 +198,7 @@ void RecorderLinuxLibevdev::initScanDevices()
                 if (action == SD_DEVICE_ADD) {
                     m_evdevDevices.insert(makeDevice(*id));
                 } else if (action == SD_DEVICE_REMOVE) {
-                    const std::string idString = *id;
+                    const std::string& idString = *id;
                     m_evdevDevices.visit_all([&](EvdevDeviceMap::value_type& entry) {
                         if (entry.first == idString)
                             entry.second.remove = true;

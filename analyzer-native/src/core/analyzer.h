@@ -4,6 +4,7 @@
 
 #include <condition_variable>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <stop_token>
@@ -49,18 +50,21 @@ public:
     [[nodiscard]] int binRate() const { return m_binRate; }
     void setBinRate(int binRate);
 
-    [[nodiscard]] const std::vector<double>& consecutiveDiff() const
+    [[nodiscard]] const std::vector<double>& consecutiveDiffCount() const
     {
         return m_consecutiveDiffCount;
     }
-    [[nodiscard]] double consecutiveDiffMax() const { return m_consecutiveDiffCountMax; }
-    [[nodiscard]] const std::vector<double>& allDiff() const { return m_allDiffCount; }
-    [[nodiscard]] double allDiffMax() const { return m_allDiffCountMax; }
-    [[nodiscard]] const std::vector<double>& wrappedTimestamp() const
+    [[nodiscard]] double consecutiveDiffCountMax() const { return m_consecutiveDiffCountMax; }
+    // The shortest gap between two consecutive events in microseconds,
+    // infinity when no gap was recorded yet.
+    [[nodiscard]] double shortestConsecutiveGap() const { return m_shortestConsecutiveGap; }
+    [[nodiscard]] const std::vector<double>& allDiffCount() const { return m_allDiffCount; }
+    [[nodiscard]] double allDiffCountMax() const { return m_allDiffCountMax; }
+    [[nodiscard]] const std::vector<double>& wrappedTimestampCount() const
     {
         return m_wrappedTimestampCount;
     }
-    [[nodiscard]] double wrappedTimestampMax() const { return m_wrappedTimestampCountMax; }
+    [[nodiscard]] double wrappedTimestampCountMax() const { return m_wrappedTimestampCountMax; }
 
     // Most recent frequency-domain snapshot; may be null before the first
     // calculation completes.
@@ -89,6 +93,7 @@ private:
     double m_consecutiveDiffCountMax = 0.0;
     double m_allDiffCountMax = 0.0;
     double m_wrappedTimestampCountMax = 0.0;
+    double m_shortestConsecutiveGap = std::numeric_limits<double>::infinity();
 
     std::size_t m_eventCount = 0;
 

@@ -59,6 +59,7 @@ set(ANALYZER_SOURCES
     src/core/analyzer.cpp
     src/core/decimate.cpp
     src/core/fft.cpp
+    src/core/format.cpp
     src/core/input_timeline.cpp
     src/core/keycode_util.cpp
     src/core/postprocess.cpp
@@ -84,7 +85,7 @@ add_executable(analyzer-native ${ANALYZER_SOURCES})
 cmrc_add_resource_library(
     analyzer-resources
     ALIAS analyzer::resources
-    NAMESPACE kbi
+    NAMESPACE Kbi
     WHENCE ${CMAKE_CURRENT_SOURCE_DIR}/src
     src/font/CascadiaMono.ttf
 )
@@ -215,6 +216,7 @@ if (NOT EMSCRIPTEN)
         src/core/analyzer.cpp
         src/core/decimate.cpp
         src/core/fft.cpp
+        src/core/format.cpp
         src/core/input_timeline.cpp
         src/core/keycode_util.cpp
         src/core/postprocess.cpp

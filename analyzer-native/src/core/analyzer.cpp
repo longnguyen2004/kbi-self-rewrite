@@ -93,6 +93,7 @@ void Analyzer::reset()
     m_consecutiveDiffCountMax = 0.0;
     m_allDiffCountMax = 0.0;
     m_wrappedTimestampCountMax = 0.0;
+    m_shortestConsecutiveGap = std::numeric_limits<double>::infinity();
     m_eventCount = 0;
 
     std::scoped_lock lock(m_mutex);
@@ -135,6 +136,9 @@ void Analyzer::add(const std::vector<double>& timestamps)
         // Timestamps have to be monotonically increasing.
         if (!m_timestampRaw.empty() && timestamp < m_timestampRaw.back())
             continue;
+        if (!m_timestampRaw.empty())
+            m_shortestConsecutiveGap
+                = std::min(m_shortestConsecutiveGap, timestamp - m_timestampRaw.back());
         m_timestampRaw.push_back(timestamp);
 
         const double binned = std::round(timestamp / interval) * interval;

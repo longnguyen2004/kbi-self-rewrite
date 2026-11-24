@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <format>
+#include <limits>
 
 namespace Kbi {
 
@@ -16,6 +17,7 @@ void InputTimeline::reset()
     m_keys.clear();
     m_keyDownMap.clear();
     m_endTimestamp = 0.0;
+    m_shortestKeypressDuration = std::numeric_limits<double>::infinity();
 }
 
 void InputTimeline::add(const std::string& deviceId, const InputEvent& event)
@@ -37,6 +39,10 @@ void InputTimeline::add(const std::string& deviceId, const InputEvent& event)
     const double end = static_cast<double>(event.timestamp) / kMicrosPerSecond;
     m_keypresses.push_back(
         Keypress { .start = start, .end = end, .key = keyName, .deviceId = deviceId });
+    // A negative duration means a release before its press, it is not a
+    // keypress.
+    const double duration = std::max(0.0, end - start);
+    m_shortestKeypressDuration = std::min(m_shortestKeypressDuration, duration);
     if (std::find(m_keys.begin(), m_keys.end(), keyName) == m_keys.end())
         m_keys.push_back(keyName);
     m_endTimestamp = std::max(m_endTimestamp, end);

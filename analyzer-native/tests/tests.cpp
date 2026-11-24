@@ -150,9 +150,11 @@ void testAnalyzer()
 
     const double interval = 1000000.0 / binRate;
     const auto index = static_cast<std::size_t>(std::llround(10000.0 / interval));
-    check(analyzer.consecutiveDiff()[index] == 199.0,
-        "consecutive diff histogram counts the 10ms gaps");
-    check(analyzer.consecutiveDiffMax() == 199.0, "consecutive diff max");
+    check(analyzer.consecutiveDiffCount()[index] == 199.0,
+        "consecutive diff count histogram counts the 10ms gaps");
+    check(analyzer.consecutiveDiffCountMax() == 199.0, "consecutive diff count max");
+    check(
+        analyzer.shortestConsecutiveGap() == 10000.0, "shortest consecutive gap of the 10ms gaps");
 
     // A 10ms event train is a 100Hz rhythm, the spectrum has to peak at
     // 100Hz. The transform runs at the bin rate, so the frequency of a bin is
@@ -224,8 +226,8 @@ void testAnalyzer()
     check(analyzer.eventCount() == 200, "event count after the bin rate change");
     constexpr double newInterval = 1000000.0 / 8000.0;
     const auto newIndex = static_cast<std::size_t>(std::llround(10000.0 / newInterval));
-    check(analyzer.consecutiveDiff()[newIndex] == 199.0,
-        "consecutive diff histogram after the bin rate change");
+    check(analyzer.consecutiveDiffCount()[newIndex] == 199.0,
+        "consecutive diff count histogram after the bin rate change");
 
     // Invalid bin rates are rejected.
     analyzer.setBinRate(999);
@@ -236,6 +238,17 @@ void testAnalyzer()
     check(analyzer.binRate() == 8000, "negative bin rate is rejected");
     analyzer.setBinRate(1000);
     check(analyzer.binRate() == 1000, "valid bin rate accepted");
+
+    // The shortest gap between two consecutive events is tracked; the events
+    // are beyond the periodic train, whose last event is at 1992000µs.
+    analyzer.add({ 1992000 + 5000, 1992000 + 6000 });
+    check(analyzer.shortestConsecutiveGap() == 1000.0,
+        "shortest consecutive gap tracks the shortest gap between events");
+
+    // Without events there is no gap to measure.
+    analyzer.reset();
+    check(std::isinf(analyzer.shortestConsecutiveGap()),
+        "shortest consecutive gap is infinite without events");
 }
 
 void testDecimate()
@@ -336,6 +349,17 @@ void testTimeline()
     // A release without a matching press is ignored.
     timeline.add("kb", { .timestamp = 7000, .pressed = false, .code = 5 });
     check(timeline.keypresses().size() == 1, "unmatched releases are ignored");
+
+    // The shortest keypress duration is the duration of the keypress.
+    check(timeline.shortestKeypressDuration() == 0.005,
+        "the shortest keypress duration is the duration of the keypress");
+
+    // A second, shorter keypress is the new shortest.
+    timeline.add("kb", { .timestamp = 7000, .pressed = true, .code = 5 });
+    timeline.add("kb", { .timestamp = 10000, .pressed = false, .code = 5 });
+    check(timeline.keypresses().size() == 2, "the second keypress is recorded");
+    check(timeline.shortestKeypressDuration() == 0.003,
+        "the shortest keypress duration is the minimum of the keypresses");
 }
 
 void testBase64()
@@ -766,9 +790,9 @@ int dumpAnalysis(const std::string& path, const std::string& outputPath)
         out << "\n";
     };
 
-    dump("consecutive_diff", analyzer.consecutiveDiff());
-    dump("all_diff", analyzer.allDiff());
-    dump("wrapped_timestamp", analyzer.wrappedTimestamp());
+    dump("consecutive_diff", analyzer.consecutiveDiffCount());
+    dump("all_diff", analyzer.allDiffCount());
+    dump("wrapped_timestamp", analyzer.wrappedTimestampCount());
     dump("consecutive_diff_freq", snapshot->consecutiveDiff);
     dump("all_diff_freq", snapshot->allDiff);
     dump("wrapped_timestamp_freq", snapshot->wrappedTimestamp);

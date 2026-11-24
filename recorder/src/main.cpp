@@ -75,12 +75,10 @@ int main(int argc, const char* argv[])
         fchmod(fd, 0666);
     };
 #endif
-    auto fileSink
-        = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logPath, true, handlers);
+    auto fileSink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logPath, true, handlers);
     fileSink->set_level(spdlog::level::trace);
 
-    const std::array<std::shared_ptr<spdlog::sinks::sink>, 2> sinks
-        = { consoleSink, fileSink };
+    const std::array<std::shared_ptr<spdlog::sinks::sink>, 2> sinks = { consoleSink, fileSink };
     auto multiSink = std::make_shared<spdlog::logger>("", std::begin(sinks), std::end(sinks));
     multiSink->set_level(spdlog::level::trace);
 

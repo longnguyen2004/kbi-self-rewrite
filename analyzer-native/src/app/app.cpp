@@ -1,6 +1,7 @@
 #include <app/app.h>
 
 #include <app/theme.h>
+#include <core/format.h>
 #include <parser/parser.h>
 
 #include <datetime.h>
@@ -52,6 +53,17 @@ ImVec4 eventCountColor(double value)
         }
     }
     return colors[0];
+}
+
+// Draws the two shortest durations of the recording: the shortest keypress
+// and the shortest gap between two events.
+void drawShortestDurations(const InputTimeline& timeline, const Analyzer& analyzer)
+{
+    if (const double shortestKeypress = timeline.shortestKeypressDuration();
+        std::isfinite(shortestKeypress))
+        ImGui::Text("Shortest keypress duration: %.3fs", shortestKeypress);
+    if (const double shortestGap = analyzer.shortestConsecutiveGap(); std::isfinite(shortestGap))
+        ImGui::Text("Shortest time between events: %s", formatDuration(shortestGap).c_str());
 }
 
 } // namespace
@@ -318,6 +330,8 @@ void App::drawOptions()
     if (m_analyzer.calculating())
         ImGui::TextColored(ImVec4(0.6f, 0.7f, 1.0f, 1.0f), "calculating...");
 
+    drawShortestDurations(m_timeline, m_analyzer);
+
     ImGui::EndTable();
 }
 
@@ -347,9 +361,9 @@ void App::drawCharts()
     for (Ui::DiffChart* chart : diffCharts)
         chart->setChartHeight(titledPlotHeight);
     const std::array<std::pair<const std::vector<double>*, double>, 3> diffInputs
-        = { { { &m_analyzer.consecutiveDiff(), m_analyzer.consecutiveDiffMax() },
-            { &m_analyzer.allDiff(), m_analyzer.allDiffMax() },
-            { &m_analyzer.wrappedTimestamp(), m_analyzer.wrappedTimestampMax() } } };
+        = { { { &m_analyzer.consecutiveDiffCount(), m_analyzer.consecutiveDiffCountMax() },
+            { &m_analyzer.allDiffCount(), m_analyzer.allDiffCountMax() },
+            { &m_analyzer.wrappedTimestampCount(), m_analyzer.wrappedTimestampCountMax() } } };
 
     ImGui::BeginTable("##diff_charts", 3, tableFlags);
     for (int i = 0; i < 3; ++i) {

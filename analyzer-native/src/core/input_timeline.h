@@ -3,6 +3,7 @@
 #include <core/result.h>
 
 #include <cstdint>
+#include <limits>
 #include <map>
 #include <string>
 #include <vector>
@@ -24,6 +25,9 @@ public:
     void add(const std::string& deviceId, const InputEvent& event);
 
     [[nodiscard]] const std::vector<Keypress>& keypresses() const { return m_keypresses; }
+    // The shortest duration of the recorded keypresses, in seconds. Infinity
+    // when there is no keypress yet.
+    [[nodiscard]] double shortestKeypressDuration() const { return m_shortestKeypressDuration; }
     // The keys in the order they were first pressed.
     [[nodiscard]] const std::vector<std::string>& keys() const { return m_keys; }
     [[nodiscard]] double endTimestamp() const { return m_endTimestamp; }
@@ -32,6 +36,8 @@ private:
     std::vector<Keypress> m_keypresses;
     std::vector<std::string> m_keys;
     double m_endTimestamp = 0.0;
+    // The shortest keypress duration recorded so far.
+    double m_shortestKeypressDuration = std::numeric_limits<double>::infinity();
     std::map<std::string, double> m_keyDownMap;
 };
 

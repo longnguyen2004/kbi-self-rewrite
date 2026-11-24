@@ -52,9 +52,8 @@ std::optional<std::string> findUsbDevice(std::string_view path)
 
     // The usb_device ancestor of the input device chain.
     sd_device* usbDevice = nullptr;
-    if (sd_device_get_parent_with_subsystem_devtype(
-            device.get(), "usb", "usb_device", &usbDevice)
-        < 0
+    if (sd_device_get_parent_with_subsystem_devtype(device.get(), "usb", "usb_device", &usbDevice)
+            < 0
         || usbDevice == nullptr)
         return {};
     // The reference is borrowed from the child, don't unref it.
