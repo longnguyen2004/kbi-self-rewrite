@@ -278,7 +278,6 @@ int main(int argc, char** argv)
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGui::StyleColorsDark();
     ImPlot::CreateContext();
     Kbi::Ui::applyTheme(Kbi::Ui::Theme::Dark);
 

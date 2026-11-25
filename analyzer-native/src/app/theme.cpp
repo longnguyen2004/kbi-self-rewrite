@@ -36,6 +36,9 @@ void applyTheme(Theme theme)
     style.ScrollbarRounding = 4.0f;
     style.WindowPadding = ImVec2(8.0f, 8.0f);
     style.ItemSpacing = ImVec2(8.0f, 6.0f);
+    // Slightly see-through windows, so the dialogs read as overlays over the
+    // analysis behind them. Applied after the preset colors for both themes.
+    style.Colors[ImGuiCol_WindowBg].w = 0.75f;
 
     ImPlotStyle& plotStyle = ImPlot::GetStyle();
     plotStyle.PlotPadding = ImVec2(6.0f, 4.0f);

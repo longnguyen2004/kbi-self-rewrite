@@ -437,6 +437,9 @@ void App::draw()
     const ImGuiIO& io = ImGui::GetIO();
     ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
     ImGui::SetNextWindowSize(io.DisplaySize);
+    // The main window is the backdrop: keep it opaque, only the dialogs are
+    // see-through (the style sets a transparent window background).
+    ImGui::SetNextWindowBgAlpha(1.0f);
     ImGui::Begin("Keyboard Inspector", nullptr,
         ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
             | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar
