@@ -1,6 +1,7 @@
 #pragma once
 
 #include <core/result.h>
+#include <core/rolling_mean.h>
 
 #include <condition_variable>
 #include <cstdint>
@@ -76,6 +77,9 @@ public:
     [[nodiscard]] std::size_t eventCount() const { return m_eventCount; }
     [[nodiscard]] bool calculating() const;
 
+    // The weighted mean of the FFT computation times, in milliseconds.
+    [[nodiscard]] double averageFftTimeMs() const;
+
     // Stops the worker thread.
     void terminate();
 
@@ -110,6 +114,9 @@ private:
     std::vector<double> m_pendingAll;
     std::vector<double> m_pendingWrapped;
     std::shared_ptr<const FreqSnapshot> m_snapshot;
+    // FFT runtimes accumulated on the worker thread, read under m_mutex from
+    // the UI.
+    RollingMean m_fftTime;
 };
 
 } // namespace Kbi

@@ -274,7 +274,8 @@ void App::drawHeader()
     if (ImGui::Button(Ui::themeName(Ui::currentTheme()).data()))
         Ui::toggleTheme();
     ImGui::SameLine();
-    ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
+    if (ImGui::Button("Perfs"))
+        m_showPerfs = true;
 
     ImGui::EndTable();
 }
@@ -422,8 +423,31 @@ void App::drawStatsWindow()
     ImGui::End();
 }
 
+void App::drawPerfsWindow()
+{
+    ImGui::SetNextWindowSize(ImVec2(320.0f, 0.0f), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin("Perfs", &m_showPerfs, ImGuiWindowFlags_NoCollapse))
+        return;
+
+    if (!m_frameTime.empty()) {
+        const double averageFrameTime = m_frameTime.mean();
+        ImGui::Text("Average frametime: %.3f ms", averageFrameTime * 1000.0);
+        ImGui::Text("Framerate: %.1f FPS", 1.0 / averageFrameTime);
+    } else {
+        ImGui::TextDisabled("No frametime samples yet");
+    }
+    ImGui::Text("Average FFT time: %.3f ms", m_analyzer.averageFftTimeMs());
+
+    ImGui::End();
+}
+
 void App::draw()
 {
+    // ImGui reports the time since the previous frame in seconds. Ignore a
+    // zero delta (the first frame) so it cannot skew the framerate.
+    if (const double delta = static_cast<double>(ImGui::GetIO().DeltaTime); delta > 0.0)
+        m_frameTime.add(delta);
+
 #if !defined(__EMSCRIPTEN__)
     if (m_mode == Mode::Recording) {
         m_recorder.drain(m_result, m_analyzer, m_timeline);
@@ -491,6 +515,8 @@ void App::draw()
         m_logWindow.draw(m_showLogs, *m_logStore);
     if (m_showStats)
         drawStatsWindow();
+    if (m_showPerfs)
+        drawPerfsWindow();
 }
 
 } // namespace Kbi::App

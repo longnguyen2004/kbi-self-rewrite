@@ -15,6 +15,8 @@
 #include <ui/log_window.h>
 #include <ui/timeline_chart.h>
 
+#include <core/rolling_mean.h>
+
 #include <spdlog/fwd.h>
 
 #include <array>
@@ -57,6 +59,7 @@ private:
     void drawCharts();
     void drawStatus();
     void drawStatsWindow();
+    void drawPerfsWindow();
 
     void setMode(Mode mode);
     void openFile(const std::string& path);
@@ -81,11 +84,15 @@ private:
     bool m_showInfo = false;
     bool m_showLogs = false;
     bool m_showStats = false;
+    bool m_showPerfs = false;
     std::shared_ptr<Ui::LogStore> m_logStore;
     Ui::LogWindow m_logWindow;
     Ui::InfoWindow m_infoWindow;
     std::string m_status;
     std::string m_lastPath;
+
+    // Frame durations for the performance window.
+    RollingMean m_frameTime;
 
     PostprocessOptions m_postprocess;
     // The postprocessed spectra of the three frequency charts, their storage

@@ -94,6 +94,7 @@
     {
       "name": "wil",
       "platform": "windows"
-    }
+    },
+    "boost-accumulators"
   ]
 }

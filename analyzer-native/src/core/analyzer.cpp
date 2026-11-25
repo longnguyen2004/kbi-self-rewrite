@@ -3,6 +3,7 @@
 #include <core/fft.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <utility>
 
@@ -104,6 +105,7 @@ void Analyzer::reset()
     m_pendingAll.clear();
     m_pendingWrapped.clear();
     m_snapshot.reset();
+    m_fftTime.reset();
 }
 
 void Analyzer::setBinRate(int binRate)
@@ -211,6 +213,14 @@ bool Analyzer::calculating() const
     return m_dirty || m_calculating;
 }
 
+double Analyzer::averageFftTimeMs() const
+{
+    std::scoped_lock lock(m_mutex);
+    if (m_fftTime.empty())
+        return 0.0;
+    return m_fftTime.mean();
+}
+
 void Analyzer::recompute()
 {
     std::vector<double> consecutive;
@@ -230,8 +240,11 @@ void Analyzer::recompute()
         m_calculating = true;
     }
 
+    const auto start = std::chrono::steady_clock::now();
     const auto snapshot
         = std::make_shared<FreqSnapshot>(computeSnapshot(consecutive, all, wrapped));
+    const auto end = std::chrono::steady_clock::now();
+    const double elapsedMs = std::chrono::duration<double, std::milli>(end - start).count();
 
     {
         std::scoped_lock lock(m_mutex);
@@ -240,6 +253,7 @@ void Analyzer::recompute()
         if (generation == m_generation)
             m_snapshot = snapshot;
         m_calculating = false;
+        m_fftTime.add(elapsedMs);
     }
 }
 
