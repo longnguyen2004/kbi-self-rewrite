@@ -37,6 +37,7 @@ jobs:
         # configure below. vcpkg's `wayland` port is empty, so the Wayland
         # libraries and the wayland-scanner tool come from the system.
         run: |
+          sudo apt install -y autoconf autoconf-archive automake libtool pkg-config
           sudo apt install -y \
             pkg-config \
             xorg-dev \
