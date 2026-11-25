@@ -56,6 +56,7 @@ private:
     void drawOptions();
     void drawCharts();
     void drawStatus();
+    void drawStatsWindow();
 
     void setMode(Mode mode);
     void openFile(const std::string& path);
@@ -79,6 +80,7 @@ private:
 
     bool m_showInfo = false;
     bool m_showLogs = false;
+    bool m_showStats = false;
     std::shared_ptr<Ui::LogStore> m_logStore;
     Ui::LogWindow m_logWindow;
     Ui::InfoWindow m_infoWindow;

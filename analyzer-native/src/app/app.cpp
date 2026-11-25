@@ -325,12 +325,13 @@ void App::drawOptions()
     ImGui::TableNextColumn();
     const ImVec4 color = eventCountColor(static_cast<double>(m_analyzer.eventCount()));
     ImGui::TextColored(color, "%zu input events", m_analyzer.eventCount());
+    ImGui::SameLine();
+    if (ImGui::Button("More"))
+        m_showStats = true;
     if (m_analyzer.calculating())
         ImGui::SameLine();
     if (m_analyzer.calculating())
         ImGui::TextColored(ImVec4(0.6f, 0.7f, 1.0f, 1.0f), "calculating...");
-
-    drawShortestDurations(m_timeline, m_analyzer);
 
     ImGui::EndTable();
 }
@@ -410,6 +411,17 @@ void App::drawStatus()
     ImGui::TextDisabled("%s", m_status.c_str());
 }
 
+void App::drawStatsWindow()
+{
+    ImGui::SetNextWindowSize(ImVec2(320.0f, 0.0f), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin("Statistics", &m_showStats, ImGuiWindowFlags_NoCollapse))
+        return;
+
+    drawShortestDurations(m_timeline, m_analyzer);
+
+    ImGui::End();
+}
+
 void App::draw()
 {
 #if !defined(__EMSCRIPTEN__)
@@ -474,6 +486,8 @@ void App::draw()
         m_infoWindow.draw(m_showInfo, m_result);
     if (m_showLogs && m_logStore)
         m_logWindow.draw(m_showLogs, *m_logStore);
+    if (m_showStats)
+        drawStatsWindow();
 }
 
 } // namespace Kbi::App
