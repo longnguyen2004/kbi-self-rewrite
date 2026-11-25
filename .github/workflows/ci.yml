@@ -19,8 +19,9 @@ jobs:
             configureFlags: >-
               -D CMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++"
           - os: windows-latest
-            preset: vcpkg - VS 2026
-            # Static libraries with the dynamic MSVC runtime.
+            preset: vcpkg - Ninja - Release
+            # Static libraries with the dynamic MSVC runtime. The preset sets
+            # CMAKE_BUILD_TYPE=Release, so Ninja builds the Release variant.
             configureFlags: -D VCPKG_TARGET_TRIPLET=x64-windows-static-md
 
     runs-on: ${{ matrix.os }}
@@ -67,6 +68,12 @@ jobs:
       - name: Install vcpkg
         uses: lukka/run-vcpkg@v11
 
+      - name: Set up MSVC environment
+        if: runner.os == 'Windows'
+        # Ninja needs cl.exe and the Visual Studio include/library paths in
+        # the environment; the Visual Studio generator set these up itself.
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: Cache vcpkg archives
         uses: actions/cache@v4
         with:
@@ -89,14 +96,14 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: analyzer-native-linux
-          path: build/analyzer-native
+          path: build/analyzer-native/analyzer-native
 
       - name: Upload analyzer-native (Windows)
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v7
         with:
           name: analyzer-native-windows
-          path: build/Release/analyzer-native.exe
+          path: build/analyzer-native.exe
 
   analyzer-web:
     runs-on: ubuntu-22.04
