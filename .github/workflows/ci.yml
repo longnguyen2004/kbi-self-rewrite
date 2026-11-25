@@ -46,23 +46,17 @@ jobs:
 
       - name: Install dependencies
         if: runner.os == 'Linux'
-        # Some vcpkg ports build with the autotools, and GLFW needs the X11
-        # development packages and an OpenGL implementation for its windowing
-        # and rendering backends.
+        # Some vcpkg ports build with the autotools. GLFW needs the X11
+        # development packages (the `xorg-dev` meta-package pulls in all of
+        # them) and an OpenGL implementation for its windowing and rendering
+        # backends. vcpkg's `wayland` port is empty: the Wayland libraries and
+        # the wayland-scanner tool have to come from the system.
         run: |
           sudo apt install autoconf autoconf-archive automake libtool pkg-config
           sudo apt install \
-            libx11-dev \
-            libxext-dev \
-            libxrender-dev \
-            libxrandr-dev \
-            libxcursor-dev \
-            libxfixes-dev \
-            libxi-dev \
-            libxinerama-dev \
-            libxss-dev \
-            libxtst-dev \
+            xorg-dev \
             libxkbcommon-dev \
+            libwayland-dev \
             libgl1-mesa-dev \
             libglu1-mesa-dev \
             libegl1-mesa-dev

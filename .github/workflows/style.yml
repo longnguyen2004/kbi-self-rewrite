@@ -32,6 +32,20 @@ jobs:
           clang-format-${LLVM_VERSION} --version
           clang-tidy-${LLVM_VERSION} --version
 
+      - name: Install GLFW system dependencies
+        # glfw3 is built with its X11 and Wayland features during the CMake
+        # configure below. vcpkg's `wayland` port is empty, so the Wayland
+        # libraries and the wayland-scanner tool come from the system.
+        run: |
+          sudo apt install -y \
+            pkg-config \
+            xorg-dev \
+            libxkbcommon-dev \
+            libwayland-dev \
+            libgl1-mesa-dev \
+            libglu1-mesa-dev \
+            libegl1-mesa-dev
+
       - name: Install CMake
         uses: lukka/get-cmake@latest
 
