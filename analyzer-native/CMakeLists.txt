@@ -211,7 +211,20 @@ if (NOT EMSCRIPTEN)
     enable_testing()
 
     add_executable(analyzer-native-tests
-        tests/tests.cpp
+        tests/main.cpp
+        tests/analyzer/analyzer.cpp
+        tests/chart_interaction/chart_interaction.cpp
+        tests/datetime/datetime.cpp
+        tests/decimate/decimate.cpp
+        tests/fft/fft.cpp
+        tests/log_store/log_store.cpp
+        tests/parser/parser.cpp
+        tests/point_snapper/point_snapper.cpp
+        tests/postprocess/postprocess.cpp
+        tests/result/result.cpp
+        tests/rolling_mean/rolling_mean.cpp
+        tests/timeline/timeline.cpp
+        tests/usb_descriptors/usb_descriptors.cpp
 
         src/core/analyzer.cpp
         src/core/decimate.cpp
@@ -227,7 +240,7 @@ if (NOT EMSCRIPTEN)
         src/ui/charts_common.cpp
         src/ui/log_store.h
     )
-    target_include_directories(analyzer-native-tests PRIVATE src)
+    target_include_directories(analyzer-native-tests PRIVATE src ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(analyzer-native-tests PRIVATE
         recorder-lib
         Boost::json
