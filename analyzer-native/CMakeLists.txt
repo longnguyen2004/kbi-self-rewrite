@@ -209,23 +209,11 @@ endif()
 
 if (NOT EMSCRIPTEN)
     enable_testing()
+    find_package(ut CONFIG REQUIRED)
 
-    add_executable(analyzer-native-tests
-        tests/main.cpp
-        tests/analyzer/analyzer.cpp
-        tests/chart_interaction/chart_interaction.cpp
-        tests/datetime/datetime.cpp
-        tests/decimate/decimate.cpp
-        tests/fft/fft.cpp
-        tests/log_store/log_store.cpp
-        tests/parser/parser.cpp
-        tests/point_snapper/point_snapper.cpp
-        tests/postprocess/postprocess.cpp
-        tests/result/result.cpp
-        tests/rolling_mean/rolling_mean.cpp
-        tests/timeline/timeline.cpp
-        tests/usb_descriptors/usb_descriptors.cpp
-
+    # Every test is its own executable, so a failing or crashing test cannot
+    # take down the others. The sources under test are shared between them.
+    set(TEST_SUPPORT_SOURCES
         src/core/analyzer.cpp
         src/core/decimate.cpp
         src/core/fft.cpp
@@ -238,10 +226,52 @@ if (NOT EMSCRIPTEN)
         src/parser/parser_kbi_legacy.cpp
         src/parser/usb_descriptors.cpp
         src/ui/charts_common.cpp
-        src/ui/log_store.h
     )
-    target_include_directories(analyzer-native-tests PRIVATE src ${CMAKE_CURRENT_SOURCE_DIR})
-    target_link_libraries(analyzer-native-tests PRIVATE
+
+    function(add_component_test name)
+        add_executable(${name}-tests tests/${name}/${name}.cpp ${TEST_SUPPORT_SOURCES})
+        target_include_directories(${name}-tests PRIVATE src)
+        target_compile_definitions(${name}-tests PRIVATE
+            KBI_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/data")
+        target_link_libraries(${name}-tests PRIVATE
+            Boost::ut
+            recorder-lib
+            Boost::json
+            pffft::pffft
+            simdutf::simdutf
+            imgui::imgui
+            implot::implot
+        )
+        if (UNIX AND NOT APPLE)
+            find_package(Threads REQUIRED)
+            target_link_libraries(${name}-tests PRIVATE Threads::Threads)
+        endif()
+        add_test(NAME ${name}-tests COMMAND ${name}-tests)
+    endfunction()
+
+    foreach(name IN ITEMS
+        analyzer
+        chart_interaction
+        datetime
+        decimate
+        fft
+        log_store
+        parser
+        point_snapper
+        postprocess
+        result
+        rolling_mean
+        timeline
+        usb_descriptors
+    )
+        add_component_test(${name})
+    endforeach()
+
+    # The reference-analysis dump is a tool, not a test: it produces data for
+    # tests/reference_analyzer.py to compare against.
+    add_executable(analyzer-native-dump tests/dump/dump.cpp ${TEST_SUPPORT_SOURCES})
+    target_include_directories(analyzer-native-dump PRIVATE src)
+    target_link_libraries(analyzer-native-dump PRIVATE
         recorder-lib
         Boost::json
         pffft::pffft
@@ -251,11 +281,6 @@ if (NOT EMSCRIPTEN)
     )
     if (UNIX AND NOT APPLE)
         find_package(Threads REQUIRED)
-        target_link_libraries(analyzer-native-tests PRIVATE Threads::Threads)
+        target_link_libraries(analyzer-native-dump PRIVATE Threads::Threads)
     endif()
-
-    add_test(NAME analyzer-native-tests
-             COMMAND analyzer-native-tests
-                     ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/test_recording.json
-                     ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/test_recording_legacy.kbi)
 endif()

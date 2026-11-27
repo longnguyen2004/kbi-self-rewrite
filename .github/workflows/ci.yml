@@ -86,7 +86,7 @@ jobs:
         run: cmake --preset "${{ matrix.preset }}" ${{ matrix.configureFlags }}
 
       - name: Build
-        run: cmake --build build --target analyzer-native analyzer-native-tests
+        run: cmake --build build
 
       - name: Test
         run: ctest --test-dir build -C Release --output-on-failure

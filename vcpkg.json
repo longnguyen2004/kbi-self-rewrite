@@ -4,6 +4,8 @@
   "builtin-baseline": "bdadb1e1a5feceeaf1040dbdd5180dce2ecad61d",
   "dependencies": [
     "bext-di",
+    "bext-ut",
+    "boost-accumulators",
     {
       "name": "boost-algorithm",
       "platform": "!emscripten"
@@ -94,7 +96,6 @@
     {
       "name": "wil",
       "platform": "windows"
-    },
-    "boost-accumulators"
+    }
   ]
 }

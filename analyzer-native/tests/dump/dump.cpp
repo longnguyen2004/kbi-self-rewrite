@@ -1,18 +1,16 @@
-#include <algorithm>
-#include <chrono>
 #include <core/analyzer.h>
 #include <core/result.h>
+#include <parser/parser.h>
+
+#include <algorithm>
+#include <chrono>
 #include <cstdio>
 #include <fstream>
 #include <memory>
-#include <parser/parser.h>
 #include <print>
 #include <string>
-#include <tests/tests.h>
 #include <thread>
 #include <vector>
-
-namespace {
 
 // Dumps the analysis of a recording so it can be compared against a reference
 // implementation of the web analyzer.
@@ -68,35 +66,10 @@ int dumpAnalysis(const std::string& path, const std::string& outputPath)
     return 0;
 }
 
-} // namespace
-
 int main(int argc, char** argv)
 {
     if (argc > 3 && std::string(argv[1]) == "--dump")
         return dumpAnalysis(argv[2], argv[3]);
-
-    Kbi::Tests::testFft();
-    Kbi::Tests::testAnalyzer();
-    Kbi::Tests::testRollingMean();
-    Kbi::Tests::testDecimate();
-    Kbi::Tests::testPostprocess();
-    Kbi::Tests::testTimeline();
-    Kbi::Tests::testBase64();
-    Kbi::Tests::testDatetime();
-    Kbi::Tests::testLogStore();
-    Kbi::Tests::testResultDevices();
-    Kbi::Tests::testUsbPollingRate();
-    Kbi::Tests::testChartInteraction();
-    Kbi::Tests::testPointSnapper();
-    if (argc > 1)
-        Kbi::Tests::testParser(argv[1]);
-    if (argc > 2)
-        Kbi::Tests::testLegacyParser(argv[2]);
-
-    if (Kbi::Tests::failures() == 0) {
-        std::println("\nAll tests passed.");
-        return 0;
-    }
-    std::println("\n{} test(s) failed.", Kbi::Tests::failures());
+    std::println(stderr, "Usage: analyzer-native-dump --dump <recording> <output>");
     return 1;
 }
