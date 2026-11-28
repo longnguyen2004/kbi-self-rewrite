@@ -300,6 +300,11 @@ int main(int argc, char** argv)
     // swallows browser shortcuts such as Ctrl+Shift+I and F11. Let every key
     // bubble up; the events still reach GLFW and ImGui normally.
     emscripten::glfw3::SetBrowserKeyCallback([](GLFWwindow*, int, int, int, int) { return true; });
+    // Feed wheel input to ImGui directly: with the contrib GLFW port the
+    // backend's own scroll callback does not deliver zoom in this build.
+    glfwSetScrollCallback(session->window, [](GLFWwindow*, double x, double y) {
+        ImGui::GetIO().AddMouseWheelEvent(static_cast<float>(x), static_cast<float>(y));
+    });
 #endif
     ImGui_ImplOpenGL3_Init(kGlslVersion);
 
