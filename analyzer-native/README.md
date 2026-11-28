@@ -110,7 +110,9 @@ scale reported by GLFW to rasterize the bundled Roboto Mono font at the native
 resolution, so text stays sharp at fractional scaling while widgets keep the
 same logical size as in the desktop build. Both builds use the bundled Roboto
 Mono (`src/font`), embedded into the executable with cmrc (the `cmakerc` vcpkg
-port) instead of ImGui's built-in bitmap font.
+port) instead of ImGui's built-in bitmap font. Keyboard events are allowed to
+bubble to the browser, so shortcuts such as Ctrl+Shift+I and F11 keep working
+while the events still reach ImGui.
 The FFT is computed on the same worker thread as in the native build. Because
 `-pthread` switches the wasm module to shared memory, the dependencies are
 built with `-pthread` too. The overlay triplet at

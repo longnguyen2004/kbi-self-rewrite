@@ -31,12 +31,8 @@ CMRC_DECLARE(Kbi);
 #include <boost/di.hpp>
 
 #if defined(__EMSCRIPTEN__)
+#include <GLFW/emscripten_glfw3.h>
 #include <emscripten/emscripten.h>
-
-// From the contrib GLFW port. Declared here because its C++ header needs
-// C++17 while ImGui is built as C++11 by vcpkg.
-extern "C" int emscripten_glfw_make_canvas_resizable(
-    GLFWwindow* window, const char* canvasResizeSelector, const char* handleSelector);
 #else
 #include <boost/program_options.hpp>
 #endif
@@ -300,6 +296,10 @@ int main(int argc, char** argv)
     // window size directly.
     if (emscripten_glfw_make_canvas_resizable(session->window, "window", nullptr) != 0)
         std::println(stderr, "Failed to make the canvas resizable");
+    // By default the port calls preventDefault() on every key event, which
+    // swallows browser shortcuts such as Ctrl+Shift+I and F11. Let every key
+    // bubble up; the events still reach GLFW and ImGui normally.
+    emscripten::glfw3::SetBrowserKeyCallback([](GLFWwindow*, int, int, int, int) { return true; });
 #endif
     ImGui_ImplOpenGL3_Init(kGlslVersion);
 
