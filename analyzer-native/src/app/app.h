@@ -48,6 +48,8 @@ public:
     // Starts and stops the embedded recorder.
     bool startRecording();
     void stopRecording();
+    // Saves the stopped recording in both the JSON and legacy .kbi formats.
+    void saveRecording();
 #endif
 
     // Shows or hides the info window.

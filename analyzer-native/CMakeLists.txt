@@ -76,7 +76,10 @@ set(ANALYZER_SOURCES
 )
 
 if (NOT EMSCRIPTEN)
-    list(APPEND ANALYZER_SOURCES src/recorder/recorder_source.cpp)
+    list(APPEND ANALYZER_SOURCES
+        src/app/save_recording.cpp
+        src/recorder/recorder_source.cpp
+    )
 endif()
 
 add_executable(analyzer-native ${ANALYZER_SOURCES})

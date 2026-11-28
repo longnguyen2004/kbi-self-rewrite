@@ -18,6 +18,9 @@ add_library(recorder-lib STATIC
     src/core/datetime.cpp
     src/core/keycode/keycode_to_string.cpp
     src/core/system_info.cpp
+    src/exporter/exporter_mat_kbi.cpp
+    src/serializer/serializer.cpp
+    src/serializer/serializer_json.cpp
 )
 
 find_package(boost_container CONFIG REQUIRED)
@@ -36,8 +39,9 @@ find_package(spdlog CONFIG REQUIRED)
 find_package(simdutf CONFIG REQUIRED)
 
 target_link_libraries(recorder-lib
-    PUBLIC Boost::signals2 Boost::unordered spdlog::spdlog
-    PRIVATE Boost::container Boost::iterator simdutf::simdutf
+    PUBLIC Boost::json Boost::signals2 Boost::unordered spdlog::spdlog
+    PRIVATE Boost::container Boost::endian Boost::iostreams Boost::iterator
+        Boost::preprocessor simdutf::simdutf
 )
 
 if (WIN32)
@@ -83,16 +87,10 @@ add_executable(recorder-app
     src/controller/controller_console.cpp
     src/controller/controller_websocket.cpp
     src/controller/controller_neutralino.cpp
-    src/exporter/exporter.h
-    src/exporter/exporter_mat_kbi.cpp
-    src/serializer/serializer.cpp
-    src/serializer/serializer_json.cpp
     src/main.cpp
 )
 target_link_libraries(recorder-app PRIVATE recorder-lib)
 target_link_libraries(recorder-app PRIVATE
-    Boost::endian
-    Boost::iostreams
     Boost::json
     Boost::preprocessor
     Boost::program_options

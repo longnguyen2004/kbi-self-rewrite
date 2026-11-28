@@ -16,6 +16,8 @@
 
 namespace Kbi {
 
+class Recorder;
+
 // Wraps the recorder library, which is linked into the app instead of being
 // spawned as an external process.
 //
@@ -38,6 +40,11 @@ public:
 
     [[nodiscard]] bool recording() const;
     [[nodiscard]] std::string_view backendName() const;
+
+    // The recorder that owns the captured data. It stays alive after stop()
+    // so that a finished recording can still be saved. Null before the first
+    // successful start().
+    [[nodiscard]] const Recorder* recorder() const;
 
     // The information about the machine, it comes from the recorder.
     [[nodiscard]] const SystemInfo& systemInfo() const;

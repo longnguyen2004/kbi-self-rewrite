@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../serializer/serializer.h"
 #include <recorder.h>
 #include <atomic>
 #include <boost/json.hpp>
@@ -9,6 +8,7 @@
 #include <ixwebsocket/IXWebSocket.h>
 #include <ixwebsocket/IXWebSocketServer.h>
 #include <mutex>
+#include <serializer.h>
 #include <spdlog/spdlog.h>
 #include <string>
 #include <string_view>

@@ -100,10 +100,13 @@ void RecorderSource::stop()
     m_impl->usbConnection.disconnect();
     m_impl->deviceConnection.disconnect();
     m_impl->inputConnection.disconnect();
-    m_impl->recorder.reset();
+    // Keep the recorder and its data around: the app can still save the
+    // recording after it was stopped. A new start() replaces it.
 }
 
 bool RecorderSource::recording() const { return m_impl->recorder && m_impl->recorder->recording(); }
+
+const Recorder* RecorderSource::recorder() const { return m_impl->recorder.get(); }
 
 const SystemInfo& RecorderSource::systemInfo() const
 {

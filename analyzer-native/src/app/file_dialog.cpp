@@ -8,6 +8,7 @@
 #include <tinyfiledialogs/tinyfiledialogs.h>
 
 #include <array>
+#include <filesystem>
 #include <optional>
 #include <string>
 #endif
@@ -48,5 +49,23 @@ std::optional<std::string> openRecordingDialog(const std::string& startDirectory
     return std::string(selected);
 #endif
 }
+
+#if !defined(__EMSCRIPTEN__)
+std::optional<std::string> saveRecordingDialog(const std::string& startDirectory)
+{
+    static constexpr std::array<const char*, 2> patterns = { "*.json", "*.kbi" };
+
+    // A save dialog expects a file name, not just a directory.
+    const std::string defaultPath
+        = (std::filesystem::path(startDirectory) / "recording.json").string();
+
+    const char* selected = tinyfd_saveFileDialog("Save recording", defaultPath.c_str(),
+        static_cast<int>(patterns.size()), patterns.data(), "recording files");
+    if ((selected == nullptr) || ((*selected) == 0))
+        return std::nullopt;
+
+    return std::string(selected);
+}
+#endif
 
 } // namespace Kbi::App

@@ -1,5 +1,6 @@
 #include <app/app.h>
 
+#include <app/save_recording.h>
 #include <app/theme.h>
 #include <core/format.h>
 #include <parser/parser.h>
@@ -201,6 +202,30 @@ void App::stopRecording()
     m_status = "Recording stopped";
     m_logger->info("Recording stopped, {} events captured", m_result.totalInputCount());
     m_mode = Mode::FromRecorder;
+}
+
+void App::saveRecording()
+{
+    const auto path = saveRecordingDialog(startDirectory());
+    if (!path)
+        return;
+
+    const Recorder* recorder = m_recorder.recorder();
+    if (recorder == nullptr) {
+        m_status = "No recording to save";
+        m_logger->error("No recording to save");
+        return;
+    }
+
+    if (const auto error = saveRecordingToFile(*recorder, *path)) {
+        m_status = *error;
+        m_logger->error("{}", *error);
+        return;
+    }
+
+    m_lastPath = *path;
+    m_status = std::format("Saved {} (JSON and .kbi)", *path);
+    m_logger->info("{}", m_status);
 }
 #endif
 
@@ -491,6 +516,13 @@ void App::draw()
     case Mode::FromRecorder:
         if (ImGui::Button("Start recording"))
             startRecording();
+        // Only a stopped recording has stable data to serialize; the
+        // recorder's maps are still being written to while it runs.
+        if (m_hasResult) {
+            ImGui::SameLine();
+            if (ImGui::Button("Save recording..."))
+                saveRecording();
+        }
         break;
     case Mode::Recording:
         if (ImGui::Button("Stop recording"))

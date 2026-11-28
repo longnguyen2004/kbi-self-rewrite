@@ -15,6 +15,9 @@ analyses recordings that were captured elsewhere.
   file picker instead.
 * Records live through the embedded `recorder-lib` (evdev on Linux, GameInput
   or RawInput on Windows). This is only available in the native build.
+* Saves a stopped recording with the native file dialog, writing both the
+  recorder-compatible JSON and the legacy binary `.kbi` (native build only).
+  The two files get the chosen name with their respective extension.
 * The same seven charts as the web app, drawn with ImPlot:
   * three time domain histograms of the timestamp differences,
   * three FFT magnitude charts of those histograms,

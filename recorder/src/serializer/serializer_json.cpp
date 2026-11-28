@@ -1,4 +1,3 @@
-#include "serializer.h"
 #include <datetime.h>
 #include <system_info.h>
 #include <array>
@@ -9,6 +8,7 @@
 #include <boost/unordered/concurrent_flat_map.hpp>
 #include <concepts>
 #include <iterator>
+#include <serializer.h>
 #include <simdutf.h>
 #include <string>
 #include <type_traits>
